@@ -23,6 +23,7 @@ if (session_status() === PHP_SESSION_NONE) {
                 <li><a href="reports.php">Reports</a></li>
                 <li><a href="charts.php">Charts</a></li>
                 <li><a href="logout.php">Logout</a></li>
+                 <li><a href="Aboutus.php">Aboutus</a></li>
             </ul>
         </nav>
     </header>
