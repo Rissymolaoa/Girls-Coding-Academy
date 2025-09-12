@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Girls Coding Academy - Registration</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #7b2cbf;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+    }
+    header nav a {
+      color: #fff;
+      margin: 0 15px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #5a189a;
+      text-align: center;
+      margin-bottom: 20px;
+      margin-top: 0px;
+
+    }
+    h3 {
+      color: #189a64;
+      text-align: center;
+    }
+    form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    label {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    input, select {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 100%;
+    }
+    .full-width {
+      grid-column: span 2;
+    }
+    button {
+      background: #5a189a;
+      color: #fff;
+      border: none;
+      padding: 12px;
+      margin-left: 300px;
+      margin-right: 300px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      grid-column: span 2;
+    }
+    footer {
+      background: #7b2cbf;
+      color: #fff;
+      text-align: center;
+      padding: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="#">Home</a>
+      <a href="#">Contact</a>
+      <a href="#">About Us</a>
+      <a href="login.html">Login</a>
+      <a href="#">Connect</a>
+      <a href="#">Explore</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h2>Register</h2>
+    <form action="registration.php" method="POST" enctype="multipart/form-data">
+      <!-- User Info -->
+      <div>
+        <label>First Name</label>
+        <input type="text" name="firstName" required>
+      </div>
+      <div>
+        <label>Last Name</label>
+        <input type="text" name="lastName" required>
+      </div>
+      <div>
+        <label>Email</label>
+        <input type="email" name="email" required>
+      </div>
+      <div>
+        <label>Password</label>
+        <input type="password" name="password" required>
+      </div>
+      <div>
+        <label>Gender</label>
+        <select name="gender" required>
+          <option value="">Select Gender</option>
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+          <option value="Others">Otheres</option>
+        </select>
+      </div>
+      <div>
+        <label>ID Number</label>
+        <input type="text" name="IDNumber" required>
+      </div>
+      <div>
+        <label>Phone</label>
+        <input type="text" name="phone" required>
+      </div>
+      <div>
+        <label>Username</label>
+        <input type="text" name="username" required>
+      </div>
+<div>
+  <label>Role</label>
+  <select name="role" id="roleSelect" required>
+    <option value="">Select Role</option>
+    <option value="student">Student</option>
+    <option value="teacher">Teacher</option>
+  </select>
+</div>
+      <div>
+        <label>Upload Transcript Document</label>
+        <input type="file" name="document" required>
+      </div>
+      <div id="subjectSpecialityDiv" style="display:none;">
+  <label>Subject Speciality</label>
+  <input type="text" name="subject_speciality" placeholder="Enter your subject speciality">
+</div>
+
+      <!-- Address Info -->
+      <div class="full-width"><h2>Address</h2></div>
+      <div>
+        <label>Address 1</label>
+        <input type="text" name="address1" required>
+      </div>
+      <div>
+        <label>Street Name</label>
+        <input type="text" name="streetName" required>
+      </div>
+      <div>
+        <label>Postal Code</label>
+        <input type="text" name="postalCode" required>
+      </div>
+      <div>
+        <label>District</label>
+        <input type="text" name="district" required>
+      </div>
+      <div>
+        <label>Country</label>
+        <input type="text" name="country" required>
+      </div>
+
+      <button type="submit" name="register">Register</button>
+    </form>
+  </div>
+
+<script>
+  const roleSelect = document.getElementById('roleSelect');
+  const subjectDiv = document.getElementById('subjectSpecialityDiv');
+
+  roleSelect.addEventListener('change', function() {
+    if (this.value === 'teacher') {
+      subjectDiv.style.display = 'block';
+    } else {
+      subjectDiv.style.display = 'none';
+    }
+  });
+</script>
+
+  <footer>
+    <p>&copy; 2025 Girls Coding Academy. All rights reserved.</p>
+  </footer>
+</body>
+</html>

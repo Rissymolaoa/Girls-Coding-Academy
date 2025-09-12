@@ -1,0 +1,41 @@
+body, html, * {
+    font-family: 'Roboto', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 500;
+}
+
+/* Paragraphs and text */
+p, span, a, li, label {
+    font-weight: 400;
+}
+
+/* Tables */
+table {
+    font-family: 'Roboto', Arial, sans-serif;
+    border-collapse: collapse;
+}
+th, td {
+    font-family: 'Roboto', Arial, sans-serif;
+}
+
+/* Forms */
+input, select, textarea, button {
+    font-family: 'Roboto', Arial, sans-serif;
+}
+
+/* Buttons */
+button {
+    cursor: pointer;
+}
+
+/* Optional: apply smooth font rendering for better look */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
