@@ -1,4 +1,7 @@
 {
+    "name": "rissymolaoa/girls-coding-academy",
+    "description": "A school management system for managing students, courses, and teachers",
+    "license": "proprietary",
     "require": {
         "phpmailer/phpmailer": "^6.10"
     }
