@@ -113,7 +113,6 @@ header h1 { font-weight:600; font-size:24px; }
 
 .sidebar { width:220px; background:#34495e; padding:20px; display:flex; flex-direction:column; align-items:center;}
 .sidebar img { width:100px; height:100px; border-radius:50%; margin-bottom:15px; border:3px solid #7b2cbf; object-fit:cover; }
-/*.sidebar h3 { color:white; margin-bottom:20px; text-align:center; font-size:16px; } */
 
 .sidebar h3{font-size:13px;margin:0 0 12px;color:white}
 

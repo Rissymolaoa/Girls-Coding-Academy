@@ -171,7 +171,7 @@ $upcoming = [
       <a href="#">📢 Announcements</a>
       <a href="#">📅 My Calendar</a>
       <a href="enroll.php">📅 Enroll</a>
-      <a href="#">👤 My Profile</a>
+      <a href="student_profile.php">👤 My Profile</a>
       <a href="logout.php">🚪 Logout</a>
     </div>
 
@@ -210,7 +210,6 @@ $upcoming = [
         </ul>
       </div>
 
-      <a class="btn-logout" href="logout.php">Logout</a>
     </div>
   </div>
 

@@ -8,9 +8,21 @@ if(!isset($_SESSION['user_id'])){
 
 include("db.php");
 
-$student_id = $_SESSION['user_id']; // using user_id directly, adjust if you have student_id table
+// First, get the student_id corresponding to the logged-in user
+$user_id = $_SESSION['user_id'];
+$studentQuery = $conn->prepare("SELECT student_id FROM students WHERE user_id = ?");
+$studentQuery->bind_param("i", $user_id);
+$studentQuery->execute();
+$studentResult = $studentQuery->get_result();
 
-// Fetch enrolled courses via batches
+if($studentResult->num_rows === 0){
+    die("Student record not found.");
+}
+
+$studentRow = $studentResult->fetch_assoc();
+$student_id = $studentRow['student_id'];
+
+// Now fetch courses enrolled by this student
 $sql = "
 SELECT c.course_id, c.courseName, c.description, c.image_path,
        CONCAT(u.firstName, ' ', u.lastName) AS teacherName,
@@ -71,29 +83,36 @@ h2 { color:#5a189a; margin-bottom:20px; }
   <div class="sidebar">
     <img src="admin.jpg" alt="Student Picture" class="admin-pic">
     <h3>Navigation</h3>
-    <a href="student.php">🏠 Home</a>
-    <a href="student_courses.php" class="active">📚 My Courses</a>
-    <a href="logout.php">🚪 Logout</a>
+      <a href="student.php">🏠 Home</a>
+      <a href="student_courses.php">📚 My Courses</a>
+      <a href="#">📢 Announcements</a>
+      <a href="#">📅 My Calendar</a>
+      <a href="enroll.php">📅 Enroll</a>
+      <a href="student_profile">👤 My Profile</a>
+      <a href="logout.php">🚪 Logout</a>
   </div>
 
   <div class="content">
     <h2>📚 My Courses</h2>
 
-    <div class="grid-view">
-      <?php if(empty($courses)): ?>
-        <p>No courses enrolled yet.</p>
-      <?php else: ?>
-        <?php foreach($courses as $course): ?>
-          <div class="course">
-            <img src="<?php echo $course['image_path']; ?>" alt="<?php echo $course['courseName']; ?>">
-            <h3><?php echo $course['courseName']; ?></h3>
-            <p>Teacher: <?php echo $course['teacherName']; ?></p>
-            <p>Batch: <?php echo $course['batchCode']; ?></p>
-            <p>Status: <?php echo $course['enrollment_status']; ?></p>
-          </div>
-        <?php endforeach; ?>
-      <?php endif; ?>
-    </div>
+<div class="grid-view">
+  <?php if(empty($courses)): ?>
+    <p>No courses enrolled yet.</p>
+  <?php else: ?>
+    <?php foreach($courses as $course): ?>
+      <a href="course_dashboard.php?course_id=<?php echo $course['course_id']; ?>&batch_id=<?php echo $course['batchCode']; ?>" style="text-decoration:none; color:inherit;">
+        <div class="course">
+          <img src="<?php echo $course['image_path']; ?>" alt="<?php echo $course['courseName']; ?>">
+          <h3><?php echo $course['courseName']; ?></h3>
+          <p>Teacher: <?php echo $course['teacherName']; ?></p>
+          <p>Batch: <?php echo $course['batchCode']; ?></p>
+          <p>Status: <?php echo $course['enrollment_status']; ?></p>
+        </div>
+      </a>
+    <?php endforeach; ?>
+  <?php endif; ?>
+</div>
+
   </div>
 </div>
 

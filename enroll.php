@@ -102,32 +102,12 @@ $batches = $conn->query("
     <div class="sidebar">
       <img src="admin.jpg" alt="Admin Picture" class="admin-pic">
       <h3>Navigation</h3>
-      <div class="dropdown">
-        <a href="#">📢 Academic Notifications</a>
-        <div class="dropdown-content">
-          <a href="#">Announcements</a>
-        </div>
-      </div>
-      <div class="dropdown">
-        <a href="#">💻 Virtual Classes</a>
-        <div class="dropdown-content">
-          <a href="#">Virtual Class</a>
-          <a href="#">Virtual Meeting</a>
-        </div>
-      </div>
-      <a href="#">📅 My Calendar</a>
-      <a href="#">👤 My Profile</a>
-      <a href="#">💬 Student Discussions</a>
-      <div class="dropdown">
-        <a href="#">✉ Send Emails</a>
-        <div class="dropdown-content">
-          <a href="#">Course Teacher</a>
-          <a href="#">System Help Desk</a>
-          <a href="enroll_batches.php" class="active">Enrollment</a>
-        </div>
-      </div>
-      <a href="#">📊 My Grades</a>
+            <a href="student.php">🏠 Home</a>
       <a href="student_courses.php">📚 My Courses</a>
+      <a href="#">📢 Announcements</a>
+      <a href="#">📅 My Calendar</a>
+      <a href="enroll.php">📅 Enroll</a>
+      <a href="student_profile.php">👤 My Profile</a>
       <a href="logout.php">🚪 Logout</a>
     </div>
 

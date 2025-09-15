@@ -8,15 +8,28 @@ include("db.php");
 
 // Get top 5 parents with their linked student name(s)
 $parents_sql = "
-    SELECT u.user_id, u.firstName, u.lastName, u.gender, u.phone, u.email, s.firstName AS studentName
+    SELECT 
+        u.user_id, 
+        u.firstName, 
+        u.lastName, 
+        u.gender, 
+        u.phone, 
+        u.email, 
+        su.firstName AS studentFirstName,
+        su.lastName  AS studentLastName,
+        st.photo     AS studentPhoto
     FROM users u
-    JOIN parents p ON p.user_id = u.user_id
-    LEFT JOIN parent_students ps ON ps.parent_id = u.user_id
-    LEFT JOIN users s ON ps.student_id = s.user_id
-    WHERE u.role='parent'
+    INNER JOIN parents p ON p.user_id = u.user_id
+    LEFT JOIN parent_students ps ON ps.parent_id = p.parent_id
+    LEFT JOIN students st ON ps.student_id = st.student_id
+    LEFT JOIN users su ON st.user_id = su.user_id
+    WHERE u.role = 'parent'
     ORDER BY u.created_at DESC
     LIMIT 5
 ";
+
+
+
 $parents = $conn->query($parents_sql);
 
 // Collect student images (for top 4 parents only)
@@ -64,6 +77,28 @@ th{background:var(--primary);color:#fff;}
 .summary{margin-top:20px;display:flex;gap:20px;}
 .card{flex:1;background:#fff;padding:15px;border-radius:8px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
 .card h3{margin-bottom:6px;color:var(--accent);}
+.student-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.student-card img {
+    width: 100px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50% / 40%; /* makes oval instead of circle */
+    border: 3px solid var(--primary);
+    margin-bottom: 6px;
+}
+
+.student-card p {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+}
+
 </style>
 </head>
 <body>
@@ -110,21 +145,25 @@ th{background:var(--primary);color:#fff;}
                             <td><?= htmlspecialchars($p['gender']) ?></td>
                             <td><?= htmlspecialchars($p['phone']) ?></td>
                             <td><?= htmlspecialchars($p['email']) ?></td>
-                            <td><?= htmlspecialchars($p['studentName']) ?></td>
+                            <td><?= htmlspecialchars($p['studentFirstName'] . ' ' . $p['studentLastName']) ?></td>
+
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
             <!-- Students Images -->
-            <div class="image-card">
-                <h3>Students</h3>
-                <div class="grid">
-                    <?php foreach ($students_images as $img): ?>
-                        <img src="<?= htmlspecialchars($img) ?>" alt="Student">
-                    <?php endforeach; ?>
-                </div>
+            <div class="grid">
+    <?php foreach ($parents_data as $p): ?>
+        <?php if (!empty($p['studentPhoto'])): ?>
+            <div class="student-card">
+                <img src="<?= htmlspecialchars($p['studentPhoto']) ?>" alt="Student">
+                <p><?= htmlspecialchars($p['studentFirstName'] . ' ' . $p['studentLastName']) ?></p>
             </div>
+        <?php endif; ?>
+    <?php endforeach; ?>
+</div>
+
         </div>
         <!-- Summary Cards -->
         <div class="summary">

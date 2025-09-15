@@ -85,6 +85,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    $photoPath = null;
+if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+    $targetDir = "imageuploads/"; 
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0777, true);
+    }
+
+    $fileName = time() . "_" . basename($_FILES['photo']['name']);
+    $targetFile = $targetDir . $fileName;
+
+    if (move_uploaded_file($_FILES['photo']['tmp_name'], $targetFile)) {
+        $photoPath = $targetFile; // save path in DB
+    }
+}
+
     if ($user_id) {
         // ---- EDIT FLOW ----
         $stmt = $conn->prepare("SELECT address_id FROM users WHERE user_id = ?");
@@ -94,6 +109,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $row = $res->fetch_assoc();
         $address_id = $row['address_id'] ?? null;
         $stmt->close();
+
+        if ($photoPath) {
+    $stmt = $conn->prepare("UPDATE students SET photo=? WHERE user_id=?");
+    $stmt->bind_param("si", $photoPath, $user_id);
+    $stmt->execute();
+    $stmt->close();
+      }
 
         if ($address_id) {
             $stmt = $conn->prepare("UPDATE addresses SET address1 = ?, streetName = ?, postalCode = ?, district = ?, country = ? WHERE address_id = ?");
@@ -152,8 +174,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $new_user_id = $conn->insert_id;
         $stmt->close();
 
-        $stmt = $conn->prepare("INSERT INTO students (user_id) VALUES (?)");
-        $stmt->bind_param("i", $new_user_id);
+        $stmt = $conn->prepare("INSERT INTO students (user_id, photo) VALUES (?, ?)");
+        $stmt->bind_param("is", $new_user_id, $photoPath);
         $stmt->execute();
         $stmt->close();
     }
@@ -185,29 +207,33 @@ $total_pages = ceil($total_row['total'] / $limit);
 // Fetch students with limit & offset
 if ($search) {
     $like = "%$search%";
-    $stmt = $conn->prepare("
-        SELECT u.*, a.address1, a.streetName, a.postalCode, a.district, a.country
-        FROM users u
-        JOIN students s ON s.user_id = u.user_id
-        LEFT JOIN addresses a ON u.address_id = a.address_id
-        WHERE u.role='student' AND (u.username LIKE ? OR u.firstName LIKE ? OR u.lastName LIKE ?)
-        ORDER BY u.created_at DESC
-        LIMIT ? OFFSET ?
-    ");
+// For search
+$stmt = $conn->prepare("
+    SELECT u.*, s.photo, a.address1, a.streetName, a.postalCode, a.district, a.country
+    FROM users u
+    JOIN students s ON s.user_id = u.user_id
+    LEFT JOIN addresses a ON u.address_id = a.address_id
+    WHERE u.role='student' AND (u.username LIKE ? OR u.firstName LIKE ? OR u.lastName LIKE ?)
+    ORDER BY u.created_at DESC
+    LIMIT ? OFFSET ?
+");
+
     $stmt->bind_param("sssii",$like,$like,$like,$limit,$offset);
     $stmt->execute();
     $students = $stmt->get_result();
     $stmt->close();
 } else {
-    $students_q = "
-        SELECT u.*, a.address1, a.streetName, a.postalCode, a.district, a.country
-        FROM users u
-        JOIN students s ON s.user_id = u.user_id
-        LEFT JOIN addresses a ON u.address_id = a.address_id
-        WHERE u.role = 'student'
-        ORDER BY u.created_at DESC
-        LIMIT $limit OFFSET $offset
-    ";
+// Without search
+$students_q = "
+    SELECT u.*, s.photo, a.address1, a.streetName, a.postalCode, a.district, a.country
+    FROM users u
+    JOIN students s ON s.user_id = u.user_id
+    LEFT JOIN addresses a ON u.address_id = a.address_id
+    WHERE u.role = 'student'
+    ORDER BY u.created_at DESC
+    LIMIT $limit OFFSET $offset
+";
+
     $students = $conn->query($students_q);
 }
 ?>
@@ -311,6 +337,10 @@ if ($search) {
 .dropdown:hover .dropdown-content {
   display: block;
 }
+table td img {
+  display: block;
+  margin: auto;
+}
 
 </style>
 </head>
@@ -354,6 +384,7 @@ if ($search) {
       <table>
         <thead>
           <tr>
+            <th>Photo</th>
             <th>Username</th><th>First name</th><th>Last name</th><th>Gender</th><th>ID No</th>
             <th>Phone</th><th>Email</th><th>Address</th><th>Document</th><th>Status</th><th class="actions">Actions</th>
           </tr>
@@ -361,6 +392,16 @@ if ($search) {
         <tbody>
           <?php while ($s = $students->fetch_assoc()): ?>
             <tr>
+<td>
+    <?php if (!empty($s['photo']) && file_exists($s['photo'])): ?>
+      <img src="<?= htmlspecialchars($s['photo']) ?>" 
+           alt="Student Photo" 
+           style="width:60px;height:60px;object-fit:cover;border-radius:50%;border:2px solid #7b2cbf;">
+    <?php else: ?>
+      <span>No Photo</span>
+    <?php endif; ?>
+</td>
+
               <td><?= htmlspecialchars($s['username']) ?></td>
               <td><?= htmlspecialchars($s['firstName']) ?></td>
               <td><?= htmlspecialchars($s['lastName']) ?></td>
@@ -485,6 +526,10 @@ if ($search) {
         <label>Document (PDF)</label>
         <input type="file" name="document" accept="application/pdf">
       </div>
+       <div>   
+    <label for="photo">Upload Student Photo:</label>
+    <input type="file" name="photo" accept="image/*">
+    </div>
       <div class="modal-actions full">
         <button type="submit" class="btn">Save</button>
         <button type="button" class="btn-secondary" onclick="closeModal();">Cancel</button>
