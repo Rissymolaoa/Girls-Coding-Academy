@@ -93,6 +93,10 @@ $assignments = $conn->query("
     <meta charset="UTF-8">
     <title>Assign Teacher - Admin Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
 /* Reset and base */
 body { font-family: Arial, sans-serif; background: #f5f6fa; color: #2c3e50; overflow-x:hidden; }
@@ -154,17 +158,18 @@ td, th { padding: 12px; text-align: center; }
     <div class="sidebar">
         <img src="admin.jpg" alt="Admin Picture" class="admin-pic">
         <h3>Girls Coding Academy</h3>
-        <a href="admin_dashboard.php">🏠 Dashboard</a>
-        <a href="approve_users.php">📝 Approve Users</a>
-        <a href="manage_courses.php">📚 Manage Courses</a>
-        <a href="manage_students.php">👩‍🎓 Manage Students</a>
-        <a href="manage_teachers.php">👨‍🏫 Manage Teachers</a>
-        <a href="parents_summary.php">👪 Parents Summary</a>
-        <a href="manage_parents.php">👪 Manage Parents</a>
-            <a href="assign_parent_student.php">👨‍🏫 Assign Students</a>
-        <a href="course_assignment.php" class="active">👨‍🏫 Assign Courses</a>
-        <a href="add_batch.php">➕ Add Batch</a>
-        <a href="logout.php">🚪 Logout</a>
+    <h4 class="text-center mb-4">Administration</h4>
+    <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
+    <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
+    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
+    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
+    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
+    <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
+    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
+    <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
+    <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
+    <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>
+    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </div>
 
     <div class="content">

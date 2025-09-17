@@ -28,11 +28,10 @@ $parents_sql = "
     LIMIT 5
 ";
 
-
-
 $parents = $conn->query($parents_sql);
 
-// Collect student images (for top 4 parents only)
+// Collect parents_data and images
+$parents_data = [];
 $students_images = [];
 $i = 0;
 while ($row = $parents->fetch_assoc()) {
@@ -47,131 +46,258 @@ while ($row = $parents->fetch_assoc()) {
 $total_parents = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role='parent'")->fetch_assoc()['total'];
 $total_relations = $conn->query("SELECT COUNT(*) AS total FROM parent_students")->fetch_assoc()['total'];
 $total_students = $conn->query("SELECT COUNT(DISTINCT student_id) AS total FROM parent_students")->fetch_assoc()['total'];
+
+$username = $_SESSION['username'] ?? "Admin";
 ?>
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Manage Parents</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Parents — Admin</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
 <style>
-:root{--primary:#7b2cbf;--accent:#5a189a;--muted:#f4f4f8;--card:#fff;--text:#222;}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:var(--muted);color:var(--text);}
-header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px;text-align:center;font-size:20px;font-weight:600;}
-.layout{display:flex;min-height:calc(100vh - 60px);}
-.sidebar{width:220px;background:#34495e;padding:20px;color:#fff;}
-.sidebar h3{margin:12px 0;}
-.nav a{display:block;padding:10px;color:#fff;text-decoration:none;border-radius:6px;margin-bottom:6px;}
-.nav a.active,.nav a:hover{background:#1abc9c;}
-.main{flex:1;padding:20px;}
-.flex-row{display:flex;gap:20px;}
-.table-card{flex:1;background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-.image-card{flex:1;background:#fff;padding:15px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-table{width:100%;border-collapse:collapse;font-size:14px;}
-th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;}
-.sidebar img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid #1abc9c;margin-bottom:12px;}
-th{background:var(--primary);color:#fff;}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
-.grid img{width:100%;height:120px;object-fit:cover;border-radius:8px;}
-.summary{margin-top:20px;display:flex;gap:20px;}
-.card{flex:1;background:#fff;padding:15px;border-radius:8px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-.card h3{margin-bottom:6px;color:var(--accent);}
-.student-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+ :root {
+  --primary:#7b2cbf;
+  --accent:#5a189a;
+  --muted:#f4f4f8;
+  --card:#fff;
+  --text:#222;
+  --border1:#e63946;
+  --border2:#1d3557;
+  --border3:#2a9d8f;
 }
 
-.student-card img {
-    width: 100px;
-    height: 120px;
-    object-fit: cover;
-    border-radius: 50% / 40%; /* makes oval instead of circle */
-    border: 3px solid var(--primary);
-    margin-bottom: 6px;
+body {
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--muted);
+  color: var(--text);
 }
 
-.student-card p {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text);
+/* Topbar */
+.topbar {
+  background: var(--primary);
+  padding: 10px 20px;
+  color: #fff;
 }
+.topbar .search-input {
+  max-width: 420px;
+}
+.topbar .icon-btn {
+  width:42px; height:42px; border-radius:8px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,0.12); color: #fff; border: none;
+}
+
+/* Sidebar */
+.sidebar {
+  background:#34495e;
+  min-height:calc(100vh - 56px);
+  padding:20px;
+  color:#fff;
+}
+.sidebar a {
+  color:#fff; text-decoration:none;
+  display:block; padding:8px 10px; border-radius:6px;
+}
+.sidebar a.active,
+.sidebar a:hover {
+  background:#1abc9c; color:#062018;
+}
+
+/* Table */
+.table-card {
+  padding:16px;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 6px 18px rgba(12,12,24,0.06);
+}
+.table thead th {
+  background: linear-gradient(90deg,var(--primary),var(--accent));
+  color:#fff;
+}
+.table td, .table th {
+  vertical-align: middle;
+}
+
+/* View all link */
+.view-all {
+  margin-bottom: 8px;
+  text-align: right;
+}
+.view-all a {
+  text-decoration:none;
+  color:var(--primary);
+  font-weight:600;
+}
+
+/* Student images */
+.student-card { text-align:center; }
+.student-photo {
+  width:110px; height:110px; object-fit:cover;
+  border-radius: 50% / 40%;
+  border: 3px solid var(--primary);
+  display:block; margin:0 auto 8px;
+}
+
+/* Summary cards (below table) */
+.summary {
+  margin-top: 20px;
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+.summary .summary-card {
+  width:120px; height:120px;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  border-radius:12px; background:#fff;
+  box-shadow:0 6px 16px rgba(12,12,24,0.06);
+  font-weight:600;
+}
+.summary .summary-card i {
+  font-size:22px; color:#fff;
+  padding:8px; border-radius:6px; margin-bottom:8px;
+}
+.summary .parents { border:3px solid var(--border1); }
+.summary .parents i { background:var(--border1); }
+.summary .relations { border:3px solid var(--border2); }
+.summary .relations i { background:var(--border2); }
+.summary .students { border:3px solid var(--border3); }
+.summary .students i { background:var(--border3); }
 
 </style>
 </head>
 <body>
-<header>Girls Coding Academy - Admin Dashboard</header>
-<div class="layout">
-    <aside class="sidebar">
-        <img src="admin.jpg" alt="Admin">
-        <h3>GIRLS CODING ACADEMY</h3>
-        <nav class="nav">
-    <a href="admin_dashboard.php">🏠 Dashboard</a>
-      <a href="approve_users.php">📝 Approve Users</a>
-      <a href="manage_courses.php">📚 Manage Courses</a>
-      <a href="manage_students.php">👩‍🎓 Manage Students</a>
-      <a href="manage_teachers.php">👨‍🏫 Manage Teacher</a>
-      <a href="parents_summary.php" class="active">👪 Parent Summary</a>
-      <a href="manage_parents.php">👪 Manage Parents</a>
-      <a href="assign_parent_student.php">👨‍🏫 Assign Students</a>
-      <a href="course_assignment.php">👨‍🏫 Assign Courses</a>
-      <a href="add_batch.php">➕ Add Batch</a>
-      <a href="logout.php">🚪 Logout</a>
-        </nav>
-    </aside>
-    <main class="main">
-        <h2>Manage Parents</h2>
-        <div class="flex-row">
-            <!-- Parents Table -->
-            <div class="table-card">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Firstname</th>
-                            <th>Lastname</th>
-                            <th>Gender</th>
-                            <th>Phone</th>
-                            <th>Email</th>
-                            <th>Student Name</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($parents_data as $p): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($p['firstName']) ?></td>
-                            <td><?= htmlspecialchars($p['lastName']) ?></td>
-                            <td><?= htmlspecialchars($p['gender']) ?></td>
-                            <td><?= htmlspecialchars($p['phone']) ?></td>
-                            <td><?= htmlspecialchars($p['email']) ?></td>
-                            <td><?= htmlspecialchars($p['studentFirstName'] . ' ' . $p['studentLastName']) ?></td>
 
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-            <!-- Students Images -->
-            <div class="grid">
-    <?php foreach ($parents_data as $p): ?>
-        <?php if (!empty($p['studentPhoto'])): ?>
-            <div class="student-card">
-                <img src="<?= htmlspecialchars($p['studentPhoto']) ?>" alt="Student">
-                <p><?= htmlspecialchars($p['studentFirstName'] . ' ' . $p['studentLastName']) ?></p>
-            </div>
-        <?php endif; ?>
-    <?php endforeach; ?>
+<div class="topbar d-flex align-items-center justify-content-between">
+  <form class="d-flex align-items-center" method="get" action="">
+    <input type="search" name="search" class="form-control form-control-sm search-input me-2" placeholder="Search parents, students, phone or email...">
+    <button class="btn btn-light btn-sm" type="submit"><i class="bi bi-search"></i></button>
+  </form>
+
+  <div class="d-flex align-items-center gap-2">
+    <button class="icon-btn" title="Notifications"><i class="bi bi-bell-fill" aria-hidden="true"></i></button>
+    <button class="icon-btn" title="Messages"><i class="bi bi-envelope-fill" aria-hidden="true"></i></button>
+    <div class="ms-2 fw-semibold"><?= htmlspecialchars($username) ?></div>
+  </div>
 </div>
 
+<div class="d-flex">
+  <!-- SIDEBAR -->
+  <aside class="sidebar pe-3" style="width:240px;">
+    <div class="text-center mb-3">
+      <img src="admin.jpg" alt="Admin" class="rounded-circle" style="width:92px; height:92px; object-fit:cover; border:3px solid #1abc9c;">
+    </div>
+    <h6 class="text-uppercase text-white small">Girls Coding Academy</h6>
+    <nav class="mt-3">
+    <h4 class="text-center mb-4">Administration</h4>
+    <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
+    <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
+    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
+    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
+    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
+    <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
+    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
+    <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
+    <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
+    <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>
+    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-fill p-4">
+    <div class="row">
+      <div class="col-12 mb-3 d-flex justify-content-between align-items-center">
+        <h4 class="m-0">Manage Parents</h4>
+        <div class="view-all"><a href="all_parents_summary.php">View All</a></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-lg-8">
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover table-bordered align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Firstname</th>
+                  <th>Lastname</th>
+                  <th>Gender</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Student Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($parents_data as $p): ?>
+                <tr>
+                  <td><?= htmlspecialchars($p['firstName']) ?></td>
+                  <td><?= htmlspecialchars($p['lastName']) ?></td>
+                  <td><?= htmlspecialchars($p['gender']) ?></td>
+                  <td><?= htmlspecialchars($p['phone']) ?></td>
+                  <td><?= htmlspecialchars($p['email']) ?></td>
+                  <td><?= htmlspecialchars(trim($p['studentFirstName'].' '.$p['studentLastName'])) ?></td>
+                </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <!-- Summary Cards -->
-        <div class="summary">
-            <div class="card"><h3>Number of Parents</h3><p><?= $total_parents ?></p></div>
-            <div class="card"><h3>Relations</h3><p><?= $total_relations ?></p></div>
-            <div class="card"><h3>Total Students</h3><p><?= $total_students ?></p></div>
+      </div>
+
+      <div class="col-lg-4">
+        <!-- student photos grid -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <h6 class="card-title">Students</h6>
+            <div class="row g-3">
+              <?php foreach ($parents_data as $p): ?>
+                <?php if (!empty($p['studentPhoto'])): ?>
+                  <div class="col-6 text-center">
+                    <div class="student-card">
+                      <img src="<?= htmlspecialchars($p['studentPhoto']) ?>" alt="" class="student-photo">
+                      <div class="small"><?= htmlspecialchars(trim($p['studentFirstName'].' '.$p['studentLastName'])) ?></div>
+                    </div>
+                  </div>
+                <?php endif; ?>
+              <?php endforeach; ?>
+            </div>
+          </div>
         </div>
-    </main>
+
+        <!-- summary cards -->
+        <div class="d-flex summary">
+          <div class="summary-card parents text-center">
+            <i class="bi bi-people-fill"></i>
+            <div class="small mt-1">Parents</div>
+            <div class="h5 mt-1"><?= $total_parents ?></div>
+          </div>
+
+          <div class="summary-card relations text-center ms-3">
+            <i class="bi bi-link-45deg"></i>
+            <div class="small mt-1">Relations</div>
+            <div class="h5 mt-1"><?= $total_relations ?></div>
+          </div>
+
+          <div class="summary-card students text-center ms-3">
+            <i class="bi bi-mortarboard-fill"></i>
+            <div class="small mt-1">Students</div>
+            <div class="h5 mt-1"><?= $total_students ?></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
 </div>
+
+<!-- Bootstrap JS (optional for interactive components) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
