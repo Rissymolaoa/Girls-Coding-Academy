@@ -88,7 +88,7 @@ $recent_students = $conn->query("
 
 <div class="layout">
   <aside class="sidebar">
-    <img src="admin.jpg" alt="Admin">
+    <img src="admin.png" alt="Admin">
     <h5 class="text-center">Administration</h5>
     <nav class="nav">
       <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door"></i> Dashboard</a>

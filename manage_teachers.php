@@ -272,7 +272,7 @@ if (!empty($_GET)) {
 <header><h1>Girls Coding Academy - Admin Dashboard</h1></header>
 <div class="layout">
 <aside class="sidebar">
-<img src="admin.jpg" alt="Admin">
+<img src="admin.png" alt="Admin">
 <nav class="nav">
     <h4 class="text-center mb-4">Administration</h4>
     <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>

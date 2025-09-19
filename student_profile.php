@@ -42,59 +42,27 @@ $transport = $stmt_tr->get_result()->fetch_assoc();
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Student Profile</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: Arial,sans-serif; background:#f9f9f9; }
-header { background:#7b2cbf; color:white; padding:15px 30px; text-align:center; }
-.container { display:flex; min-height:90vh; }
-.sidebar { width: 240px; background:#5a189a; padding:20px; min-height:100vh; }
-.sidebar h3 { color:white; margin-bottom:15px; }
-.sidebar a { display:block; color:white; text-decoration:none; padding:10px; margin:5px 0; border-radius:4px; }
+body { background:#f9f9f9; font-family:Arial,sans-serif; }
+  header{background:linear-gradient(90deg,#7b2cbf,#5a189a);color:#fff;padding:18px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12)}
+  header h1{margin:0;font-size:22px;font-weight:600}
+.sidebar { width: 240px; background:#5a189a; padding:20px; min-height:100vh; color:#fff; }
+.sidebar h3 { color:white; margin-bottom:15px; text-align:center; }
+.sidebar a { display:flex; align-items:center; gap:10px; color:white; text-decoration:none; padding:10px; margin:5px 0; border-radius:6px; transition:background 0.2s; }
 .sidebar a:hover, .sidebar a.active { background:#9d4edd; }
+.admin-pic { width:90px; height:90px; border-radius:50%; margin-bottom:15px; border:2px solid #1abc9c; object-fit:cover; display:block; margin:auto; }
+
 .content { flex:1; padding:30px; }
-h2 { color:#5a189a; margin-bottom:20px; text-align:center; }
-form { background:white; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); max-width:800px; margin:auto; }
-form h3 { margin-bottom:15px; color:#5a189a; }
-form .form-group { margin-bottom:15px; }
-form label { display:block; margin-bottom:5px; font-weight:bold; }
-form input, form select, form textarea { width:100%; padding:10px; border-radius:4px; border:1px solid #ccc; }
-form input[type="file"] { padding:3px; }
-form button { background:#7b2cbf; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; }
-form button:hover { background:#5a189a; }
-
-/* Profile photo top */
-.profile-photo-container {
-    text-align:center;
-    margin-bottom:20px;
-}
-.profile-photo-container img {
-    width:150px;
-    height:150px;
-    border-radius:50%;
-    border:3px solid #1abc9c;
-    object-fit:cover;
-    margin-bottom:10px;
-}
-.profile-photo-container label {
-    display:inline-block;
-    margin-top:5px;
-    padding:5px 10px;
-    background:#7b2cbf;
-    color:white;
-    border-radius:4px;
-    cursor:pointer;
-}
-.profile-photo-container label:hover {
-    background:#5a189a;
-}
+.profile-photo-container { text-align:center; margin-bottom:20px; }
+.profile-photo-container img { width:150px; height:150px; border-radius:50%; border:3px solid #1abc9c; object-fit:cover; margin-bottom:10px; }
+.profile-photo-container label { display:inline-block; padding:5px 10px; background:#7b2cbf; color:white; border-radius:4px; cursor:pointer; }
+.profile-photo-container label:hover { background:#5a189a; }
 input#photoInput { display:none; }
-
-.section { margin-bottom:30px; }
-  .admin-pic { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; border: 3px solid #1abc9c; object-fit: cover; }
-
+form { background:white; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); max-width:1000px; margin:auto; }
+form h3 { margin-bottom:15px; color:#5a189a; }
+button { background:#7b2cbf; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; }
+button:hover { background:#5a189a; }
 </style>
 </head>
 <body>
@@ -103,20 +71,22 @@ input#photoInput { display:none; }
 <h1>Student Profile</h1>
 </header>
 
-<div class="container">
+<div class="d-flex">
+  <!-- Sidebar -->
   <div class="sidebar">
-     <img src="admin.jpg" alt="Admin Picture" class="admin-pic">
+    <img src="admin.png" alt="Student Picture" class="admin-pic">
     <h3>Navigation</h3>
-      <a href="student.php">🏠 Home</a>
-      <a href="student_courses.php">📚 My Courses</a>
-      <a href="#">📢 Announcements</a>
-      <a href="#">📅 My Calendar</a>
-      <a href="enroll.php">📅 Enroll</a>
-      <a href="student_profile.php" class="active">👤 My Profile</a>
-      <a href="logout.php">🚪 Logout</a>
+    <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
+    <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
+    <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
+    <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
+    <a href="attendance.php" ><i class="bi bi-card-checklist"></i> Attendance</a>
+    <a href="student_profile.php" class="active"><i class="bi bi-person-circle"></i> My Profile</a>
+    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
   </div>
 
-  <div class="content">
+  <!-- Content -->
+  <div class="content flex-fill">
     <form action="student_profile_update.php" method="POST" enctype="multipart/form-data">
       
       <!-- Profile Photo -->
@@ -127,56 +97,115 @@ input#photoInput { display:none; }
       </div>
 
       <!-- Personal Info -->
-      <div class="section">
-        <h3>Personal Information</h3>
-        <div class="form-group"><label>First Name</label><input type="text" name="firstName" value="<?php echo $student['firstName']; ?>" required></div>
-        <div class="form-group"><label>Last Name</label><input type="text" name="lastName" value="<?php echo $student['lastName']; ?>" required></div>
-        <div class="form-group"><label>Email</label><input type="email" name="email" value="<?php echo $student['email']; ?>" required></div>
-        <div class="form-group"><label>Phone</label><input type="text" name="phone" value="<?php echo $student['phone']; ?>"></div>
-        <div class="form-group"><label>Gender</label><input type="text" name="gender" value="<?php echo $student['gender']; ?>"></div>
-        <div class="form-group"><label>ID Number</label><input type="text" name="IDNumber" value="<?php echo $student['IDNumber']; ?>"></div>
-        <div class="form-group"><label>Username</label><input type="text" name="username" value="<?php echo $student['username']; ?>"></div>
-        <div class="form-group"><label>Document</label><input type="text" name="document" value="<?php echo $student['document']; ?>"></div>
+      <h3>Personal Information</h3>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-person"></i></span>
+            <input type="text" class="form-control form-control-sm" name="firstName" placeholder="First Name" value="<?php echo $student['firstName']; ?>" required>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-person"></i></span>
+            <input type="text" class="form-control form-control-sm" name="lastName" placeholder="Last Name" value="<?php echo $student['lastName']; ?>" required>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            <input type="email" class="form-control form-control-sm" name="email" placeholder="Email" value="<?php echo $student['email']; ?>" required>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+            <input type="text" class="form-control form-control-sm" name="phone" placeholder="Phone" value="<?php echo $student['phone']; ?>">
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-gender-ambiguous"></i></span>
+            <input type="text" class="form-control form-control-sm" name="gender" placeholder="Gender" value="<?php echo $student['gender']; ?>">
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-credit-card"></i></span>
+            <input type="text" class="form-control form-control-sm" name="IDNumber" placeholder="ID Number" value="<?php echo $student['IDNumber']; ?>">
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+            <input type="text" class="form-control form-control-sm" name="username" placeholder="Username" value="<?php echo $student['username']; ?>">
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-file-earmark-text"></i></span>
+            <input type="text" class="form-control form-control-sm" name="document" placeholder="Document" value="<?php echo $student['document']; ?>">
+          </div>
+        </div>
       </div>
 
       <!-- Address Info -->
-      <div class="section">
-        <h3>Address Information</h3>
-        <div class="form-group"><label>Address 1</label><input type="text" name="address1" value="<?php echo $student['address1'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Street Name</label><input type="text" name="streetName" value="<?php echo $student['streetName'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Postal Code</label><input type="text" name="postalCode" value="<?php echo $student['postalCode'] ?? ''; ?>"></div>
-        <div class="form-group"><label>District</label><input type="text" name="district" value="<?php echo $student['district'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Country</label><input type="text" name="country" value="<?php echo $student['country'] ?? ''; ?>"></div>
+      <h3>Address Information</h3>
+      <div class="row g-3 mb-4">
+        <?php 
+        $address_fields = ['address1'=>'House/Flat No.', 'streetName'=>'Street Name', 'postalCode'=>'Postal Code', 'district'=>'District', 'country'=>'Country'];
+        $icons = ['address1'=>'bi-house', 'streetName'=>'bi-geo-alt', 'postalCode'=>'bi-mailbox', 'district'=>'bi-map', 'country'=>'bi-globe'];
+        foreach($address_fields as $field=>$label): ?>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi <?php echo $icons[$field]; ?>"></i></span>
+            <input type="text" class="form-control form-control-sm" name="<?php echo $field; ?>" placeholder="<?php echo $label; ?>" value="<?php echo $student[$field] ?? ''; ?>">
+          </div>
+        </div>
+        <?php endforeach; ?>
       </div>
 
       <!-- Transport Info -->
-      <div class="section">
-        <h3>Transport Information</h3>
-        <div class="form-group"><label>Transport Mode</label><input type="text" name="transport_mode" value="<?php echo $transport['transport_mode'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Route Number</label><input type="text" name="route_number" value="<?php echo $transport['route_number'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Pick-up Point</label><input type="text" name="pick_up_point" value="<?php echo $transport['pick_up_point'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Drop-off Point</label><input type="text" name="drop_off_point" value="<?php echo $transport['drop_off_point'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Guardian Contact</label><input type="text" name="guardian_contact" value="<?php echo $transport['guardian_contact'] ?? ''; ?>"></div>
+      <h3>Transport Information</h3>
+      <div class="row g-3 mb-4">
+        <?php
+        $transport_fields = ['transport_mode'=>'Transport Mode','route_number'=>'Route Number','pick_up_point'=>'Pick-up Point','drop_off_point'=>'Drop-off Point','guardian_contact'=>'Guardian Contact'];
+        $icons_tr = ['transport_mode'=>'bi-truck','route_number'=>'bi-hash','pick_up_point'=>'bi-signpost-split','drop_off_point'=>'bi-signpost','guardian_contact'=>'bi-person-lines-fill'];
+        foreach($transport_fields as $field=>$label): ?>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi <?php echo $icons_tr[$field]; ?>"></i></span>
+            <input type="text" class="form-control form-control-sm" name="<?php echo $field; ?>" placeholder="<?php echo $label; ?>" value="<?php echo $transport[$field] ?? ''; ?>">
+          </div>
+        </div>
+        <?php endforeach; ?>
       </div>
 
       <!-- Medical Info -->
-      <div class="section">
-        <h3>Medical Information</h3>
-        <div class="form-group"><label>Blood Type</label><input type="text" name="blood_type" value="<?php echo $medical['blood_type'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Allergies</label><input type="text" name="allergies" value="<?php echo $medical['allergies'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Chronic Conditions</label><input type="text" name="chronic_conditions" value="<?php echo $medical['chronic_conditions'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Medications</label><input type="text" name="medications" value="<?php echo $medical['medications'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Emergency Contact Name</label><input type="text" name="emergency_contact_name" value="<?php echo $medical['emergency_contact_name'] ?? ''; ?>"></div>
-        <div class="form-group"><label>Emergency Contact Phone</label><input type="text" name="emergency_contact_phone" value="<?php echo $medical['emergency_contact_phone'] ?? ''; ?>"></div>
+      <h3>Medical Information</h3>
+      <div class="row g-3 mb-4">
+        <?php
+        $medical_fields = ['blood_type'=>'Blood Type','allergies'=>'Allergies','chronic_conditions'=>'Chronic Conditions','medications'=>'Medications','emergency_contact_name'=>'Emergency Contact Name','emergency_contact_phone'=>'Emergency Contact Phone'];
+        $icons_med = ['blood_type'=>'bi-droplet','allergies'=>'bi-emoji-sunglasses','chronic_conditions'=>'bi-heart-pulse','medications'=>'bi-capsule','emergency_contact_name'=>'bi-person','emergency_contact_phone'=>'bi-telephone'];
+        foreach($medical_fields as $field=>$label): ?>
+        <div class="col-md-6">
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi <?php echo $icons_med[$field]; ?>"></i></span>
+            <input type="text" class="form-control form-control-sm" name="<?php echo $field; ?>" placeholder="<?php echo $label; ?>" value="<?php echo $medical[$field] ?? ''; ?>">
+          </div>
+        </div>
+        <?php endforeach; ?>
       </div>
 
-      <button type="submit">Update Profile</button>
+      <div class="text-center">
+        <button type="submit"><i class="bi bi-save"></i> Update Profile</button>
+      </div>
+
     </form>
   </div>
 </div>
 
 <script>
-// Optional: preview photo immediately when selected
 document.getElementById('photoInput').addEventListener('change', function(e){
     const img = document.querySelector('.profile-photo-container img');
     if(this.files && this.files[0]){
