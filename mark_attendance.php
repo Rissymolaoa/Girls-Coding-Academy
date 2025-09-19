@@ -23,6 +23,9 @@ $teacher_query->close();
 
 $message = "";
 
+// Current day
+$current_day = date('Y-m-d');
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_week'])) {
     $batch_id = intval($_POST['batch_id']);
@@ -31,23 +34,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_week'])) {
 
     foreach ($attendance as $student_id => $days) {
         foreach ($days as $day => $status) {
-            // Check if attendance exists
-            $check_q = $conn->prepare("SELECT COUNT(*) as count FROM attendance WHERE batch_id=? AND session_id=? AND student_id=?");
-            $check_q->bind_param("isi", $batch_id, $day, $student_id);
-            $check_q->execute();
-            $res = $check_q->get_result()->fetch_assoc();
-            $check_q->close();
+            // Only allow marking today
+            if ($day !== $current_day) continue;
 
-            if ($res['count'] == 0) {
-                // Insert attendance
-                $insert_q = $conn->prepare("INSERT INTO attendance (student_id, batch_id, session_id, status, marked_by) VALUES (?, ?, ?, ?, ?)");
-                $insert_q->bind_param("iissi", $student_id, $batch_id, $day, $status, $marked_by);
-                $insert_q->execute();
-                $insert_q->close();
-            }
+            // Use INSERT ... ON DUPLICATE KEY UPDATE
+            $stmt = $conn->prepare("
+                INSERT INTO attendance (student_id, batch_id, session_id, status, marked_by)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE status=VALUES(status), marked_by=VALUES(marked_by)
+            ");
+            $stmt->bind_param("iissi", $student_id, $batch_id, $day, $status, $marked_by);
+            $stmt->execute();
+            $stmt->close();
         }
     }
-    $message = "✅ Weekly attendance saved successfully.";
+
+    $message = "✅ Attendance for today saved successfully.";
 }
 
 // Fetch assigned batches
@@ -66,7 +68,6 @@ $batch_query->close();
 $selected_batch_id = isset($_GET['batch_id']) ? intval($_GET['batch_id']) : 0;
 $students = [];
 $week_days = [];
-$current_day = date('Y-m-d');
 
 if ($selected_batch_id > 0) {
     // Get students
@@ -96,13 +97,12 @@ if ($selected_batch_id > 0) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Mark Attendance</title>
 <style>
 :root{--primary:#7b2cbf;--accent:#5a189a;--muted:#f4f4f8;--card:#fff;--text:#222;}
-*{box-sizing:border-box}
-body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--muted);color:var(--text);}
-header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px 24px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12);}
+body{margin:0;font-family:Arial,sans-serif;background:var(--muted);color:var(--text);}
+header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px 24px;text-align:center;}
 header h1{margin:0;font-size:22px;}
 header p{margin:4px 0 0;font-size:14px;}
 .layout{display:flex;min-height:calc(100vh - 72px);}
@@ -112,7 +112,6 @@ header p{margin:4px 0 0;font-size:14px;}
 .nav a{width:100%;display:block;color:#fff;text-decoration:none;padding:10px;border-radius:6px;margin:6px 0;text-align:left;}
 .nav a.active, .nav a:hover{background:#1abc9c;color:#062018;}
 .main{flex:1;padding:26px;}
-.table-card{background:var(--card);padding:14px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);margin-bottom:20px;}
 table{width:100%;border-collapse:collapse;font-size:14px;}
 th,td{padding:10px;border-bottom:1px solid #732d91;text-align:left;}
 th{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;}
@@ -129,7 +128,7 @@ button:hover, select:hover{background:#16a085;}
 
 <div class="layout">
 <aside class="sidebar">
-    <img src="admin.jpg" alt="Teacher" />
+    <img src="admin.png" alt="Teacher" />
     <h3>Teacher Dashboard</h3>
     <nav class="nav">
         <a href="teacher_dashboard.php">🏠 Dashboard</a>
@@ -170,7 +169,7 @@ button:hover, select:hover{background:#16a085;}
                 <th>Student</th>
                 <th>Email</th>
                 <?php foreach ($week_days as $day): ?>
-                    <th><?= date('D', strtotime($day)) ?> <br><?= $day ?></th>
+                    <th><?= date('D', strtotime($day)) ?><br><?= $day ?></th>
                 <?php endforeach; ?>
             </tr>
         </thead>
@@ -181,13 +180,8 @@ button:hover, select:hover{background:#16a085;}
                 <td><?= htmlspecialchars($student['email']) ?></td>
                 <?php foreach ($week_days as $day): ?>
                     <?php
-                    // Determine if the day is today
                     $is_today = ($day === $current_day);
-                    // Check if there's existing attendance data (if form submitted)
-                    $selected_value = '';
-                    if (isset($_POST['attendance'][$student['student_id']][$day])) {
-                        $selected_value = $_POST['attendance'][$student['student_id']][$day];
-                    }
+                    $selected_value = $_POST['attendance'][$student['student_id']][$day] ?? '';
                     ?>
                     <td style="text-align:center;">
                         <select name="attendance[<?= $student['student_id'] ?>][<?= $day ?>]" <?= $is_today ? '' : 'disabled' ?>>
@@ -201,7 +195,7 @@ button:hover, select:hover{background:#16a085;}
         </tbody>
     </table>
     <br>
-    <button type="submit" name="mark_week" value="1">Save Weekly Attendance</button>
+    <button type="submit" name="mark_week" value="1">Save Today's Attendance</button>
 </form>
 <?php elseif ($selected_batch_id > 0): ?>
     <p>No active students enrolled in this batch.</p>

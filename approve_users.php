@@ -170,7 +170,7 @@ sidebar { width: 220px; background: #343a40; color: #fff; min-height: 100vh; pad
 
 <div class="container">
     <div class="sidebar">
-        <img src="admin.jpg" alt="Admin Picture" class="admin-pic">
+        <img src="admin.png" alt="Admin Picture" class="admin-pic">
     <h4 class="text-center mb-4">Administration</h4>
     <a href="admin_dashboard.php"><i class="bi bi-house-door-fill"></i> Dashboard</a>
     <a href="approve_users.php"class="active><i class="bi bi-person-check-fill></i> Approve Users</a>

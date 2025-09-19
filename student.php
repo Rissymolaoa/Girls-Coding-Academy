@@ -166,7 +166,7 @@ $upcoming = [
     <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
     <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> Attendance</a>
     <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
-    <a href="enroll.php"><i class="bi bi-person-circle"></i> My Profile</a>
+    <a href="enroll.php"><i class="bi bi-person-circle"></i> Enrollments</a>
     <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </div>
 

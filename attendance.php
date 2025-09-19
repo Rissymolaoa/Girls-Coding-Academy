@@ -29,13 +29,26 @@ if ($res->num_rows > 0) {
 
 // Fetch attendance records
 $attendance = $conn->query("
-    SELECT a.attendance_id, a.session_id, a.batch_id, a.status, a.marked_by, b.batch_code, b.start_date, b.end_date, c.courseName
+    SELECT 
+        a.attendance_id,
+        a.session_id,
+        a.batch_id,
+        a.status,
+        a.marked_at,
+        b.batch_code,
+        b.start_date,
+        b.end_date,
+        c.courseName,
+        CONCAT(u.firstName, ' ', u.lastName) AS teacher_name
     FROM attendance a
     INNER JOIN batches b ON a.batch_id = b.batch_id
     INNER JOIN courses c ON b.course_id = c.course_id
+    INNER JOIN teachers t ON a.marked_by = t.teacher_id
+    INNER JOIN users u ON t.user_id = u.user_id
     WHERE a.student_id = $student_id
     ORDER BY a.session_id DESC
 ");
+
 
 // Calculate attendance summary for charts
 $presentCount = $conn->query("SELECT COUNT(*) as cnt FROM attendance WHERE student_id=$student_id AND status='Present'")->fetch_assoc()['cnt'];
@@ -141,7 +154,11 @@ header h1 { margin:0; font-size:22px; }
                   <?php if($row['status']=='Present') echo "<span class='badge bg-success'>Present</span>";
                         else echo "<span class='badge bg-danger'>Absent</span>"; ?>
                 </td>
-                <td><?php echo htmlspecialchars($row['marked_by']); ?></td>
+                <td>
+    <?php echo htmlspecialchars($row['teacher_name']); ?><br>
+    <small><?= date('d M Y, H:i', strtotime($row['marked_at'])) ?></small>
+</td>
+
               </tr>
             <?php } ?>
           </tbody>
