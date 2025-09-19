@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-if(!isset($_SESSION['user_id'])){
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'student') {
     header("Location: login.html");
     exit();
 }
@@ -15,7 +15,7 @@ $studentQuery->bind_param("i", $user_id);
 $studentQuery->execute();
 $studentResult = $studentQuery->get_result();
 
-if($studentResult->num_rows === 0){
+if ($studentResult->num_rows === 0) {
     die("Student record not found.");
 }
 
@@ -26,7 +26,7 @@ $student_id = $studentRow['student_id'];
 $sql = "
 SELECT c.course_id, c.courseName, c.description, c.image_path,
        CONCAT(u.firstName, ' ', u.lastName) AS teacherName,
-       b.batch_code AS batchCode,
+       b.batch_id, b.batch_code AS batchCode,
        IFNULL(ce.status, 'active') AS enrollment_status
 FROM course_enrollments ce
 JOIN batches b ON ce.batch_id = b.batch_id
@@ -43,9 +43,9 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 $courses = [];
-while($row = $result->fetch_assoc()){
-    if(empty($row['image_path'])) $row['image_path'] = 'uploads/courses/course1.jpg';
-    if(empty($row['teacherName'])) $row['teacherName'] = 'TBA';
+while ($row = $result->fetch_assoc()) {
+    if (empty($row['image_path'])) $row['image_path'] = 'Uploads/courses/course1.jpg';
+    if (empty($row['teacherName'])) $row['teacherName'] = 'TBA';
     $courses[] = $row;
 }
 ?>
@@ -80,7 +80,8 @@ header { background:#fff; color:#333; padding:15px 30px; text-align:center; bord
   color:#fff; text-decoration:none; padding:10px; margin:5px 0; border-radius:6px; transition:background 0.2s;
 }
 .sidebar a:hover { background:#333; }
-.admin-pic {
+.sidebar a.active { background:#333; }
+.student-pic {
   width:90px; height:90px; border-radius:50%;
   margin-bottom:15px; border:2px solid #fff;
   object-fit:cover; display:block; margin-left:auto; margin-right:auto;
@@ -123,13 +124,13 @@ h2 { margin-bottom:20px; color:#5a189a; }
 <div class="container">
   <!-- Sidebar -->
   <div class="sidebar">
-    <img src="admin.png" alt="Student Picture" class="admin-pic">
+    <img src="student.png" alt="Student Picture" class="student-pic">
     <h3>Navigation</h3>
     <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
-    <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
+    <a href="student_courses.php" class="active"><i class="bi bi-journal-bookmark"></i> My Courses</a>
     <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
     <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
-    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> Attendance</a>
+    <a href="attendance.php"><i class="bi bi-card-checklist"></i> Attendance</a>
     <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
     <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
   </div>
@@ -139,17 +140,17 @@ h2 { margin-bottom:20px; color:#5a189a; }
     <h2><i class="bi bi-journal-bookmark"></i> My Courses</h2>
 
     <div class="grid-view">
-      <?php if(empty($courses)): ?>
+      <?php if (empty($courses)): ?>
         <p>No courses enrolled yet.</p>
       <?php else: ?>
-        <?php foreach($courses as $course): ?>
-          <a href="course_dashboard.php?course_id=<?php echo $course['course_id']; ?>&batch_id=<?php echo $course['batchCode']; ?>" style="text-decoration:none; color:inherit;">
+        <?php foreach ($courses as $course): ?>
+          <a href="course_dashboard.php?course_id=<?php echo htmlspecialchars($course['course_id']); ?>&batch_id=<?php echo htmlspecialchars($course['batch_id']); ?>" style="text-decoration:none; color:inherit;">
             <div class="course">
-              <img src="<?php echo $course['image_path']; ?>" alt="<?php echo $course['courseName']; ?>">
-              <h3><?php echo $course['courseName']; ?></h3>
-              <p><i class="bi bi-person-workspace"></i> Teacher: <?php echo $course['teacherName']; ?></p>
-              <p><i class="bi bi-123"></i> Batch: <?php echo $course['batchCode']; ?></p>
-              <p><i class="bi bi-check2-circle"></i> Status: <?php echo $course['enrollment_status']; ?></p>
+              <img src="<?php echo htmlspecialchars($course['image_path']); ?>" alt="<?php echo htmlspecialchars($course['courseName']); ?>">
+              <h3><?php echo htmlspecialchars($course['courseName']); ?></h3>
+              <p><i class="bi bi-person-workspace"></i> Teacher: <?php echo htmlspecialchars($course['teacherName']); ?></p>
+              <p><i class="bi bi-123"></i> Batch: <?php echo htmlspecialchars($course['batchCode']); ?></p>
+              <p><i class="bi bi-check2-circle"></i> Status: <?php echo htmlspecialchars($course['enrollment_status']); ?></p>
             </div>
           </a>
         <?php endforeach; ?>
