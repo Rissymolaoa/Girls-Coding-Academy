@@ -1,230 +1,104 @@
 <?php
 session_start();
-
-// Enable error reporting for debugging (optional, remove in production)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Check if user is logged in and is a student
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'student') {
-    header("Location: login.html");
+if (!isset($_SESSION['username']) || $_SESSION['role'] !== 'student') {
+    header("Location: login.php");
     exit();
 }
 
-include("db.php"); // DB connection
+// Example student info
+$studentInfo = [
+    "username" => $_SESSION['username'],
+    "email" => "student@example.com",
+    "role" => $_SESSION['role']
+];
 
-$user_id = $_SESSION['user_id'];
-$username = $_SESSION['username'];
-
-// Fetch student info from users table
-$studentQuery = $conn->prepare("SELECT username, email FROM users WHERE user_id = ? AND role = 'student'");
-if (!$studentQuery) {
-    die("Student query preparation failed: " . $conn->error);
-}
-$studentQuery->bind_param("i", $user_id);
-$studentQuery->execute();
-$studentInfo = $studentQuery->get_result()->fetch_assoc();
-if (!$studentInfo) {
-    die("No student found for user_id: $user_id");
-}
-$studentQuery->close();
-
-// Fetch student_id from students table
-$studentIdQuery = $conn->prepare("SELECT student_id FROM students WHERE user_id = ?");
-if (!$studentIdQuery) {
-    die("Student ID query preparation failed: " . $conn->error);
-}
-$studentIdQuery->bind_param("i", $user_id);
-$studentIdQuery->execute();
-$studentIdResult = $studentIdQuery->get_result();
-if ($studentIdResult->num_rows === 0) {
-    die("Error: Student profile not found. Please contact the administrator to set up your student profile.");
-}
-$student = $studentIdResult->fetch_assoc();
-$student_id = (int)$student['student_id'];
-$studentIdQuery->close();
-
-// Fetch enrolled batches for stats
-$batchQuery = $conn->prepare("
-    SELECT b.batch_id, b.batch_code, c.courseName
-    FROM course_enrollments ce
-    INNER JOIN batches b ON ce.batch_id = b.batch_id
-    INNER JOIN courses c ON b.course_id = c.course_id
-    WHERE ce.student_id = ? AND ce.status = 'active'
-    ORDER BY b.start_date DESC
-");
-if (!$batchQuery) {
-    die("Batch query preparation failed: " . $conn->error);
-}
-$batchQuery->bind_param("i", $student_id);
-$batchQuery->execute();
-$batchResult = $batchQuery->get_result();
-$enrolledBatches = [];
-while ($batch = $batchResult->fetch_assoc()) {
-    $enrolledBatches[] = $batch;
-}
-$batchQuery->close();
-
-// Demo data (replace with real data as needed)
+// Example stats
 $stats = [
-    "Enrolled Courses" => count($enrolledBatches),
-    "Pending Assignments" => 2, // Placeholder: Replace with actual query
-    "Upcoming Classes" => 3,    // Placeholder: Replace with actual query
-    "Overall Grade" => "B+"    // Placeholder: Replace with actual query
+    "Courses Enrolled" => 3,
+    "Assignments Due" => 2,
+    "Attendance" => "85%"
 ];
 
+// Example announcements
 $announcements = [
-    "Exam schedule will be released next week.",
-    "New coding challenge available in your Python course.",
-    "School will remain closed on Friday for maintenance."
+    "Midterm exams start next week.",
+    "New course materials uploaded in the portal."
 ];
 
+// Example upcoming schedule
 $upcoming = [
-    ["date" => "2025-09-01", "event" => "Math Virtual Class"],
-    ["date" => "2025-09-03", "event" => "Python Assignment Due"],
-    ["date" => "2025-09-05", "event" => "Hackathon Workshop"]
+    ["date" => "2025-09-21", "event" => "Math Assignment Due"],
+    ["date" => "2025-09-25", "event" => "Science Project Presentation"],
 ];
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard - Girls Coding Academy</title>
-    <!-- Bootstrap Icons CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <title>Student Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #f9f9f9; color: #333; }
-        header {
-            background: linear-gradient(90deg, #7b2cbf, #5a189a);
-            color: #fff;
-            padding: 18px;
-            text-align: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-        }
-        header h1 {
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
             margin: 0;
-            font-size: 22px;
-            font-weight: 600;
+            padding: 0;
         }
-        .container { display: flex; }
-        /* Sidebar */
+        .container {
+            display: flex;
+        }
         .sidebar {
-            width: 240px;
-            background: #343a40;
-            min-height: 100vh;
-            padding: 20px 15px;
+            width: 250px;
+            background-color: #343a40;
             color: white;
+            height: 100vh;
+            padding: 20px;
         }
         .sidebar h3 {
-            color: #adb5bd;
-            margin-bottom: 15px;
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            margin-top: 15px;
         }
         .sidebar a {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #f8f9fa;
+            display: block;
+            color: white;
+            padding: 10px 0;
             text-decoration: none;
-            padding: 10px 15px;
-            margin: 6px 0;
-            border-radius: 6px;
-            transition: background 0.3s, color 0.3s;
         }
-        .sidebar a i {
-            font-size: 18px;
+        .sidebar a:hover, .sidebar .active {
+            background-color: #495057;
+            border-radius: 5px;
         }
-        .sidebar a:hover {
-            background: #495057;
-            color: #fff;
-        }
-        .sidebar a.active {
-            background: #495057;
-            color: #fff;
-        }
-        .student-pic {
-            width: 90px;
-            height: 90px;
+        .sidebar img {
+            width: 100px;
             border-radius: 50%;
             margin-bottom: 15px;
-            border: 2px solid #ddd;
-            object-fit: cover;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
         }
-        /* Content area */
         .content {
             flex: 1;
-            padding: 30px;
-        }
-        h2 { margin-bottom: 20px; color: #333; }
-        p { font-size: 16px; margin-bottom: 25px; }
-        footer {
-            background: #fff;
-            color: #333;
-            text-align: center;
-            padding: 15px;
-            margin-top: 30px;
-            border-top: 1px solid #ddd;
-        }
-        /* Dashboard sections */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
+            padding: 20px;
         }
         .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background-color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-align: center;
-            border: 1px solid #eee;
-            transition: transform 0.2s;
         }
-        .card:hover {
-            transform: translateY(-3px);
+        .stats {
+            display: flex;
+            gap: 20px;
         }
-        .card h3 { margin-bottom: 10px; color: #333; font-size: 16px; }
-        .card p { font-size: 18px; font-weight: bold; color: #5a189a; }
         .section {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-            border: 1px solid #eee;
-        }
-        .section h3 { margin-bottom: 15px; color: #333; font-size: 18px; }
-        .section ul { list-style: none; padding-left: 0; }
-        .section ul li {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-            font-size: 15px;
-        }
-        .section ul li:last-child {
-            border-bottom: none;
+            margin-top: 30px;
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <header>
-        <h1>Girls Coding Academy - Student Dashboard</h1>
-    </header>
-
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar">
-            <img src="student.png" alt="Student Picture" class="student-pic">
+            <img src="admin.png" alt="Student Picture" class="admin-pic">
             <h3>Navigation</h3>
             <a href="student.php" class="active"><i class="bi bi-house-door"></i> Home</a>
             <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
@@ -232,7 +106,7 @@ $upcoming = [
             <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
             <a href="attendance.php"><i class="bi bi-card-checklist"></i> Attendance</a>
             <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
-            <a href="enroll.php"><i class="bi bi-person-plus"></i> Enroll</a>
+            <a href="enroll.php"><i class="bi bi-person-circle"></i> Enrollments</a>
             <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
         </div>
 
@@ -272,10 +146,5 @@ $upcoming = [
             </div>
         </div>
     </div>
-
-    <!-- Footer -->
-    <footer>
-        &copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.
-    </footer>
 </body>
 </html>

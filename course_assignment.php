@@ -203,7 +203,7 @@ header .search-box {
     <div class="row">
         <!-- Sidebar -->
         <div class="col-md-2 sidebar">
-    <img src="admin.jpg" alt="Admin">
+    <img src="admin.png" alt="Admin">
             <h4 class="text-center">Administration</h4>
             <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
             <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
