@@ -216,7 +216,7 @@ th { background: linear-gradient(90deg,#7b2cbf,#5a189a); color:white; }
 
 <div class="container">
     <div class="sidebar">
-        <img src="admin.jpg" alt="Admin Picture">
+        <img src="admin.png" alt="Admin Picture">
         <h3>GIRLS CODING ACADEMY</h3>
     <h4 class="text-center mb-4">Administration</h4>
     <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>

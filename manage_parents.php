@@ -236,7 +236,7 @@ td a,td button{margin-left:6px;}
 <div class="layout">
 <aside class="sidebar">
 
-<img src="admin.jpg" alt="Admin">
+<img src="admin.png" alt="Admin">
 <h3>GIRLS CODING ACADEMY</h3>
 <nav class="nav">
     <h4 class="text-center mb-4">Administration</h4>

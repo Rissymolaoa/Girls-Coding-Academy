@@ -32,13 +32,12 @@ if ($res->num_rows > 0) {
 $enrollMessage = "";
 if (isset($_POST['enroll'])) {
     $batch_id = intval($_POST['batch_id']);
-
     $check = $conn->query("SELECT * FROM course_enrollments WHERE student_id=$student_id AND batch_id=$batch_id");
     if ($check->num_rows == 0) {
         $conn->query("INSERT INTO course_enrollments (student_id, batch_id) VALUES ($student_id, $batch_id)");
-        $enrollMessage = "<p style='color:green;'>Enrolled successfully!</p>";
+        $enrollMessage = "<div class='alert alert-success'>Enrolled successfully!</div>";
     } else {
-        $enrollMessage = "<p style='color:red;'>You are already enrolled in this batch.</p>";
+        $enrollMessage = "<div class='alert alert-danger'>You are already enrolled in this batch.</div>";
     }
 }
 
@@ -56,87 +55,136 @@ $batches = $conn->query("
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Enroll in Batches - Student Dashboard</title>
+
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; background: #f6f5f8; }
+body { background:#f6f5f8; font-family: Arial,sans-serif; }
+header { background:#343a40; color: #fff; padding: 18px 24px; text-align: center; box-shadow:0 2px 6px rgba(0,0,0,0.12);}
+header h1 { margin:0; font-size:22px; }
 
-  header { background: #968f9bff; color: white; padding: 15px 30px; text-align: center; }
-  .container { display: flex; }
+.d-flex { display:flex; flex-wrap:nowrap; min-height:100vh; }
+.sidebar { width:250px; background:#343a40; padding:20px; color:#fff; }
+.sidebar h3 { text-align:center; margin-bottom:20px; font-weight:bold; }
+.sidebar a { display:flex; align-items:center; gap:10px; color:white; text-decoration:none; padding:10px; margin:5px 0; border-radius:6px; transition:0.2s; }
+.sidebar a:hover, .sidebar a.active { background:#495057; }
+.admin-pic { width:90px; height:90px; border-radius:50%; display:block; margin:auto; margin-bottom:15px; border:2px solid #1abc9c; object-fit:cover; }
 
-  /* Sidebar */
-  .sidebar { width: 240px; background: #b0abb6ff; min-height: 100vh; padding: 20px; }
-  .sidebar h3 { color: white; margin-bottom: 15px; }
-  .sidebar a { display: block; color: white; text-decoration: none; padding: 10px; margin: 5px 0; border-radius: 4px; }
-  .sidebar a:hover, .sidebar a.active { background: #5a189a; }
-  .dropdown { position: relative; }
-  .dropdown-content { display: none; flex-direction: column; margin-left: 15px; }
-  .dropdown:hover .dropdown-content { display: flex; }
-  .dropdown-content a { background: #7b2cbf; font-size: 14px; }
-  .dropdown-content a:hover { background: #5a189a; }
+.content { flex:1; padding:30px; }
 
-  /* Main Content */
-  .content { flex: 1; padding: 30px; }
-  h2 { margin-bottom: 20px; color: #7b2cbf; }
-  p { margin-bottom: 15px; }
+.batch-card img { max-width:100%; height:150px; object-fit:cover; border-radius:6px; margin-bottom:10px; }
+.batch-card h5 { color:#7b2cbf; margin-bottom:10px; }
+.batch-card p { font-size:14px; color:#333; height:60px; overflow:hidden; margin-bottom:10px; }
+.batch-card small { display:block; margin-bottom:10px; color:#555; }
+.batch-card form button { background:#7b2cbf; color:white; border:none; padding:6px 12px; cursor:pointer; border-radius:4px; }
+.batch-card form button:hover { background:#5a189a; }
 
-  /* Grid of batches */
-  .batch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-  .batch-card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 15px; text-align: center; }
-  .admin-pic { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; border: 3px solid #1abc9c; object-fit: cover; }
-  .batch-card img { max-width: 100%; height: 150px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; }
-  .batch-card h3 { color: #7b2cbf; margin-bottom: 10px; }
-  .batch-card p { font-size: 14px; color: #333; height: 60px; overflow: hidden; margin-bottom: 10px; }
-  .batch-card small { display: block; margin-bottom: 10px; color: #555; }
-  .batch-card form button { background: #7b2cbf; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
-  .batch-card form button:hover { background: #5a189a; }
+.view-toggle { margin-bottom:20px; }
 
-  footer { background: #ab9eb7ff; color: white; text-align: center; padding: 15px; margin-top: 20px; }
+/* Grid View (default) */
+.batch-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap:20px; }
+
+/* List View */
+.list-view {
+    display:flex;
+    flex-direction:column;
+    gap:15px;
+}
+.list-view .batch-card {
+    display:flex;
+    flex-direction:row;
+    align-items:center;
+    gap:15px;
+    height:auto;
+}
+.list-view .batch-card img {
+    width:150px;
+    height:100px;
+    object-fit:cover;
+    border-radius:6px;
+}
+.list-view .card-body {
+    flex:1;
+}
 </style>
 </head>
 <body>
-  <header>
+
+<header>
     <h1>Girls Coding Academy - Student Dashboard</h1>
-  </header>
+</header>
 
-  <div class="container">
-    <div class="sidebar">
-      <img src="admin.jpg" alt="Admin Picture" class="admin-pic">
-      <h3>Navigation</h3>
-            <a href="student.php">🏠 Home</a>
-      <a href="student_courses.php">📚 My Courses</a>
-      <a href="#">📢 Announcements</a>
-      <a href="#">📅 My Calendar</a>
-      <a href="enroll.php">📅 Enroll</a>
-      <a href="student_profile.php">👤 My Profile</a>
-      <a href="logout.php">🚪 Logout</a>
-    </div>
+<div class="d-flex">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <img src="admin.png" alt="Student Picture" class="admin-pic">
+    <h3>Navigation</h3>
+    <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
+    <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
+    <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
+    <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
+    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> Attendance</a>
+    <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
+    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
+  </div>
 
-    <div class="content">
+  <!-- Content -->
+  <div class="content flex-fill">
       <h2>Available Batches</h2>
       <?php echo $enrollMessage; ?>
 
-      <div class="batch-grid">
+      <!-- View Toggle Buttons -->
+      <div class="view-toggle mb-3">
+        <button id="gridView" class="btn btn-sm btn-primary me-2"><i class="bi bi-grid-fill"></i> Grid</button>
+        <button id="listView" class="btn btn-sm btn-secondary"><i class="bi bi-list-ul"></i> List</button>
+      </div>
+
+      <!-- Batch Container -->
+      <div id="batchContainer" class="batch-grid">
         <?php while($row = $batches->fetch_assoc()) { 
             $imgPath = !empty($row['image_path']) ? $row['image_path'] : 'course1.jpg';
         ?>
-          <div class="batch-card">
-            <img src="<?php echo htmlspecialchars($imgPath); ?>" alt="<?php echo htmlspecialchars($row['courseName']); ?>">
-            <h3><?php echo htmlspecialchars($row['courseName']); ?></h3>
-            <p><?php echo htmlspecialchars($row['description']); ?></p>
-            <small>Batch Code: <?php echo htmlspecialchars($row['batch_code']); ?></small>
+        <div class="card batch-card p-3">
+          <img src="<?php echo htmlspecialchars($imgPath); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($row['courseName']); ?>">
+          <div class="card-body">
+            <h5 class="card-title"><?php echo htmlspecialchars($row['courseName']); ?></h5>
+            <p class="card-text"><?php echo htmlspecialchars($row['description']); ?></p>
+            <small>Batch Code: <?php echo htmlspecialchars($row['batch_code']); ?></small><br>
             <small>Start: <?php echo htmlspecialchars($row['start_date']); ?> | End: <?php echo htmlspecialchars($row['end_date']); ?></small>
-            <form method="POST" action="">
-              <input type="hidden" name="batch_id" value="<?php echo $row['batch_id']; ?>">
-              <button type="submit" name="enroll">Enroll</button>
+            <form method="POST" action="" class="mt-2">
+                <input type="hidden" name="batch_id" value="<?php echo $row['batch_id']; ?>">
+                <button type="submit" name="enroll" class="btn btn-sm"><i class="bi bi-person-plus"></i> Enroll</button>
             </form>
           </div>
+        </div>
         <?php } ?>
       </div>
-    </div>
   </div>
+</div>
 
-  <footer>
+<footer class="text-center text-white mt-4 p-3" style="background:#343a40;">
     &copy; <?php echo date("Y"); ?> Girls Coding Academy. All rights reserved.
-  </footer>
+</footer>
+
+<script>
+const batchContainer = document.getElementById('batchContainer');
+const gridViewBtn = document.getElementById('gridView');
+const listViewBtn = document.getElementById('listView');
+
+gridViewBtn.addEventListener('click', () => {
+    batchContainer.classList.remove('list-view');
+    gridViewBtn.classList.replace('btn-secondary','btn-primary');
+    listViewBtn.classList.replace('btn-primary','btn-secondary');
+});
+
+listViewBtn.addEventListener('click', () => {
+    batchContainer.classList.add('list-view');
+    listViewBtn.classList.replace('btn-secondary','btn-primary');
+    gridViewBtn.classList.replace('btn-primary','btn-secondary');
+});
+</script>
+
 </body>
 </html>

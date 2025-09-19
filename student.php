@@ -11,7 +11,7 @@ if(!isset($_SESSION['user_id'])){
 $username = $_SESSION['username'];
 $role = $_SESSION['role'];
 
-// DEMO data (later you can fetch from DB)
+// DEMO data
 $stats = [
   "Enrolled Courses" => 5,
   "Pending Assignments" => 2,
@@ -37,52 +37,58 @@ $upcoming = [
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student Dashboard - Girls Coding Academy</title>
+  <!-- ✅ Bootstrap Icons CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #f9f9f9; color: #333; }
-
-    header {
-      background: #fff;
-      color: #333;
-      padding: 15px 30px;
-      text-align: center;
-      border-bottom: 1px solid #ddd;
-    }
+  header{background:linear-gradient(90deg,#7b2cbf,#5a189a);color:#fff;padding:18px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12)}
+  header h1{margin:0;font-size:22px;font-weight:600}
 
     .container { display: flex; }
 
     /* Sidebar */
     .sidebar {
-      width: 220px;
-      background: #fff;
+      width: 240px;
+      background: #343a40;
       min-height: 100vh;
-      padding: 20px;
-      border-right: 1px solid #ddd;
+      padding: 20px 15px;
+      color: white;
     }
 
     .sidebar h3 {
-      color: #333;
+      color: #adb5bd;
       margin-bottom: 15px;
-      font-size: 18px;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .sidebar a {
-      display: block;
-      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #f8f9fa;
       text-decoration: none;
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 4px;
-      transition: background 0.2s;
+      padding: 10px 15px;
+      margin: 6px 0;
+      border-radius: 6px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .sidebar a i {
+      font-size: 18px;
     }
 
     .sidebar a:hover {
-      background: #f0f0f0;
+      background: #495057;
+      color: #fff;
     }
 
     .admin-pic {
-      width: 80px;
-      height: 80px;
+      width: 90px;
+      height: 90px;
       border-radius: 50%;
       margin-bottom: 15px;
       border: 2px solid #ddd;
@@ -99,18 +105,6 @@ $upcoming = [
     }
     h2 { margin-bottom: 15px; color: #333; }
     p { font-size: 16px; margin-bottom: 20px; }
-
-    .btn-logout {
-      display: inline-block;
-      background: #333;
-      color: #fff;
-      text-decoration: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      margin-top: 20px;
-      font-weight: bold;
-    }
-    .btn-logout:hover { background: #555; }
 
     footer {
       background: #fff;
@@ -164,15 +158,16 @@ $upcoming = [
   <div class="container">
     <!-- Sidebar -->
     <div class="sidebar">
-      <img src="admin.jpg" alt="Student Picture" class="admin-pic">
+      <img src="admin.png" alt="Student Picture" class="admin-pic">
       <h3>Navigation</h3>
-      <a href="student.php">🏠 Home</a>
-      <a href="student_courses.php">📚 My Courses</a>
-      <a href="#">📢 Announcements</a>
-      <a href="#">📅 My Calendar</a>
-      <a href="enroll.php">📅 Enroll</a>
-      <a href="student_profile.php">👤 My Profile</a>
-      <a href="logout.php">🚪 Logout</a>
+    <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
+    <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
+    <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
+    <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
+    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> Attendance</a>
+    <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
+    <a href="enroll.php"><i class="bi bi-person-circle"></i> My Profile</a>
+    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </div>
 
     <!-- Main Content -->
@@ -209,7 +204,6 @@ $upcoming = [
           <?php endforeach; ?>
         </ul>
       </div>
-
     </div>
   </div>
 

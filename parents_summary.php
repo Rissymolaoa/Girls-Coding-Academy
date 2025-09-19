@@ -193,7 +193,7 @@ body {
   <!-- SIDEBAR -->
   <aside class="sidebar pe-3" style="width:240px;">
     <div class="text-center mb-3">
-      <img src="admin.jpg" alt="Admin" class="rounded-circle" style="width:92px; height:92px; object-fit:cover; border:3px solid #1abc9c;">
+      <img src="admin.png" alt="Admin" class="rounded-circle" style="width:92px; height:92px; object-fit:cover; border:3px solid #1abc9c;">
     </div>
     <nav class="mt-3">
     <h4 class="text-center mb-4">Administration</h4>

@@ -195,7 +195,7 @@ h1{margin:0;
 <header><h1>Girls Coding Academy - Admin Dashboard</h1></header>
 <div class="container">
     <div class="sidebar">
-        <img src="admin.jpg" alt="Admin Picture" class="admin-pic">
+        <img src="admin.png" alt="Admin Picture" class="admin-pic">
     <h4 class="text-center mb-4">Administration</h4>
     <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
     <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
