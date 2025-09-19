@@ -163,8 +163,15 @@ if (!empty($_GET)) {
   }
   *{box-sizing:border-box}
   body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:var(--muted);color:var(--text)}
-  header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px 24px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12)}
-  header h1{margin:0;font-size:20px;font-weight:600}
+      header {
+        background: #2c3e50;
+        color: white;
+        padding: 2px 2px;
+        text-align: center;
+    }
+  header h1{margin:0;
+    font-size:20px;
+    font-weight:600}
   .layout{display:flex;min-height:calc(100vh - 72px)}
   .sidebar{width:220px;background:#34495e;padding:20px;display:flex;flex-direction:column;align-items:center;color:#fff}
   .sidebar img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid #1abc9c;margin-bottom:12px}
@@ -181,7 +188,6 @@ if (!empty($_GET)) {
   td.actions{width:140px;text-align:right}
   td a, td button{margin-left:6px}
   .small-link{color:var(--primary);text-decoration:none}
-  /* Modal */
   /* Modal */
 .modal {
   display: none;
@@ -267,7 +273,6 @@ if (!empty($_GET)) {
 <div class="layout">
 <aside class="sidebar">
 <img src="admin.jpg" alt="Admin">
-<h3>GIRLS CODING ACADEMY</h3>
 <nav class="nav">
     <h4 class="text-center mb-4">Administration</h4>
     <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
@@ -327,7 +332,6 @@ if (!empty($_GET)) {
 </tbody>
 </table>
 </div>
-
 <div class="pagination" style="margin-top:12px;text-align:center;">
 <?php if($page>1): ?>
 <a href="?page=<?= ($page-1) . $qs ?>">&laquo; Prev</a>

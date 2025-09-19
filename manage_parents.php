@@ -164,7 +164,12 @@ if($search){
 :root{--primary:#7b2cbf;--accent:#5a189a;--muted:#f4f4f8;--card:#fff;--text:#222;}
 *{box-sizing:border-box} body{font-family:'Inter',Arial,sans-serif;margin:0;background:var(--muted);color:var(--text);}
 
-header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px 24px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12);}
+    header {
+        background: #2c3e50;
+        color: white;
+        padding: 2px 2px;
+        text-align: center;
+    }
 
 header h1{margin:0;font-size:20px;font-weight:600;}
 

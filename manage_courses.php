@@ -145,7 +145,16 @@ header h1 { font-size: 24px; }
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     height: fit-content;
 }
-
+    header {
+        background: #2c3e50;
+        color: white;
+        padding: 2px 2px;
+        text-align: center;
+    }
+    
+    h1{margin:0;
+    font-size:20px;
+    font-weight:600}
 /* Forms */
 form {
     background: white; padding: 20px; margin-bottom: 20px;
@@ -177,6 +186,9 @@ th { background: linear-gradient(90deg, #7b2cbf, #5a189a); color: white; }
 .pagination { margin-top:15px; text-align:center; }
 .pagination a, .pagination span { padding:6px 14px; margin:0 5px; background:#7b2cbf; color:white; border-radius:4px; text-decoration:none; }
 .pagination span.disabled { background:#ccc; color:#666; }
+h1{margin:0;
+    font-size:20px;
+    font-weight:600}
 </style>
 </head>
 <body>
@@ -204,20 +216,59 @@ th { background: linear-gradient(90deg, #7b2cbf, #5a189a); color: white; }
 
             <!-- Add Course Form -->
             <form method="POST">
-                <h3>Add New Course</h3>
-                <input type="text" name="title" placeholder="Title" required>
-                <input type="text" name="courseName" placeholder="Course Name" required>
-                <textarea name="description" placeholder="Description" required></textarea>
-                <input type="text" name="category" placeholder="Category" required>
-                <input type="text" name="level" placeholder="Level" required>
-                <label>Start Date: <input type="date" name="start_date" required></label>
-                <label>End Date: <input type="date" name="end_date" required></label>
-                <input type="number" step="0.01" name="price" placeholder="Price" required>
-                <select name="status" required>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-                <button type="submit" name="add_course">➕ Add Course</button>
+                <div class="card mb-4 shadow-sm">
+  <div class="card-header bg-gradient text-white" style="background: linear-gradient(90deg, #7b2cbf, #5a189a);">
+    <h5 class="mb-0">Add New Course</h5>
+  </div>
+  <div class="card-body">
+    <form method="POST" class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Title</label>
+        <input type="text" name="title" class="form-control" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Course Name</label>
+        <input type="text" name="courseName" class="form-control" required>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3" required></textarea>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Category</label>
+        <input type="text" name="category" class="form-control" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Level</label>
+        <input type="text" name="level" class="form-control" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Price</label>
+        <input type="number" step="0.01" name="price" class="form-control" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Start Date</label>
+        <input type="date" name="start_date" class="form-control" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">End Date</label>
+        <input type="date" name="end_date" class="form-control" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select" required>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="col-12 text-end">
+        <button type="submit" name="add_course" class="btn btn-primary">
+          <i class="bi bi-plus-circle"></i> Add Course
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
             </form>
 
             <!-- Search -->

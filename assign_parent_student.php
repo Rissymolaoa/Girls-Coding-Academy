@@ -110,6 +110,16 @@ $assignments = $conn->query("
 header h1{margin:0;font-size:20px;font-weight:600} /* Layout */ .layout{display:flex;min-height:calc(100vh - 72px)} .sidebar{ width:220px; background:#34495e; padding:20px; display:flex; flex-direction:column; align-items:center; color:#fff; } 
 .sidebar img{ width:92px; height:92px; border-radius:50%; object-fit:cover; border:3px solid #1abc9c; margin-bottom:12px; } 
 .sidebar h3{font-size:13px;margin:0 0 12px} 
+    header {
+        background: #2c3e50;
+        color: white;
+        padding: 2px 2px;
+        text-align: center;
+    }
+    
+    h1{margin:0;
+    font-size:20px;
+    font-weight:600}
 .nav a{ width:100%; display:block; color:#fff; text-decoration:none; padding:10px; border-radius:6px; margin:6px 0; text-align:left; } 
 .nav a.active, .nav a:hover{background:#1abc9c;color:#062018} 
 .main{ flex:1; padding:26px; } h2{margin-bottom:16px;color:#333} 

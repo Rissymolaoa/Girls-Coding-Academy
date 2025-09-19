@@ -29,7 +29,6 @@ $total_students = $conn->query("SELECT COUNT(*) as count FROM users WHERE role='
 $total_teachers = $conn->query("SELECT COUNT(*) as count FROM users WHERE role='teacher'")->fetch_assoc()['count'];
 $total_parents  = $conn->query("SELECT COUNT(*) as count FROM users WHERE role='parent'")->fetch_assoc()['count'];
 $total_users    = $conn->query("SELECT COUNT(*) as count FROM users")->fetch_assoc()['count'];
-
 $total_courses  = $conn->query("SELECT COUNT(*) as count FROM courses")->fetch_assoc()['count'];
 $active_courses = $conn->query("SELECT COUNT(*) as count FROM courses WHERE status='active'")->fetch_assoc()['count'];
 
@@ -49,98 +48,113 @@ $recent_students = $conn->query("
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Admin Dashboard</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
-  :root{
-    --primary:#7b2cbf;
-    --accent:#5a189a;
-    --muted:#f4f4f8;
-    --card:#ffffff;
-    --text:#222;
-  }
-  *{box-sizing:border-box}
-  body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:var(--muted);color:var(--text)}
-  header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px 24px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12)}
-  header h1{margin:0;font-size:20px;font-weight:600}
-  .layout{display:flex;min-height:calc(100vh - 72px)}
-  .sidebar{width:220px;background:#34495e;padding:20px;display:flex;flex-direction:column;align-items:center;color:#fff}
-  .sidebar img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid #1abc9c;margin-bottom:12px}
-  .sidebar h3{font-size:13px;margin:0 0 12px}
-  .nav a{width:100%;display:block;color:#fff;text-decoration:none;padding:10px;border-radius:6px;margin:6px 0;text-align:left}
-  .nav a.active, .nav a:hover{background:#1abc9c;color:#062018}
+  body{font-family:Inter,Arial,Helvetica,sans-serif;background:#f4f6f9}
+  header{background:linear-gradient(90deg,#7b2cbf,#5a189a);color:#fff;padding:18px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12)}
+  header h1{margin:0;font-size:22px;font-weight:600}
+  .search-bar{max-width:500px;margin:10px auto}
+  .layout{display:flex;min-height:calc(100vh - 70px)}
+  .sidebar{width:230px;background:#2c3e50;padding:20px;color:#fff}
+  .sidebar img{width:90px;height:90px;border-radius:50%;margin-bottom:12px;border:3px solid #1abc9c}
+  .sidebar .nav a{display:block;color:#fff;padding:10px;border-radius:6px;margin:5px 0;text-decoration:none}
+  .sidebar .nav a:hover, .sidebar .nav a.active{background:#1abc9c;color:#062018}
   .main{flex:1;padding:26px}
-  h2{margin-bottom:16px;color:#333}
-  .summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px}
-  .summary-card{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;padding:18px;border-radius:10px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.15)}
-  .summary-card h3{margin:0;font-size:16px;font-weight:500}
-  .summary-card p{margin-top:8px;font-size:22px;font-weight:700}
-  .quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px}
-  .quick-actions a{display:block;background:linear-gradient(135deg,#9b59b6,#8e44ad);color:#fff;text-align:center;padding:15px;border-radius:10px;text-decoration:none;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.15);transition:.3s}
-  .quick-actions a:hover{background:linear-gradient(135deg,#8e44ad,#732d91)}
-  .table-card{background:var(--card);padding:14px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left}
-  th{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff}
+  .summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:30px}
+  .summary-card{background:#fff;padding:18px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);display:flex;align-items:center;gap:12px}
+  .summary-card .icon{font-size:28px}
+  .border-left-purple{border-left:6px solid #7b2cbf}
+  .border-left-blue{border-left:6px solid #3498db}
+  .border-left-green{border-left:6px solid #1abc9c}
+  .border-left-orange{border-left:6px solid #e67e22}
+  .border-left-pink{border-left:6px solid #e84393}
+  .border-left-red{border-left:6px solid #c0392b}
+  .quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:30px}
+  .quick-actions a{background:#fff;padding:16px;text-align:center;border-radius:10px;text-decoration:none;color:#333;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.1);transition:.3s}
+  .quick-actions a:hover{color:#1abc9c;transform:translateY(-4px)}
+  .quick-actions i{font-size:22px;display:block;margin-bottom:8px}
+  .table-card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
   footer{background:#2c3e50;color:#fff;text-align:center;padding:15px;margin-top:20px}
-  @media(max-width:900px){.sidebar{display:none}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Girls Coding Academy - Admin Dashboard</h1>
+  <form class="search-bar d-flex">
+    <input class="form-control me-2" type="search" placeholder="Search..." aria-label="Search">
+    <button class="btn btn-light" type="submit"><i class="bi bi-search"></i></button>
+  </form>
 </header>
 
 <div class="layout">
   <aside class="sidebar">
     <img src="admin.jpg" alt="Admin">
-    <h3>GIRLS CODING ACADEMY</h3>
+    <h5 class="text-center">Administration</h5>
     <nav class="nav">
-    <h4 class="text-center mb-4">Administration</h4>
-    <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
-    <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
-    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
-    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
-    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
-    <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
-    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
-    <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
-    <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
-    <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
+      <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door"></i> Dashboard</a>
+      <a href="approve_users.php"><i class="bi bi-person-check"></i> Approve Users</a>
+      <a href="manage_courses.php"><i class="bi bi-journal-bookmark"></i> Manage Courses</a>
+      <a href="manage_students.php"><i class="bi bi-people"></i> Manage Students</a>
+      <a href="manage_teachers.php"><i class="bi bi-person-badge"></i> Manage Teachers</a>
+      <a href="parents_summary.php"><i class="bi bi-people-fill"></i> Parent Summary</a>
+      <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
+      <a href="assign_parent_student.php"><i class="bi bi-person-plus"></i> Assign Students</a>
+      <a href="course_assignment.php"><i class="bi bi-book"></i> Assign Courses</a>
+      <a href="add_batch.php"><i class="bi bi-plus-circle"></i> Add Batch</a>
+      <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </nav>
   </aside>
 
   <main class="main">
     <h2>Summary</h2>
     <div class="summary-cards">
-      <div class="summary-card"><h3>👩‍🎓  Total Students</h3><p><?= $total_students ?></p></div>
-      <div class="summary-card"><h3>👨‍🏫  Total Teachers</h3><p><?= $total_teachers ?></p></div>
-      <div class="summary-card"><h3>👪  Total Parents</h3><p><?= $total_parents ?></p></div>
-      <div class="summary-card"><h3>Total Users</h3><p><?= $total_users ?></p></div>
-      <div class="summary-card"><h3>📚  Total Courses</h3><p><?= $total_courses ?></p></div>
-      <div class="summary-card"><h3>📚  Active Courses</h3><p><?= $active_courses ?></p></div>
+      <div class="summary-card border-left-purple">
+        <i class="bi bi-mortarboard-fill icon text-purple"></i>
+        <div><h6>Total Students</h6><p><?= $total_students ?></p></div>
+      </div>
+      <div class="summary-card border-left-blue">
+        <i class="bi bi-person-badge-fill icon text-primary"></i>
+        <div><h6>Total Teachers</h6><p><?= $total_teachers ?></p></div>
+      </div>
+      <div class="summary-card border-left-green">
+        <i class="bi bi-people-fill icon text-success"></i>
+        <div><h6>Total Parents</h6><p><?= $total_parents ?></p></div>
+      </div>
+      <div class="summary-card border-left-orange">
+        <i class="bi bi-people icon text-warning"></i>
+        <div><h6>Total Users</h6><p><?= $total_users ?></p></div>
+      </div>
+      <div class="summary-card border-left-pink">
+        <i class="bi bi-journal-text icon text-danger"></i>
+        <div><h6>Total Courses</h6><p><?= $total_courses ?></p></div>
+      </div>
+      <div class="summary-card border-left-red">
+        <i class="bi bi-journal-check icon text-danger"></i>
+        <div><h6>Active Courses</h6><p><?= $active_courses ?></p></div>
+      </div>
     </div>
 
     <h2>Quick Actions</h2>
     <div class="quick-actions">
-      <a href="approve_users.php">Approve Users</a>
-      <a href="manage_courses.php">Manage Courses</a>
-      <a href="manage_students.php">Manage Students</a>
-      <a href="manage_teachers.php">Manage Teachers</a>
-      <a href="course_assignment.php">Assign Courses</a>
-      <a href="add_batch.php">Add Batch</a>
+      <a href="approve_users.php"><i class="bi bi-person-check"></i> Approve Users</a>
+      <a href="manage_courses.php"><i class="bi bi-journal"></i> Manage Courses</a>
+      <a href="manage_students.php"><i class="bi bi-people"></i> Manage Students</a>
+      <a href="manage_teachers.php"><i class="bi bi-person-badge"></i> Manage Teachers</a>
+      <a href="course_assignment.php"><i class="bi bi-book"></i> Assign Courses</a>
+      <a href="add_batch.php"><i class="bi bi-plus-circle"></i> Add Batch</a>
     </div>
 
     <h2>Recent Students</h2>
     <div class="table-card">
-      <table>
-        <thead><tr><th>Name</th><th>Registered On</th></tr></thead>
+      <table class="table table-hover align-middle">
+        <thead class="table-dark">
+          <tr><th>Name</th><th>Registered On</th></tr>
+        </thead>
         <tbody>
           <?php while($s = $recent_students->fetch_assoc()): ?>
             <tr>
               <td><?= htmlspecialchars($s['firstName']." ".$s['lastName']) ?></td>
-              <td><?= htmlspecialchars(date("d F Y", strtotime($s['created_at']))) ?> <?= date("H:i", strtotime($s['created_at'])) ?></td>
-
+              <td><?= htmlspecialchars(date("d F Y, H:i", strtotime($s['created_at']))) ?></td>
             </tr>
           <?php endwhile; ?>
         </tbody>

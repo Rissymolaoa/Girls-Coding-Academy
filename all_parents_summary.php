@@ -53,6 +53,9 @@ body { font-family: 'Inter', sans-serif; background: #f4f4f8; }
 .sidebar a i { margin-right: 10px; }
 .main { margin-left: 240px; padding: 20px; }
 .topbar { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+h1{margin:0;
+    font-size:20px;
+    font-weight:600}
 </style>
 </head>
 <body>
@@ -76,7 +79,7 @@ body { font-family: 'Inter', sans-serif; background: #f4f4f8; }
 
 <div class="main">
     <div class="topbar">
-        <h2>Girls Coding Academy - All Parents</h2>
+        <h1>Girls Coding Academy - All Parents</h1>
         <form method="get" class="d-flex">
             <input type="text" name="search" class="form-control me-2" placeholder="Search parents..." value="<?= htmlspecialchars($search) ?>">
             <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>

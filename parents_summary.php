@@ -171,6 +171,7 @@ body {
 .summary .students { border:3px solid var(--border3); }
 .summary .students i { background:var(--border3); }
 
+
 </style>
 </head>
 <body>
@@ -194,7 +195,6 @@ body {
     <div class="text-center mb-3">
       <img src="admin.jpg" alt="Admin" class="rounded-circle" style="width:92px; height:92px; object-fit:cover; border:3px solid #1abc9c;">
     </div>
-    <h6 class="text-uppercase text-white small">Girls Coding Academy</h6>
     <nav class="mt-3">
     <h4 class="text-center mb-4">Administration</h4>
     <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>

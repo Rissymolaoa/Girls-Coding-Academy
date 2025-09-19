@@ -256,7 +256,12 @@ $students_q = "
   }
   *{box-sizing:border-box}
   body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:var(--muted);color:var(--text)}
-  header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px 24px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12)}
+      header {
+        background: #2c3e50;
+        color: white;
+        padding: 2px 2px;
+        text-align: center;
+    }
   header h1{margin:0;font-size:20px;font-weight:600}
   .layout{display:flex;min-height:calc(100vh - 72px)}
   .sidebar{width:220px;background:#34495e;padding:20px;display:flex;flex-direction:column;align-items:center;color:#fff}

@@ -64,7 +64,7 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     header {
         background: #2c3e50;
         color: white;
-        padding: 15px 30px;
+        padding: 2px 2px;
         text-align: center;
     }
 
@@ -77,21 +77,14 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
         padding: 20px;
     }
 
-    .sidebar a {
-        display: block;
-        color: white;
-        text-decoration: none;
-        padding: 10px;
-        margin: 5px 0;
-        border-radius: 4px;
-    }
+sidebar { width: 220px; background: #343a40; color: #fff; min-height: 100vh; padding-top: 20px; position: fixed; }
+.sidebar a { display: flex; align-items: center; padding: 10px 15px; color: #fff; text-decoration: none; border-radius: 5px; margin-bottom: 4px; }
+.sidebar a:hover, .sidebar a.active { background: #495057; }
+.sidebar a i { margin-right: 10px; }
 
-    .sidebar a:hover { background: #1abc9c; }
-
-  .nav a.active, .nav a:hover{background: #1abc9c;color: #2bc194ff}
-
-
-
+    h1{margin:0;
+    font-size:20px;
+    font-weight:600}
     .content { display: flex; flex: 1; padding: 30px; gap: 20px; }
 
     .main-section { flex: 2; }
@@ -169,21 +162,23 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
 </style>
 </head>
 <body>
+    
 <header>
     <h1>Girls Coding Academy - Admin Dashboard</h1>
 </header>
+
 
 <div class="container">
     <div class="sidebar">
         <img src="admin.jpg" alt="Admin Picture" class="admin-pic">
     <h4 class="text-center mb-4">Administration</h4>
     <a href="admin_dashboard.php"><i class="bi bi-house-door-fill"></i> Dashboard</a>
-    <a href="approve_users.php"class="active><i class="bi bi-person-check-fill"></i> Approve Users</a>
-    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
-    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
-    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
+    <a href="approve_users.php"class="active><i class="bi bi-person-check-fill></i> Approve Users</a>
+    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Courses</a>
+    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Students</a>
+    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Teachers</a>
     <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
-    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
+    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Parents</a>
     <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
     <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
     <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>

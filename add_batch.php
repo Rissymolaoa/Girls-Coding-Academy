@@ -108,8 +108,16 @@ $courses_result->data_seek(0);
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: Arial,sans-serif; background:#f5f6fa; color:#2c3e50; }
 
-header { background: linear-gradient(90deg,#7b2cbf,#5a189a); color:white; padding:20px 30px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);}
-header h1 { font-weight:600; font-size:24px; }
+    header {
+        background: #2c3e50;
+        color: white;
+        padding: 2px 2px;
+        text-align: center;
+    }
+    
+    h1{margin:0;
+    font-size:20px;
+    font-weight:600}
 
 .container { display:flex; min-height: calc(100vh - 70px); }
 
