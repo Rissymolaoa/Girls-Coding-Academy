@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Enable error reporting for debugging
+// Enable error reporting for debugging (optional, remove in production)
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -14,45 +14,35 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'teacher') {
 
 include("db.php"); // DB connection
 
-$teacher_id = $_SESSION['user_id'];
-echo "Debug: teacher_id (from session) = $teacher_id<br>"; // Debug session
+$user_id = $_SESSION['user_id'];
 
-// Debug: Check users table for teacher
-$userDebugQuery = $conn->prepare("SELECT user_id, username, email, role FROM users WHERE user_id = ?");
-$userDebugQuery->bind_param("i", $teacher_id);
-$userDebugQuery->execute();
-$userDebugResult = $userDebugQuery->get_result()->fetch_assoc();
-echo "Debug: Users table - " . ($userDebugResult ? print_r($userDebugResult, true) : "No user found") . "<br>";
-$userDebugQuery->close();
-
-// Debug: Check teachers table
-$teacherDebugQuery = $conn->prepare("SELECT teacher_id, user_id, subject_speciality FROM teachers WHERE user_id = ?");
-$teacherDebugQuery->bind_param("i", $teacher_id);
-$teacherDebugQuery->execute();
-$teacherDebugResult = $teacherDebugQuery->get_result()->fetch_assoc();
-echo "Debug: Teachers table - " . ($teacherDebugResult ? print_r($teacherDebugResult, true) : "No teacher record found") . "<br>";
-$teacherDebugQuery->close();
-
-// Debug: List available teacher_ids in course_assignments
-$debugQuery = $conn->query("SELECT DISTINCT teacher_id FROM course_assignments");
-$teacherIds = [];
-while ($row = $debugQuery->fetch_assoc()) {
-    $teacherIds[] = $row['teacher_id'];
-}
-echo "Debug: Available teacher_ids in course_assignments: " . implode(", ", $teacherIds) . "<br>";
-
-// Get teacher info
+// Fetch teacher info from users table
 $teacherQuery = $conn->prepare("SELECT username, email, gender, phone FROM users WHERE user_id=? AND role='teacher'");
 if (!$teacherQuery) {
     die("Teacher query preparation failed: " . $conn->error);
 }
-$teacherQuery->bind_param("i", $teacher_id);
+$teacherQuery->bind_param("i", $user_id);
 $teacherQuery->execute();
 $teacherInfo = $teacherQuery->get_result()->fetch_assoc();
 if (!$teacherInfo) {
-    die("No teacher found for user_id: $teacher_id");
+    die("No teacher found for user_id: $user_id");
 }
 $teacherQuery->close();
+
+// Fetch teacher_id from teachers table
+$teacherIdQuery = $conn->prepare("SELECT teacher_id FROM teachers WHERE user_id = ?");
+if (!$teacherIdQuery) {
+    die("Teacher ID query preparation failed: " . $conn->error);
+}
+$teacherIdQuery->bind_param("i", $user_id);
+$teacherIdQuery->execute();
+$teacherIdResult = $teacherIdQuery->get_result();
+if ($teacherIdResult->num_rows === 0) {
+    die("Error: Teacher profile not found. Please contact the administrator to set up your teacher profile.");
+}
+$teacher = $teacherIdResult->fetch_assoc();
+$teacher_id = (int)$teacher['teacher_id'];
+$teacherIdQuery->close();
 
 // Handle batch selection
 $selected_batch_id = isset($_POST['selected_batch_id']) ? (int)$_POST['selected_batch_id'] : null;
@@ -66,9 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Validate inputs
         if ($internal_number < 1 || $internal_number > 8) {
-            echo "Error: Invalid internal number.";
+            echo "<div class='alert alert-danger'>Error: Invalid internal number.</div>";
         } elseif ($score < 0 || $score > 100) {
-            echo "Error: Score must be between 0 and 100.";
+            echo "<div class='alert alert-danger'>Error: Score must be between 0 and 100.</div>";
         } else {
             // Update or insert grade for the specific internal
             $gradeQuery = $conn->prepare("
@@ -83,50 +73,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $gradeQuery->close();
         }
     } elseif (isset($_POST['action']) && $_POST['action'] === 'assign_activity') {
-        $batch_id = (int)$_POST['batch_id'];
-        $title = $conn->real_escape_string($_POST['title']);
-        $description = $conn->real_escape_string($_POST['description']);
-        $due_date = $conn->real_escape_string($_POST['due_date']);
-        $resource_file = null;
+        // Ensure batch_id is set and valid
+        if (!isset($_POST['batch_id']) || !is_numeric($_POST['batch_id']) || (int)$_POST['batch_id'] <= 0) {
+            echo "<div class='alert alert-danger'>Error: Invalid batch ID.</div>";
+        } else {
+            $batch_id = (int)$_POST['batch_id'];
 
-        // Handle file upload
-        if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = 'uploads/';
-            $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
-            $max_size = 5 * 1024 * 1024; // 5MB
-            $file = $_FILES['resource_file'];
-            
-            // Validate file type and size
-            if (!in_array($file['type'], $allowed_types)) {
-                echo "Error: Only PDF, JPG, and PNG files are allowed.";
-            } elseif ($file['size'] > $max_size) {
-                echo "Error: File size exceeds 5MB limit.";
+            // Validate batch_id exists in batches table
+            $batchCheckQuery = $conn->prepare("SELECT batch_id FROM batches WHERE batch_id = ?");
+            if (!$batchCheckQuery) {
+                die("Batch check query preparation failed: " . $conn->error);
+            }
+            $batchCheckQuery->bind_param("i", $batch_id);
+            $batchCheckQuery->execute();
+            $batchCheckResult = $batchCheckQuery->get_result();
+            if ($batchCheckResult->num_rows === 0) {
+                echo "<div class='alert alert-danger'>Error: Selected batch does not exist.</div>";
             } else {
-                // Generate unique filename
-                $file_ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $file_name = uniqid('activity_') . '.' . $file_ext;
-                $file_path = $upload_dir . $file_name;
+                $batchCheckQuery->close();
 
-                // Move file to uploads directory
-                if (move_uploaded_file($file['tmp_name'], $file_path)) {
-                    $resource_file = '/' . $file_path;
-                } else {
-                    echo "Error: Failed to upload file.";
+                $title = $conn->real_escape_string($_POST['title']);
+                $description = $conn->real_escape_string($_POST['description']);
+                $due_date = $conn->real_escape_string($_POST['due_date']);
+                $resource_file = null;
+
+                // Handle file upload
+                if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
+                    $upload_dir = 'Uploads/';
+                    $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
+                    $max_size = 5 * 1024 * 1024; // 5MB
+                    $file = $_FILES['resource_file'];
+                    
+                    if (!in_array($file['type'], $allowed_types)) {
+                        echo "<div class='alert alert-danger'>Error: Only PDF, JPG, and PNG files are allowed.</div>";
+                    } elseif ($file['size'] > $max_size) {
+                        echo "<div class='alert alert-danger'>Error: File size exceeds 5MB limit.</div>";
+                    } else {
+                        $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                        $file_name = uniqid('activity_') . '.' . $file_ext;
+                        $file_path = $upload_dir . $file_name;
+                        if (!is_dir($upload_dir)) {
+                            mkdir($upload_dir, 0755, true);
+                        }
+                        if (move_uploaded_file($file['tmp_name'], $file_path)) {
+                            $resource_file = '/' . $file_path;
+                        } else {
+                            echo "<div class='alert alert-danger'>Error: Failed to upload file.</div>";
+                        }
+                    }
+                }
+
+                // Insert activity only if no errors
+                if (!isset($_SESSION['error'])) {
+                    $activityQuery = $conn->prepare("
+                        INSERT INTO activities (batch_id, teacher_id, title, description, due_date, resource_file, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, NOW())
+                    ");
+                    if (!$activityQuery) {
+                        die("Activity query preparation failed: " . $conn->error);
+                    }
+                    $activityQuery->bind_param("iissss", $batch_id, $teacher_id, $title, $description, $due_date, $resource_file);
+                    if ($activityQuery->execute()) {
+                        echo "<div class='alert alert-success'>Activity assigned successfully.</div>";
+                    } else {
+                        echo "<div class='alert alert-danger'>Error: Failed to assign activity. " . $conn->error . "</div>";
+                    }
+                    $activityQuery->close();
                 }
             }
         }
-
-        // Insert activity
-        $activityQuery = $conn->prepare("
-            INSERT INTO activities (batch_id, teacher_id, title, description, due_date, resource_file, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ");
-        if (!$activityQuery) {
-            die("Activity query preparation failed: " . $conn->error);
-        }
-        $activityQuery->bind_param("iissss", $batch_id, $teacher_id, $title, $description, $due_date, $resource_file);
-        $activityQuery->execute();
-        $activityQuery->close();
     }
 }
 
@@ -143,11 +158,23 @@ $courseQuery = $conn->prepare("
 if (!$courseQuery) {
     die("Course query preparation failed: " . $conn->error);
 }
-$courseQuery->bind_param("i", $teacher_id);
+$courseQuery->bind_param("i", $user_id);
 $courseQuery->execute();
 $assignedCourses = $courseQuery->get_result();
-echo "Debug: Number of assigned courses = " . $assignedCourses->num_rows . "<br>";
 $courseQuery->close();
+
+// Fetch available batches for selector
+$batchSelectorQuery = $conn->prepare("
+    SELECT b.batch_id, b.batch_code, c.courseName
+    FROM course_assignments ca
+    INNER JOIN batches b ON ca.batch_id = b.batch_id
+    INNER JOIN courses c ON b.course_id = c.course_id
+    WHERE ca.teacher_id IN (SELECT teacher_id FROM teachers WHERE user_id = ?)
+    ORDER BY b.start_date DESC
+");
+$batchSelectorQuery->bind_param("i", $user_id);
+$batchSelectorQuery->execute();
+$batchSelectorResult = $batchSelectorQuery->get_result();
 
 // If a batch is selected, fetch data for that batch only
 if ($selected_batch_id) {
@@ -166,9 +193,6 @@ if ($selected_batch_id) {
     $studentQuery->bind_param("i", $selected_batch_id);
     $studentQuery->execute();
     $enrolledStudents = $studentQuery->get_result();
-    echo "Debug: Number of enrolled students for batch $selected_batch_id = " . $enrolledStudents->num_rows . "<br>";
-
-    // Group students for selected batch
     $studentsByBatch = [$selected_batch_id => []];
     while ($student = $enrolledStudents->fetch_assoc()) {
         $studentsByBatch[$selected_batch_id][] = $student;
@@ -237,250 +261,123 @@ if ($selected_batch_id) {
     }
     $submissionQuery->close();
 } else {
-    // Default to no selection, no data shown
     $studentsByBatch = [];
     $gradesByEnrollment = [];
     $activitiesByBatch = [];
     $submissionsByActivity = [];
 }
-
-// Get all assigned batches for the selector
-$batchSelectorQuery = $conn->prepare("
-    SELECT b.batch_id, b.batch_code, c.courseName
-    FROM course_assignments ca
-    INNER JOIN batches b ON ca.batch_id = b.batch_id
-    INNER JOIN courses c ON b.course_id = c.course_id
-    INNER JOIN teachers t ON ca.teacher_id = t.teacher_id
-    WHERE t.user_id = ?
-    ORDER BY b.start_date DESC
-");
-$batchSelectorQuery->bind_param("i", $teacher_id);
-$batchSelectorQuery->execute();
-$batchSelectorResult = $batchSelectorQuery->get_result();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Teacher Dashboard</title>
-    <style>
-        :root {
-            --primary: #7b2cbf;
-            --accent: #5a189a;
-            --muted: #f4f4f8;
-            --card: #ffffff;
-            --text: #222;
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: Inter, Arial, Helvetica, sans-serif;
-            background: var(--muted);
-            color: var(--text);
-        }
-        header {
-            background: linear-gradient(90deg, var(--primary), var(--accent));
-            color: #fff;
-            padding: 18px 24px;
-            text-align: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-        }
-        header h1 { margin: 0; font-size: 22px; }
-        header p { margin: 4px 0 0; font-size: 14px; }
-        .layout {
-            display: flex;
-            min-height: calc(100vh - 72px);
-        }
-        .sidebar {
-            width: 220px;
-            background: #34495e;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: #fff;
-        }
-        .sidebar img {
-            width: 92px;
-            height: 92px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #1abc9c;
-            margin-bottom: 12px;
-        }
-        .sidebar h3 {
-            font-size: 14px;
-            margin: 0 0 12px;
-            text-align: center;
-        }
-        .nav a {
-            width: 100%;
-            display: block;
-            color: #fff;
-            text-decoration: none;
-            padding: 10px;
-            border-radius: 6px;
-            margin: 6px 0;
-            text-align: left;
-        }
-        .nav a.active, .nav a:hover {
-            background: #1abc9c;
-            color: #062018;
-        }
-        .main {
-            flex: 1;
-            padding: 26px;
-        }
-        .table-card {
-            background: var(--card);
-            padding: 14px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-            margin-bottom: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-        th, td {
-            padding: 10px;
-            border-bottom: 1px solid #732d91;
-            text-align: left;
-        }
-        th {
-            background: linear-gradient(90deg, var(--primary), var(--accent));
-            color: #fff;
-        }
-        footer {
-            background: #34495e;
-            color: #fff;
-            padding: 12px;
-            text-align: center;
-            margin-top: auto;
-        }
-        .status-active { color: green; font-weight: bold; }
-        .status-inactive { color: red; font-weight: bold; }
-        .assign-btn {
-            display: inline-block;
-            padding: 6px 12px;
-            background: #1abc9c;
-            color: #fff;
-            border-radius: 4px;
-            text-decoration: none;
-        }
-        .assign-btn:hover { background: #16a085; }
-        .grade-input { width: 60px; }
-        .grade-form { display: inline; }
-        .form-group {
-            margin-bottom: 10px;
-        }
-        .form-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .form-group select, .form-group input, .form-group textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #732d91;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-        .error { color: red; font-weight: bold; }
-        .batch-selector {
-            margin-bottom: 20px;
-        }
-        .batch-selector form {
-            display: inline;
-        }
-        .batch-selector select {
-            padding: 8px;
-            border: 1px solid #732d91;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .batch-selector button {
-            padding: 8px 12px;
-            background: #1abc9c;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-        .batch-selector button:hover {
-            background: #16a085;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Teacher Dashboard</title>
+<!-- Bootstrap CSS & Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+
+<style>
+body {
+    font-family: Inter, Arial, Helvetica, sans-serif;
+    background: #f4f6f9;
+}
+header {
+    background: linear-gradient(90deg, #7b2cbf, #5a189a);
+    color: #fff;
+}
+header h1 {
+    margin: 0;
+    font-size: 22px;
+}
+</style>
 </head>
 <body>
-    <header>
-        <h1>Welcome, <?= htmlspecialchars($teacherInfo['username']) ?></h1>
-        <p>Email: <?= htmlspecialchars($teacherInfo['email']) ?> | Gender: <?= htmlspecialchars($teacherInfo['gender']) ?> | Phone: <?= htmlspecialchars($teacherInfo['phone']) ?></p>
-    </header>
 
-    <div class="layout">
-        <aside class="sidebar">
-            <img src="admin.jpg" alt="Teacher">
-            <h3>Teacher Dashboard</h3>
-            <nav class="nav">
-                <a href="teacher_dashboard.php" class="active">🏠 Dashboard</a>
-                <a href="manage_teacher_courses.php">📚 Manage Own Courses</a>
-                <a href="upload_materials.php">📂 Upload Materials</a>
-                <a href="grades.php">📝 Grade</a>
-                <a href="mark_attendance.php">✅ Mark Attendance</a>
-                <a href="message_students.php">💬 Message Students</a>
-                <a href="logout.php">🚪 Logout</a>
-            </nav>
-        </aside>
+<header class="py-3 px-4 text-center">
+    <h1>Welcome, <?= htmlspecialchars($teacherInfo['username']) ?></h1>
+    <p class="mb-0">Email: <?= htmlspecialchars($teacherInfo['email']) ?> | Gender: <?= htmlspecialchars($teacherInfo['gender']) ?> | Phone: <?= htmlspecialchars($teacherInfo['phone']) ?></p>
+</header>
 
-        <main class="main">
-            <h2>Select Batch</h2>
-            <div class="batch-selector">
-                <form method="POST">
-                    <select name="selected_batch_id" required>
-                        <option value="">Select a batch to view and manage</option>
-                        <?php while ($row = $batchSelectorResult->fetch_assoc()): ?>
-                        <option value="<?= $row['batch_id'] ?>" <?= $selected_batch_id === $row['batch_id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($row['batch_code']) ?> (<?= htmlspecialchars($row['courseName']) ?>)
-                        </option>
-                        <?php endwhile; ?>
-                    </select>
-                    <button type="submit" class="assign-btn">Select Batch</button>
-                </form>
+<div class="container-fluid d-flex flex-nowrap" style="min-height: calc(100vh - 70px);">
+    <!-- Sidebar -->
+    <nav class="col-md-3 col-xl-2 bg-dark text-white p-3 vh-100" style="min-width:220px;">
+        <div class="text-center mb-4">
+            <img src="admin.png" class="rounded-circle border border-info mb-2" width="92" height="92" alt="Teacher">
+            <h5>Teacher Dashboard</h5>
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item mb-2">
+                <a class="nav-link text-white active" href="teacher_dashboard.php"><i class="bi bi-house-door"></i> Dashboard</a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link text-white" href="manage_teacher_courses.php"><i class="bi bi-journal-bookmark"></i> Manage Courses</a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link text-white" href="upload_materials.php"><i class="bi bi-folder"></i> Upload Materials</a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link text-white" href="grades.php"><i class="bi bi-pencil-square"></i> Grade</a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link text-white" href="mark_attendance.php"><i class="bi bi-check-circle"></i> Mark Attendance</a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link text-white" href="message_students.php"><i class="bi bi-chat-dots"></i> Message Students</a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link text-white" href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="col py-4">
+        <!-- Batch Selection -->
+        <h2>Select Batch</h2>
+        <form method="POST" class="d-flex mb-4">
+            <select name="selected_batch_id" class="form-select me-2" required>
+                <option value="">Select a batch to view and manage</option>
+                <?php while ($row = $batchSelectorResult->fetch_assoc()): ?>
+                <option value="<?= $row['batch_id'] ?>" <?= $selected_batch_id === $row['batch_id'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($row['batch_code']) ?> (<?= htmlspecialchars($row['courseName']) ?>)
+                </option>
+                <?php endwhile; ?>
+            </select>
+            <button type="submit" class="btn btn-primary">Select Batch</button>
+        </form>
+
+        <?php if ($selected_batch_id): ?>
+        <?php
+        // Fetch selected batch details
+        $selectedBatchQuery = $conn->prepare("
+            SELECT b.batch_code, c.courseName
+            FROM batches b
+            INNER JOIN courses c ON b.course_id = c.course_id
+            WHERE b.batch_id = ?
+        ");
+        $selectedBatchQuery->bind_param("i", $selected_batch_id);
+        $selectedBatchQuery->execute();
+        $selectedBatchResult = $selectedBatchQuery->get_result()->fetch_assoc();
+        $selectedBatchQuery->close();
+        ?>
+
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4>Batch: <?= htmlspecialchars($selectedBatchResult['batch_code']) ?> (<?= htmlspecialchars($selectedBatchResult['courseName']) ?>)</h4>
             </div>
-
-            <?php if ($selected_batch_id): ?>
-                <?php
-                // Fetch selected batch details
-                $selectedBatchQuery = $conn->prepare("
-                    SELECT b.batch_code, c.courseName
-                    FROM batches b
-                    INNER JOIN courses c ON b.course_id = c.course_id
-                    WHERE b.batch_id = ?
-                ");
-                $selectedBatchQuery->bind_param("i", $selected_batch_id);
-                $selectedBatchQuery->execute();
-                $selectedBatchResult = $selectedBatchQuery->get_result()->fetch_assoc();
-                ?>
-                <h2>Batch: <?= htmlspecialchars($selectedBatchResult['batch_code']) ?> (<?= htmlspecialchars($selectedBatchResult['courseName']) ?>)</h2>
-
-                <h3>Enrolled Students</h3>
-                <div class="table-card">
-                    <?php if (isset($studentsByBatch[$selected_batch_id]) && count($studentsByBatch[$selected_batch_id]) > 0): ?>
-                    <table>
-                        <thead>
+            <div class="card-body">
+                <!-- Enrolled Students -->
+                <h5>Enrolled Students</h5>
+                <?php if (isset($studentsByBatch[$selected_batch_id]) && count($studentsByBatch[$selected_batch_id]) > 0): ?>
+                <div class="table-responsive mb-4">
+                    <table class="table table-striped table-bordered">
+                        <thead class="table-dark">
                             <tr>
-                                <th>Student Name</th>
+                                <th>Name</th>
                                 <th>Email</th>
-                                <th>Enrollment Status</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -488,46 +385,42 @@ $batchSelectorResult = $batchSelectorQuery->get_result();
                             <tr>
                                 <td><?= htmlspecialchars($student['username']) ?></td>
                                 <td><?= htmlspecialchars($student['email']) ?></td>
-                                <td class="status-active"><?= htmlspecialchars($student['status']) ?></td>
+                                <td><span class="badge <?= $student['status'] === 'active' ? 'bg-success' : 'bg-secondary' ?>"><?= htmlspecialchars($student['status']) ?></span></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
-                    <?php else: ?>
-                    <p>No students enrolled in this batch.</p>
-                    <?php endif; ?>
                 </div>
+                <?php else: ?>
+                <div class="alert alert-warning">No students enrolled in this batch.</div>
+                <?php endif; ?>
 
-                <h3>Record Internal Assignments</h3>
-                <div class="table-card">
-                    <?php if (isset($studentsByBatch[$selected_batch_id]) && count($studentsByBatch[$selected_batch_id]) > 0): ?>
-                    <table>
-                        <thead>
+                <!-- Record Internal Grades -->
+                <h5>Record Internal Assignments</h5>
+                <?php if (isset($studentsByBatch[$selected_batch_id]) && count($studentsByBatch[$selected_batch_id]) > 0): ?>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered align-middle">
+                        <thead class="table-dark">
                             <tr>
                                 <th>Student Name</th>
-                                <th>Internal 1</th>
-                                <th>Internal 2</th>
-                                <th>Internal 3</th>
-                                <th>Internal 4</th>
-                                <th>Internal 5</th>
-                                <th>Internal 6</th>
-                                <th>Internal 7</th>
-                                <th>End Assignment (8)</th>
+                                <?php for ($i=1; $i<=8; $i++): ?>
+                                <th>Internal <?= $i ?></th>
+                                <?php endfor; ?>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($studentsByBatch[$selected_batch_id] as $student): ?>
                             <tr>
                                 <td><?= htmlspecialchars($student['username']) ?></td>
-                                <?php for ($i = 1; $i <= 8; $i++): ?>
+                                <?php for ($i=1; $i<=8; $i++): ?>
                                 <td>
-                                    <form class="grade-form" method="POST">
-                                        <input type="hidden" name="action" value="record_grade">
+                                    <form method="POST" class="d-flex gap-2">
+                                        <input type="hidden" name="action" value="record_grade" />
                                         <input type="hidden" name="selected_batch_id" value="<?= $selected_batch_id ?>">
                                         <input type="hidden" name="enrollment_id" value="<?= $student['enrollment_id'] ?>">
                                         <input type="hidden" name="internal_number" value="<?= $i ?>">
-                                        <input class="grade-input" type="number" name="score" value="<?= isset($gradesByEnrollment[$student['enrollment_id']][$i]) ? htmlspecialchars($gradesByEnrollment[$student['enrollment_id']][$i]) : '' ?>" min="0" max="100" step="0.1" placeholder="0-100">
-                                        <button type="submit" class="assign-btn">Save</button>
+                                        <input class="form-control form-control-sm" type="number" name="score" value="<?= isset($gradesByEnrollment[$student['enrollment_id']][$i]) ? htmlspecialchars($gradesByEnrollment[$student['enrollment_id']][$i]) : '' ?>" min="0" max="100" step="0.1" placeholder="0-100" style="width:70px;">
+                                        <button type="submit" class="btn btn-sm btn-success">Save</button>
                                     </form>
                                 </td>
                                 <?php endfor; ?>
@@ -535,105 +428,137 @@ $batchSelectorResult = $batchSelectorQuery->get_result();
                             <?php endforeach; ?>
                         </tbody>
                     </table>
-                    <?php else: ?>
-                    <p>No students enrolled in this batch.</p>
-                    <?php endif; ?>
+                </div>
+                <?php else: ?>
+                <div class="alert alert-warning">No students enrolled in this batch.</div>
+                <?php endif; ?>
+
+                <!-- Assign Activities -->
+                <h5>Assign Class Activity / Homework</h5>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data" class="row g-3">
+                            <input type="hidden" name="action" value="assign_activity" />
+                            <input type="hidden" name="batch_id" value="<?= $selected_batch_id ?>" />
+                            <div class="col-md-6">
+                                <label class="form-label">Title</label>
+                                <input class="form-control" type="text" name="title" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Due Date</label>
+                                <input class="form-control" type="date" name="due_date" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" name="description" rows="3" required></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Resource File (PDF, JPG, PNG, max 5MB)</label>
+                                <input class="form-control" type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png">
+                            </div>
+                            <div class="col-12">
+                                <button class="btn btn-primary" type="submit">Assign</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
-                <h3>Assign Class Activity / Homework</h3>
-                <div class="table-card">
-                    <form method="POST" enctype="multipart/form-data">
-                        <input type="hidden" name="action" value="assign_activity">
-                        <input type="hidden" name="selected_batch_id" value="<?= $selected_batch_id ?>">
-                        <input type="hidden" name="batch_id" value="<?= $selected_batch_id ?>">
-                        <div class="form-group">
-                            <label>Title:</label>
-                            <input type="text" name="title" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Description:</label>
-                            <textarea name="description" required></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Due Date:</label>
-                            <input type="date" name="due_date" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Resource File (PDF, JPG, PNG, max 5MB):</label>
-                            <input type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png">
-                        </div>
-                        <button type="submit" class="assign-btn">Assign</button>
-                    </form>
-                </div>
-
-                <h3>Assigned Activities / Homeworks</h3>
+                <!-- List Activities and Submissions -->
+                <h5>Assigned Activities / Homeworks</h5>
                 <?php if (isset($activitiesByBatch[$selected_batch_id]) && count($activitiesByBatch[$selected_batch_id]) > 0): ?>
-                    <?php foreach ($activitiesByBatch[$selected_batch_id] as $activity): ?>
-                    <div class="table-card">
-                        <h4>Activity: <?= htmlspecialchars($activity['title']) ?> (Due: <?= htmlspecialchars($activity['due_date']) ?>)</h4>
+                <?php foreach ($activitiesByBatch[$selected_batch_id] as $activity): ?>
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><?= htmlspecialchars($activity['title']) ?> (Due: <?= htmlspecialchars($activity['due_date']) ?>)</h5>
+                    </div>
+                    <div class="card-body">
                         <p><?= htmlspecialchars($activity['description']) ?></p>
                         <?php if ($activity['resource_file']): ?>
-                        <p><a href="<?= htmlspecialchars($activity['resource_file']) ?>" target="_blank" class="assign-btn">View Resource File</a></p>
+                        <a href="<?= htmlspecialchars($activity['resource_file']) ?>" target="_blank" class="btn btn-sm btn-outline-primary mb-3">View Resource File</a>
                         <?php endif; ?>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Student Name</th>
-                                    <th>Submission Status</th>
-                                    <th>Submitted At</th>
-                                    <th>Submission Details</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php
-                                $students = $studentsByBatch[$selected_batch_id] ?? [];
-                                $activity_submissions = $submissionsByActivity[$activity['activity_id']] ?? [];
-                                $current_date = date('Y-m-d');
-                                foreach ($students as $student):
-                                    $submission = null;
-                                    foreach ($activity_submissions as $sub) {
-                                        if ($sub['enrollment_id'] == $student['enrollment_id']) {
-                                            $submission = $sub;
-                                            break;
+                        <!-- Submissions table -->
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered align-middle">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Student Name</th>
+                                        <th>Status</th>
+                                        <th>Submitted At</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php
+                                    $students = $studentsByBatch[$selected_batch_id] ?? [];
+                                    $activity_submissions = $submissionsByActivity[$activity['activity_id']] ?? [];
+                                    $current_date = date('Y-m-d');
+                                    foreach ($students as $student):
+                                        $submission = null;
+                                        foreach ($activity_submissions as $sub) {
+                                            if ($sub['enrollment_id'] == $student['enrollment_id']) {
+                                                $submission = $sub;
+                                                break;
+                                            }
                                         }
-                                    }
-                                    $status = $submission ? ($submission['submitted_at'] > $activity['due_date'] . ' 23:59:59' ? 'Late' : 'Submitted') : ($current_date > $activity['due_date'] ? 'Not Submitted' : 'Pending');
-                                ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($student['username']) ?></td>
-                                    <td class="<?= $status === 'Late' ? 'status-late' : ($status === 'Not Submitted' ? 'status-not-submitted' : 'status-active') ?>">
-                                        <?= $status ?>
-                                    </td>
-                                    <td><?= $submission ? htmlspecialchars($submission['submitted_at']) : '-' ?></td>
-                                    <td>
-                                        <?php if ($submission): ?>
-                                            <?php if ($submission['submission_text']): ?>
-                                                <p><?= htmlspecialchars($submission['submission_text']) ?></p>
+                                        $status_text = 'Pending';
+                                        if ($submission) {
+                                            if ($submission['submitted_at'] > $activity['due_date'] . ' 23:59:59') {
+                                                $status_text = 'Late';
+                                            } else {
+                                                $status_text = 'Submitted';
+                                            }
+                                        } else {
+                                            $status_text = ($current_date > $activity['due_date']) ? 'Not Submitted' : 'Pending';
+                                        }
+                                    ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($student['username']) ?></td>
+                                        <td>
+                                            <?php if ($status_text === 'Late'): ?>
+                                                <span class="badge bg-danger"><?= $status_text ?></span>
+                                            <?php elseif ($status_text === 'Not Submitted'): ?>
+                                                <span class="badge bg-warning text-dark"><?= $status_text ?></span>
+                                            <?php else: ?>
+                                                <span class="badge bg-success"><?= $status_text ?></span>
                                             <?php endif; ?>
-                                            <?php if ($submission['submission_file']): ?>
-                                                <a href="<?= htmlspecialchars($submission['submission_file']) ?>" target="_blank" class="assign-btn">View File</a>
+                                        </td>
+                                        <td><?= $submission ? htmlspecialchars($submission['submitted_at']) : '-' ?></td>
+                                        <td>
+                                            <?php if ($submission): ?>
+                                                <?php if ($submission['submission_text']): ?>
+                                                    <p><?= htmlspecialchars($submission['submission_text']) ?></p>
+                                                <?php endif; ?>
+                                                <?php if ($submission['submission_file']): ?>
+                                                    <a href="<?= htmlspecialchars($submission['submission_file']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">View File</a>
+                                                <?php endif; ?>
+                                            <?php else: ?>
+                                                <p>No submission</p>
                                             <?php endif; ?>
-                                        <?php else: ?>
-                                            <p>No submission</p>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <?php endforeach; ?>
+                </div>
+                <?php endforeach; ?>
                 <?php else: ?>
-                <p>No activities assigned for this batch.</p>
+                <div class="alert alert-info">No activities assigned for this batch.</div>
                 <?php endif; ?>
-            <?php else: ?>
-            <p>Please select a batch to view and manage records.</p>
-            <?php endif; ?>
-        </main>
-    </div>
+            </div>
+        </div>
+        <?php else: ?>
+        <div class="alert alert-info">Please select a batch to view and manage records.</div>
+        <?php endif; ?>
+    </main>
+</div>
 
-    <footer>
-        &copy; <?= date('Y') ?> Girls Coding Academy
-    </footer>
+<!-- Footer -->
+<footer class="bg-dark text-white text-center py-3 mt-4">
+    &copy; <?= date('Y') ?> Girls Coding Academy
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

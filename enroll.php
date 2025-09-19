@@ -44,7 +44,15 @@ if (isset($_POST['enroll'])) {
 
 // Get batches with course info
 $batches = $conn->query("
-    SELECT b.batch_id, b.batch_code, b.start_date, b.end_date, b.status, c.courseName, c.image_path, c.description
+    SELECT 
+        b.batch_id, 
+        b.batch_code, 
+        b.start_date, 
+        b.end_date, 
+        b.status, 
+        c.courseName, 
+        c.image_path, 
+        c.description
     FROM batches b
     INNER JOIN courses c ON b.course_id = c.course_id
     WHERE b.status='active'
