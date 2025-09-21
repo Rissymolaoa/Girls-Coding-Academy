@@ -124,7 +124,7 @@ h2 { margin-bottom:20px; color:#5a189a; }
 <div class="container">
   <!-- Sidebar -->
   <div class="sidebar">
-    <img src="student.png" alt="Student Picture" class="student-pic">
+    <img src="admin.png" alt="Student Picture" class="student-pic">
     <h3>Navigation</h3>
     <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
     <a href="student_courses.php" class="active"><i class="bi bi-journal-bookmark"></i> My Courses</a>
