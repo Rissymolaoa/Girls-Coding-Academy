@@ -95,6 +95,7 @@ $recent_students = $conn->query("
       <a href="approve_users.php"><i class="bi bi-person-check"></i> Approve Users</a>
       <a href="manage_courses.php"><i class="bi bi-journal-bookmark"></i> Manage Courses</a>
       <a href="manage_students.php"><i class="bi bi-people"></i> Manage Students</a>
+      <a href="student_tuesday.php"><i class="bi bi\-people"></i> Manage Students(edit)</a>
       <a href="manage_teachers.php"><i class="bi bi-person-badge"></i> Manage Teachers</a>
       <a href="parents_summary.php"><i class="bi bi-people-fill"></i> Parent Summary</a>
       <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>

@@ -1,105 +1,119 @@
-
 <?php
 session_start();
-include 'db.php'; // DB connection
-
-// Ensure parent is logged in
-if(!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'parent') {
     header("Location: login.php");
     exit();
 }
 
-echo 'Logged-in parent ID: ' . $_SESSION['user_id'];
+include("db.php");
 
+$parent_id = $_SESSION['user_id']; // parent logged in, stored as user_id
 
-$parent_id = $_SESSION['user_id'];
-
-// Fetch children of this parent
-$children_sql = "
-    SELECT u.*, ps.relationship
-    FROM parent_students ps
-    INNER JOIN users u ON ps.student_id = u.user_id
-    WHERE ps.parent_id = ?
-";
-$stmt = $conn->prepare($children_sql);
-$stmt->bind_param("i", $parent_id);
-$stmt->execute();
-$children_result = $stmt->get_result();
+// Fetch children linked to this parent
+$query = $conn->prepare("
+    SELECT s.student_id, u.firstName, u.lastName, u.gender, s.photo
+    FROM students s
+    INNER JOIN parent_students ps ON s.student_id = ps.student_id
+    INNER JOIN parents p ON ps.parent_id = p.parent_id
+    INNER JOIN users u ON s.user_id = u.user_id
+    WHERE p.user_id = ?
+");
+$query->bind_param("i", $parent_id);
+$query->execute();
+$result = $query->get_result();
+$children = $result->fetch_all(MYSQLI_ASSOC);
 ?>
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>My Children</title>
-    <link rel="stylesheet" href="parent_dashboard.css">
+    <title>Children Profiles - Parent Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .child-card {
+        body {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            background: #fff;
-            padding: 12px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            margin-bottom: 12px;
+            min-height: 100vh;
+            margin: 0;
         }
-        .child-card img {
-            width: 60px;
-            height: 60px;
+        .sidebar {
+            width: 250px;
+            background: #343a40;
+            color: white;
+            flex-shrink: 0;
+        }
+        .sidebar h4 {
+            text-align: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #495057;
+        }
+        .sidebar img {
+            width: 80px;
             border-radius: 50%;
-            object-fit: cover;
+            margin: 10px auto;
+            display: block;
         }
-        .child-info p {
-            margin: 2px 0;
+        .sidebar a {
+            display: block;
+            color: white;
+            padding: 12px 20px;
+            text-decoration: none;
+        }
+        .sidebar a:hover {
+            background: #495057;
+        }
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        .student-card {
+            transition: transform 0.2s;
+        }
+        .student-card:hover {
+            transform: scale(1.05);
+        }
+        .student-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 0.5rem;
         }
     </style>
 </head>
 <body>
     <!-- Sidebar -->
     <div class="sidebar">
-        <h2>Parent Dashboard</h2>
-        <ul class="nav">
-            <li><a href="parents_dashboard.php">Home</a></li>
-            <li><a href="parents_profile.php">Profile</a></li>
-            <li><a href="children.php" class="active">Children</a></li>
-            <li><a href="logout.php">Logout</a></li>
-        </ul>
+        <img src="admin.png" alt="Parent Image">
+        <h4>Parent Dashboard</h4>
+        <a href="parents_dashboard.php">Dashboard</a>
+        <a href="children.php">Children Profiles</a>
+        <a href="parent_messages.php">Messages</a>
+        <a href="parent_settings.php">Settings</a>
+        <a href="logout.php">Logout</a>
     </div>
 
-    <!-- Main content -->
-    <div class="main-content">
-        <div class="header">
-            <h1>My Children</h1>
-        </div>
-
-        <div class="card">
-            <?php if($children_result->num_rows > 0): ?>
-                <?php while($child = $children_result->fetch_assoc()): ?>
-                    <div class="child-card">
-                        <!-- Hard-coded image -->
-                        <img src="images/default_student.png" alt="Child Picture">
-                        <div class="child-info">
-                            <p><strong>Full Name:</strong> <?= htmlspecialchars($child['firstName'] . ' ' . $child['lastName']) ?></p>
-                            <p><strong>Email:</strong> <?= htmlspecialchars($child['email']) ?></p>
-                            <p><strong>Phone:</strong> <?= htmlspecialchars($child['phone']) ?></p>
-                            <p><strong>Username:</strong> <?= htmlspecialchars($child['username']) ?></p>
-                            <p><strong>Gender:</strong> <?= htmlspecialchars($child['gender']) ?></p>
-                            <p><strong>ID Number:</strong> <?= htmlspecialchars($child['IDNumber']) ?></p>
-                            <p><strong>Relationship:</strong> <?= htmlspecialchars($child['relationship']) ?></p>
+    <!-- Main Content -->
+    <div class="content">
+        <h2>Your Children</h2>
+        <div class="row">
+            <?php if (count($children) > 0): ?>
+                <?php foreach ($children as $child): ?>
+                    <div class="col-md-4 mb-4">
+                        <div class="card student-card shadow-sm">
+                            <img src="<?php echo $child['photo'] ?: 'default_student.png'; ?>" class="student-img" alt="Student Image">
+                            <div class="card-body">
+                                <h5 class="card-title"><?php echo htmlspecialchars($child['firstName'] . " " . $child['lastName']); ?></h5>
+                                <p class="card-text">
+                                    Gender: <?php echo htmlspecialchars($child['gender']); ?>
+                                </p>
+                                <a href="student_parent_profile.php?id=<?php echo $child['student_id']; ?>" class="btn btn-primary">View Student</a>
+                            </div>
                         </div>
                     </div>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             <?php else: ?>
-                <p>No children found.</p>
+                <p>No children assigned to your account.</p>
             <?php endif; ?>
         </div>
-    </div>
-
-    <div class="footer">
-        <p>&copy; <?= date('Y') ?> School Management System</p>
     </div>
 </body>
 </html>

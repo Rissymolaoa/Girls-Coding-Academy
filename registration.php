@@ -22,6 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email     = $conn->real_escape_string($_POST['email']);
     $username  = $conn->real_escape_string($_POST['username']);
     $gender    = $conn->real_escape_string($_POST['gender']);
+    $dob       = $conn->real_escape_string($_POST['dob']); // 🔹 New line
     $IDNumber  = $conn->real_escape_string($_POST['IDNumber']);
     $phone     = $conn->real_escape_string($_POST['phone']);
     $role      = $conn->real_escape_string($_POST['role']);
@@ -61,11 +62,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $temporary_code    = uniqid("TMP_");
     $verification_token = bin2hex(random_bytes(16));
 
-    // Insert user (without temporary_id and verification_token now)
+    // Insert user (with dob added)
     $sqlUser = "INSERT INTO users 
-        (firstName, lastName, email, password, username, role, gender, IDNumber, phone, document, status, address_id, created_at, updated_at)
+        (firstName, lastName, email, password, username, role, gender, dob, IDNumber, phone, document, status, address_id, created_at, updated_at)
         VALUES 
-        ('$firstName', '$lastName', '$email', '$password', '$username', '$role', '$gender', '$IDNumber', '$phone', '$documentPath', '$status', '$address_id', NOW(), NOW())";
+        ('$firstName', '$lastName', '$email', '$password', '$username', '$role', '$gender', '$dob', '$IDNumber', '$phone', '$documentPath', '$status', '$address_id', NOW(), NOW())";
 
     if ($conn->query($sqlUser) === TRUE) {
         $user_id = $conn->insert_id; // get the newly created user id
@@ -86,7 +87,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                            VALUES ('$user_id')";
             $conn->query($sqlStudent);
         } elseif ($role === "teacher") {
-            $sqlTeacher = "INSERT INTO teachers (user_id,subject_speciality) 
+            $sqlTeacher = "INSERT INTO teachers (user_id, subject_speciality) 
                            VALUES ('$user_id','$subject_speciality')";
             $conn->query($sqlTeacher);
         } elseif ($role === "parents") {
