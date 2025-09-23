@@ -21,8 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
     if (!empty($_FILES['attachment']['name'])) {
         $target_dir = "uploads/messages/";
         if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-        $attachment = $target_dir . basename($_FILES['attachment']['name']);
-        move_uploaded_file($_FILES['attachment']['tmp_name'], $attachment);
+        $filename = basename($_FILES['attachment']['name']);
+        $attachment_path = $target_dir . $filename;
+        move_uploaded_file($_FILES['attachment']['tmp_name'], $attachment_path);
+        $attachment = $attachment_path;
     }
 
     $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, subject, body, attachments, sent_at) VALUES (?, ?, ?, ?, ?, NOW())");
@@ -66,113 +68,117 @@ $message_query->close();
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Message Students</title>
-<style>
-:root{
-    --primary:#7b2cbf;
-    --accent:#5a189a;
-    --muted:#f4f4f8;
-    --card:#ffffff;
-    --text:#222;
-}
-*{box-sizing:border-box;}
-body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--muted);color:var(--text);}
-header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px 24px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.12);}
-header h1{margin:0;font-size:22px;}
-header p{margin:4px 0 0;font-size:14px;}
-.layout{display:flex;min-height:calc(100vh - 72px);}
-.sidebar{width:220px;background:#34495e;padding:20px;display:flex;flex-direction:column;align-items:center;color:#fff;}
-.sidebar img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid #1abc9c;margin-bottom:12px;}
-.sidebar h3{font-size:14px;margin:0 0 12px;text-align:center;}
-.nav a{width:100%;display:block;color:#fff;text-decoration:none;padding:10px;border-radius:6px;margin:6px 0;text-align:left;}
-.nav a.active, .nav a:hover{background:#1abc9c;color:#062018;}
-.main{flex:1;padding:26px;}
-.table-card{background:var(--card);padding:14px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);margin-bottom:20px;}
-table{width:100%;border-collapse:collapse;font-size:14px;}
-th,td{padding:10px;border-bottom:1px solid #732d91;text-align:left;}
-th{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;}
-footer{background:#34495e;color:#fff;padding:12px;text-align:center;margin-top:auto;}
-.status-sent{color:green;font-weight:bold;}
-.status-read{color:blue;font-weight:bold;}
-.send-btn{display:inline-block;padding:6px 12px;background:#1abc9c;color:#fff;border-radius:4px;text-decoration:none;cursor:pointer;border:none;}
-.send-btn:hover{background:#16a085;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Message Students</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #7b2cbf;
+      --accent: #5a189a;
+      --muted: #f4f4f8;
+      --card: #fff;
+      --text: #222;
+    }
+    body {
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
+      background: var(--muted);
+    }
+    header {
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      color: #fff;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+  </style>
 </head>
 <body>
-<header>
-<h1>Teacher Messaging</h1>
+<header class="py-3 px-4 text-center">
+  <h1>Teacher Messaging</h1>
 </header>
 
-<div class="layout">
-    <aside class="sidebar">
-        <img src="admin.jpg" alt="Teacher">
-        <h3>Teacher Dashboard</h3>
-        <nav class="nav">
-            <a href="teacher_dashboard.php">🏠 Dashboard</a>
-            <a href="manage_teacher_courses.php">📚 Manage Own Courses</a>
-            <a href="upload_materials.php">📂 Upload Materials</a>
-            <a href="grade.php">📝 Grade</a>
-            <a href="mark_attendance.php">✅ Mark Attendance</a>
-            <a href="message_students.php" class="active">💬 Message Students</a>
-            <a href="logout.php">🚪 Logout</a>
-        </nav>
-    </aside>
+<div class="container-fluid d-flex flex-column flex-lg-row" style="min-height: calc(100vh - 70px);">
+  <!-- Sidebar -->
+  <nav class="col-lg-3 col-xl-2 bg-dark text-white p-3 vh-100 d-flex flex-column align-items-center">
+    <img src="admin.jpg" class="rounded-circle border border-info mb-3" width="92" height="92" alt="Teacher" />
+    <h5 class="text-center mb-3">Teacher Dashboard</h5>
+    <ul class="nav nav-pills flex-column w-100">
+      <li class="nav-item"><a class="nav-link text-white" href="teacher_dashboard.php">🏠 Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link text-white" href="manage_teacher_courses.php">📚 Manage Own Courses</a></li>
+      <li class="nav-item"><a class="nav-link text-white" href="upload_materials.php">📂 Upload Materials</a></li>
+      <li class="nav-item"><a class="nav-link text-white" href="grade.php">📝 Grade</a></li>
+      <li class="nav-item"><a class="nav-link active" href="message_students.php">💬 Message Students</a></li>
+      <li class="nav-item"><a class="nav-link text-white" href="logout.php">🚪 Logout</a></li>
+    </ul>
+  </nav>
 
-    <main class="main">
-        <h2>Send Message</h2>
-        <?php if(isset($_GET['sent'])) echo "<p style='color:green;'>Message sent successfully!</p>"; ?>
-        <div class="table-card">
-            <form method="POST" enctype="multipart/form-data">
-                <label>Student:
-                    <select name="receiver_id" required>
-                        <option value="">Select Student</option>
-                        <?php foreach($students as $student): ?>
-                            <option value="<?= $student['student_id'] ?>"><?= htmlspecialchars($student['firstName'].' '.$student['lastName']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label><br><br>
-                <label>Subject:
-                    <input type="text" name="subject" required>
-                </label><br><br>
-                <label>Message:
-                    <textarea name="body" rows="4" required></textarea>
-                </label><br><br>
-                <label>Attachment:
-                    <input type="file" name="attachment">
-                </label><br><br>
-                <button type="submit" name="send_message" class="send-btn">Send Message</button>
-            </form>
-        </div>
+  <!-- Main Content -->
+  <main class="col flex-fill p-4">
+    <h2 class="mb-4">Send Message</h2>
+    <?php if (isset($_GET['sent'])): ?>
+      <div class="alert alert-success">Message sent successfully!</div>
+    <?php endif; ?>
 
-        <h2>Sent Messages</h2>
-        <?php if(count($messages) > 0): ?>
-            <?php foreach($messages as $msg): ?>
-                <div class="table-card">
-                    <p><strong>To:</strong> <?= htmlspecialchars($msg['firstName'].' '.$msg['lastName']) ?></p>
-                    <p><strong>Subject:</strong> <?= htmlspecialchars($msg['subject']) ?></p>
-                    <p><strong>Message:</strong> <?= nl2br(htmlspecialchars($msg['body'])) ?></p>
-                    <p><strong>Attachment:</strong> 
-                        <?php if($msg['attachments']): ?>
-                            <a href="<?= htmlspecialchars($msg['attachments']) ?>" target="_blank">View</a>
-                        <?php else: ?>
-                            None
-                        <?php endif; ?>
-                    </p>
-                    <p><strong>Status:</strong> 
-                        <span class="status-<?= $msg['status'] ?>"><?= htmlspecialchars($msg['status']) ?></span>
-                        | <strong>Sent at:</strong> <?= htmlspecialchars($msg['sent_at']) ?></p>
-                </div>
+    <div class="card mb-4 p-3 shadow-sm">
+      <form method="POST" enctype="multipart/form-data" class="row g-3">
+        <div class="col-md-4">
+          <label for="receiver_id" class="form-label">Student</label>
+          <select class="form-select" id="receiver_id" name="receiver_id" required>
+            <option value="">Select Student</option>
+            <?php foreach ($students as $student): ?>
+              <option value="<?= $student['student_id'] ?>"><?= htmlspecialchars($student['firstName'].' '.$student['lastName']) ?></option>
             <?php endforeach; ?>
-        <?php else: ?>
-            <p>No messages sent yet.</p>
-        <?php endif; ?>
-    </main>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="subject" class="form-label">Subject</label>
+          <input type="text" class="form-control" id="subject" name="subject" required>
+        </div>
+        <div class="col-md-4">
+          <label for="body" class="form-label">Message</label>
+          <textarea class="form-control" id="body" name="body" rows="3" required></textarea>
+        </div>
+        <div class="col-12">
+          <label for="attachment" class="form-label">Attachment</label>
+          <input class="form-control" type="file" id="attachment" name="attachment" />
+        </div>
+        <div class="col-12 mt-3">
+          <button type="submit" name="send_message" class="btn btn-primary">Send Message</button>
+        </div>
+      </form>
+    </div>
+
+    <h2 class="mb-3">Sent Messages</h2>
+    <?php if (count($messages) > 0): ?>
+      <?php foreach ($messages as $msg): ?>
+        <div class="card mb-3 p-3 shadow-sm">
+          <div class="mb-2"><strong>To:</strong> <?= htmlspecialchars($msg['firstName'].' '.$msg['lastName']) ?></div>
+          <div class="mb-2"><strong>Subject:</strong> <?= htmlspecialchars($msg['subject']) ?></div>
+          <div class="mb-2"><strong>Message:</strong><br><?= nl2br(htmlspecialchars($msg['body'])) ?></div>
+          <div class="mb-2"><strong>Attachment:</strong> 
+            <?php if ($msg['attachments']): ?>
+              <a href="<?= htmlspecialchars($msg['attachments']) ?>" target="_blank" class="btn btn-sm btn-outline-secondary mt-2">View</a>
+            <?php else: ?>
+              None
+            <?php endif; ?>
+          </div>
+          <div class="mt-2"><strong>Status:</strong> <span class="text-<?php echo strtolower($msg['status']) === 'sent' ? 'success' : 'primary'; ?>"><?= htmlspecialchars($msg['status']) ?></span> | <strong>Sent at:</strong> <?= htmlspecialchars($msg['sent_at']) ?></div>
+        </div>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <p>No messages sent yet.</p>
+    <?php endif; ?>
+  </main>
 </div>
 
-<footer>
-&copy; <?= date('Y') ?> Girls Coding Academy
+<footer class="bg-dark text-white text-center py-3 mt-4">
+  &copy; <?= date('Y') ?> Girls Coding Academy
 </footer>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

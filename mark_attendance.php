@@ -22,11 +22,9 @@ $teacherInfo = $teacher_query->get_result()->fetch_assoc();
 $teacher_query->close();
 
 $message = "";
-
-// Current day
 $current_day = date('Y-m-d');
 
-// Handle form submission
+// Handle form submission for attendance
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_week'])) {
     $batch_id = intval($_POST['batch_id']);
     $attendance = $_POST['attendance'] ?? [];
@@ -34,10 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_week'])) {
 
     foreach ($attendance as $student_id => $days) {
         foreach ($days as $day => $status) {
-            // Only allow marking today
             if ($day !== $current_day) continue;
-
-            // Use INSERT ... ON DUPLICATE KEY UPDATE
             $stmt = $conn->prepare("
                 INSERT INTO attendance (student_id, batch_id, session_id, status, marked_by)
                 VALUES (?, ?, ?, ?, ?)
@@ -48,7 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_week'])) {
             $stmt->close();
         }
     }
-
     $message = "✅ Attendance for today saved successfully.";
 }
 
@@ -97,111 +91,147 @@ if ($selected_batch_id > 0) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Mark Attendance</title>
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
 <style>
-:root{--primary:#7b2cbf;--accent:#5a189a;--muted:#f4f4f8;--card:#fff;--text:#222;}
-body{margin:0;font-family:Arial,sans-serif;background:var(--muted);color:var(--text);}
-header{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;padding:18px 24px;text-align:center;}
-header h1{margin:0;font-size:22px;}
-header p{margin:4px 0 0;font-size:14px;}
-.layout{display:flex;min-height:calc(100vh - 72px);}
-.sidebar{width:220px;background:#34495e;padding:20px;display:flex;flex-direction:column;align-items:center;color:#fff;}
-.sidebar img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid #1abc9c;margin-bottom:12px;}
-.sidebar h3{font-size:14px;margin:0 0 12px;text-align:center;}
-.nav a{width:100%;display:block;color:#fff;text-decoration:none;padding:10px;border-radius:6px;margin:6px 0;text-align:left;}
-.nav a.active, .nav a:hover{background:#1abc9c;color:#062018;}
-.main{flex:1;padding:26px;}
-table{width:100%;border-collapse:collapse;font-size:14px;}
-th,td{padding:10px;border-bottom:1px solid #732d91;text-align:left;}
-th{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;}
-footer{background:#34495e;color:#fff;padding:12px;text-align:center;margin-top:auto;}
-button, select{background:#1abc9c;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;}
-button:hover, select:hover{background:#16a085;}
+:root {
+  --primary: #7b2cbf;
+  --accent: #5a189a;
+  --muted: #f4f4f8;
+  --card: #fff;
+  --text: #222;
+}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--muted);
+  color: var(--text);
+}
+header {
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  color: #fff;
+}
+header h1 {
+  margin: 0;
+  font-size: 22px;
+}
 </style>
 </head>
 <body>
-<header>
+<header class="py-3 px-4 text-center">
 <h1>Welcome, <?= htmlspecialchars($teacherInfo['username']) ?></h1>
-<p>Email: <?= htmlspecialchars($teacherInfo['email']) ?> | Gender: <?= htmlspecialchars($teacherInfo['gender']) ?> | Phone: <?= htmlspecialchars($teacherInfo['phone']) ?></p>
+<p class="mb-0">Email: <?= htmlspecialchars($teacherInfo['email']) ?> | Gender: <?= htmlspecialchars($teacherInfo['gender']) ?> | Phone: <?= htmlspecialchars($teacherInfo['phone']) ?></p>
 </header>
 
-<div class="layout">
-<aside class="sidebar">
-    <img src="admin.png" alt="Teacher" />
-    <h3>Teacher Dashboard</h3>
-    <nav class="nav">
-        <a href="teacher_dashboard.php">🏠 Dashboard</a>
-        <a href="manage_teacher_courses.php">📚 Manage Own Courses</a>
-        <a href="upload_materials.php">📂 Upload Materials</a>
-        <a href="grade.php">📝 Grade</a>
-        <a href="mark_attendance.php" class="active">✅ Mark Attendance</a>
-        <a href="message_students.php">💬 Message Students</a>
-        <a href="logout.php">🚪 Logout</a>
-    </nav>
-</aside>
+<div class="container-fluid d-flex flex-nowrap" style="min-height: calc(100vh - 70px);">
+  <!-- Sidebar -->
+  <nav class="col-md-3 col-xl-2 bg-dark text-white p-3 vh-100" style="min-width:220px;">
+    <div class="text-center mb-4">
+      <img src="admin.png" class="rounded-circle border border-info mb-2" width="92" height="92" alt="Teacher" />
+      <h5>Teacher Dashboard</h5>
+    </div>
+    <ul class="nav flex-column">
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white" href="teacher_dashboard.php">🏠 Dashboard</a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white" href="manage_own_courses.php">📚 Manage Courses</a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white" href="upload_materials.php">📂 Upload Materials</a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white" href="grade.php">📝 Grade</a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white active" href="mark_attendance.php">✅ Mark Attendance</a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white" href="message_students.php">💬 Message Students</a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white" href="logout.php">🚪 Logout</a>
+      </li>
+    </ul>
+  </nav>
 
-<main class="main">
-<h2>Mark Attendance for the Week</h2>
-<?php if ($message): ?>
-    <p><strong><?= htmlspecialchars($message) ?></strong></p>
-<?php endif; ?>
+  <!-- Main Content -->
+  <main class="col py-4">
+    <h2>Mark Attendance for the Week</h2>
+    <?php if ($message): ?>
+      <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
+    <?php endif; ?>
+    <!-- Batch selection -->
+    <form method="GET" class="mb-4">
+      <div class="row g-2 align-items-center">
+        <div class="col-auto">
+          <label for="batch_id" class="form-label mb-0">Select Batch</label>
+        </div>
+        <div class="col-auto flex-fill">
+          <select class="form-select" name="batch_id" id="batch_id" onchange="this.form.submit()" required>
+            <option value="">-- Select Batch --</option>
+            <?php while ($batch = $assigned_batches->fetch_assoc()): ?>
+              <option value="<?= $batch['batch_id'] ?>" <?= ($batch['batch_id'] == $selected_batch_id) ? 'selected' : '' ?>>
+                <?= htmlspecialchars($batch['courseName'] . ' - ' . $batch['batch_code']) ?>
+              </option>
+            <?php endwhile; ?>
+          </select>
+        </div>
+      </div>
+    </form>
 
-<form method="GET" action="">
-    <label for="batch_id">Select Batch:</label>
-    <select name="batch_id" id="batch_id" onchange="this.form.submit()">
-        <option value="">-- Select Batch --</option>
-        <?php while ($batch = $assigned_batches->fetch_assoc()): ?>
-            <option value="<?= $batch['batch_id'] ?>" <?= ($batch['batch_id']==$selected_batch_id)?'selected':'' ?>>
-                <?= htmlspecialchars($batch['courseName'].' - '.$batch['batch_code']) ?>
-            </option>
-        <?php endwhile; ?>
-    </select>
-</form>
-
-<?php if ($selected_batch_id > 0 && !empty($students)): ?>
-<form method="POST" action="">
-    <input type="hidden" name="batch_id" value="<?= $selected_batch_id ?>">
-    <h3>Mark Attendance for the Week (Monday - Sunday)</h3>
-    <table>
-        <thead>
-            <tr>
+    <?php if ($selected_batch_id > 0 && !empty($students)): ?>
+      <form method="POST" action="">
+        <input type="hidden" name="batch_id" value="<?= $selected_batch_id ?>">
+        <h3>Mark Attendance for the Week (Monday - Sunday)</h3>
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+              <tr>
                 <th>Student</th>
                 <th>Email</th>
                 <?php foreach ($week_days as $day): ?>
-                    <th><?= date('D', strtotime($day)) ?><br><?= $day ?></th>
+                  <th><?= date('D', strtotime($day)) ?><br><?= $day ?></th>
                 <?php endforeach; ?>
-            </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($students as $student): ?>
-            <tr>
-                <td><?= htmlspecialchars($student['firstName'].' '.$student['lastName']) ?></td>
-                <td><?= htmlspecialchars($student['email']) ?></td>
-                <?php foreach ($week_days as $day): ?>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($students as $student): ?>
+                <tr>
+                  <td><?= htmlspecialchars($student['firstName'].' '.$student['lastName']) ?></td>
+                  <td><?= htmlspecialchars($student['email']) ?></td>
+                  <?php foreach ($week_days as $day): ?>
                     <?php
-                    $is_today = ($day === $current_day);
-                    $selected_value = $_POST['attendance'][$student['student_id']][$day] ?? '';
+                      $is_today = ($day === $current_day);
+                      $selected_value = $_POST['attendance'][$student['student_id']][$day] ?? '';
                     ?>
-                    <td style="text-align:center;">
-                        <select name="attendance[<?= $student['student_id'] ?>][<?= $day ?>]" <?= $is_today ? '' : 'disabled' ?>>
-                            <option value="Present" <?= ($selected_value=='Present')?'selected':'' ?>>Present</option>
-                            <option value="Absent" <?= ($selected_value=='Absent')?'selected':'' ?>>Absent</option>
-                        </select>
+                    <td class="text-center">
+                      <select name="attendance[<?= $student['student_id'] ?>][<?= $day ?>]" class="form-select" <?= $is_today ? '' : 'disabled' ?> >
+                        <option value="Present" <?= ($selected_value=='Present')?'selected':'' ?>>Present</option>
+                        <option value="Absent" <?= ($selected_value=='Absent')?'selected':'' ?>>Absent</option>
+						<option value="Late" <?= ($selected_value=='Late')?'selected':'' ?>>Late</option>
+						<option value="Sick" <?= ($selected_value=='Sick')?'selected':'' ?>>Sick</option>
+                      </select>
                     </td>
-                <?php endforeach; ?>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-    <br>
-    <button type="submit" name="mark_week" value="1">Save Today's Attendance</button>
-</form>
-<?php elseif ($selected_batch_id > 0): ?>
-    <p>No active students enrolled in this batch.</p>
-<?php endif; ?>
-</main>
+                  <?php endforeach; ?>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+        <button type="submit" name="mark_week" class="btn btn-success">Save Today's Attendance</button>
+      </form>
+    <?php elseif ($selected_batch_id > 0): ?>
+      <div class="alert alert-warning">No active students enrolled in this batch.</div>
+    <?php endif; ?>
+  </main>
 </div>
-<footer>&copy; <?= date('Y') ?> Girls Coding Academy</footer>
+<footer class="bg-dark text-white text-center py-3 mt-4">
+  &copy; <?= date('Y') ?> Girls Coding Academy
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
