@@ -14,10 +14,10 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'teacher') {
 
 include("db.php"); // DB connection
 
-$user_id = $_SESSION['user_id'];
+$user_id = (int)$_SESSION['user_id'];
 
 // Fetch teacher info from users table
-$teacherQuery = $conn->prepare("SELECT username, email, gender, phone FROM users WHERE user_id=? AND role='teacher'");
+$teacherQuery = $conn->prepare("SELECT username, email, gender, phone FROM users WHERE user_id = ? AND role = 'teacher'");
 if (!$teacherQuery) {
     die("Teacher query preparation failed: " . $conn->error);
 }
@@ -44,18 +44,17 @@ $teacher = $teacherIdResult->fetch_assoc();
 $teacher_id = (int)$teacher['teacher_id'];
 $teacherIdQuery->close();
 
-// Handle batch selection
-$selected_batch_id = isset($_POST['selected_batch_id']) ? (int)$_POST['selected_batch_id'] : null;
-
-// Handle POST request for uploading materials
+// Handle material upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload_material') {
-    // Ensure batch_id is set and valid
-    if (!isset($_POST['batch_id']) || !is_numeric($_POST['batch_id']) || (int)$_POST['batch_id'] <= 0) {
-        echo "<div class='alert alert-danger'>Error: Invalid batch ID.</div>";
-    } else {
-        $batch_id = (int)$_POST['batch_id'];
+    $batch_id = filter_input(INPUT_POST, 'batch_id', FILTER_VALIDATE_INT);
+    $title = trim($conn->real_escape_string($_POST['title'] ?? ''));
+    $description = trim($conn->real_escape_string($_POST['description'] ?? ''));
+    $file_path = null;
 
-        // Validate batch_id exists in batches table
+    if (!$batch_id || !$title || !$description) {
+        echo "<div class='alert alert-danger'>All fields are required for material upload.</div>";
+    } else {
+        // Validate batch_id exists
         $batchCheckQuery = $conn->prepare("SELECT batch_id FROM batches WHERE batch_id = ?");
         if (!$batchCheckQuery) {
             die("Batch check query preparation failed: " . $conn->error);
@@ -68,38 +67,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         } else {
             $batchCheckQuery->close();
 
-            $title = $conn->real_escape_string($_POST['title']);
-            $description = $conn->real_escape_string($_POST['description']);
-            $file_path = null;
-
             // Handle file upload
             if (isset($_FILES['material_file']) && $_FILES['material_file']['error'] === UPLOAD_ERR_OK) {
                 $upload_dir = 'Uploads/';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
                 $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
-                $max_size = 5 * 1024 * 1024; // 5MB
                 $file = $_FILES['material_file'];
-
                 if (!in_array($file['type'], $allowed_types)) {
-                    echo "<div class='alert alert-danger'>Error: Only PDF, JPG, and PNG files are allowed.</div>";
-                } elseif ($file['size'] > $max_size) {
-                    echo "<div class='alert alert-danger'>Error: File size exceeds 5MB limit.</div>";
+                    echo "<div class='alert alert-danger'>Allowed file types: PDF, JPG, PNG.</div>";
+                } elseif ($file['size'] > 200 * 1024 * 1024) {
+                    echo "<div class='alert alert-danger'>File size exceeds 200MB.</div>";
                 } else {
-                    $file_name = $file['name']; // Preserve original file name
-                    $file_path = $upload_dir . $file_name;
-                    $full_path = $_SERVER['DOCUMENT_ROOT'] . '/Girls-Coding-Academy/' . $file_path;
-                    if (!is_dir($_SERVER['DOCUMENT_ROOT'] . '/Girls-Coding-Academy/Uploads')) {
-                        mkdir($_SERVER['DOCUMENT_ROOT'] . '/Girls-Coding-Academy/Uploads', 0755, true);
-                    }
-                    if (move_uploaded_file($file['tmp_name'], $full_path)) {
-                        // File path stored without leading slash
+                    $original_name = basename($file['name']);
+                    $file_path = $upload_dir . $original_name;
+                    if (move_uploaded_file($file['tmp_name'], $file_path)) {
+                        // File path stored as Uploads/filename
                     } else {
-                        echo "<div class='alert alert-danger'>Error: Failed to upload file.</div>";
+                        echo "<div class='alert alert-danger'>Error uploading file. Please try again.</div>";
                     }
                 }
             }
 
-            // Insert material only if no errors
-            if (!isset($_SESSION['error'])) {
+            if (!isset($error)) {
                 $materialQuery = $conn->prepare("
                     INSERT INTO materials (batch_id, teacher_id, title, description, file_path, uploaded_at)
                     VALUES (?, ?, ?, ?, ?, NOW())
@@ -107,15 +98,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 if (!$materialQuery) {
                     die("Material query preparation failed: " . $conn->error);
                 }
+                $file_path = $file_path ?? '';
                 $materialQuery->bind_param("iisss", $batch_id, $teacher_id, $title, $description, $file_path);
                 if ($materialQuery->execute()) {
                     echo "<div class='alert alert-success'>Material uploaded successfully.</div>";
                 } else {
-                    echo "<div class='alert alert-danger'>Error: Failed to upload material. " . $conn->error . "</div>";
+                    echo "<div class='alert alert-danger'>Error uploading material: " . htmlspecialchars($conn->error) . "</div>";
                 }
                 $materialQuery->close();
             }
         }
+    }
+}
+
+// Handle material update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_material') {
+    $material_id = filter_input(INPUT_POST, 'material_id', FILTER_VALIDATE_INT);
+    $batch_id = filter_input(INPUT_POST, 'batch_id', FILTER_VALIDATE_INT);
+    $title = trim($conn->real_escape_string($_POST['title'] ?? ''));
+    $description = trim($conn->real_escape_string($_POST['description'] ?? ''));
+    $file_path = null;
+
+    if (!$material_id || !$batch_id || !$title || !$description) {
+        echo "<div class='alert alert-danger'>All fields are required for material update.</div>";
+    } else {
+        // Fetch existing file path to preserve if no new file is uploaded
+        $existingFileQuery = $conn->prepare("SELECT file_path FROM materials WHERE material_id = ?");
+        if (!$existingFileQuery) {
+            die("Existing file query preparation failed: " . $conn->error);
+        }
+        $existingFileQuery->bind_param("i", $material_id);
+        $existingFileQuery->execute();
+        $existingFileResult = $existingFileQuery->get_result()->fetch_assoc();
+        $file_path = $existingFileResult['file_path'] ?? '';
+        $existingFileQuery->close();
+
+        // Handle file upload
+        if (isset($_FILES['material_file']) && $_FILES['material_file']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = 'Uploads/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+            $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
+            $file = $_FILES['material_file'];
+            if (!in_array($file['type'], $allowed_types)) {
+                echo "<div class='alert alert-danger'>Allowed file types: PDF, JPG, PNG.</div>";
+            } elseif ($file['size'] > 200 * 1024 * 1024) {
+                echo "<div class='alert alert-danger'>File size exceeds 200MB.</div>";
+            } else {
+                $original_name = basename($file['name']);
+                $file_path = $upload_dir . $original_name;
+                if (move_uploaded_file($file['tmp_name'], $file_path)) {
+                    // Delete old file if it exists and is different
+                    if ($existingFileResult['file_path'] && file_exists($existingFileResult['file_path']) && $existingFileResult['file_path'] !== $file_path) {
+                        unlink($existingFileResult['file_path']);
+                    }
+                } else {
+                    echo "<div class='alert alert-danger'>Error uploading file. Please try again.</div>";
+                }
+            }
+        }
+
+        if (!isset($error)) {
+            $query = "UPDATE materials SET title = ?, description = ?, file_path = ? WHERE material_id = ?";
+            $materialUpdateQuery = $conn->prepare($query);
+            if (!$materialUpdateQuery) {
+                die("Material update query preparation failed: " . $conn->error);
+            }
+            $materialUpdateQuery->bind_param("sssi", $title, $description, $file_path, $material_id);
+            if ($materialUpdateQuery->execute()) {
+                echo "<div class='alert alert-success'>Material updated successfully.</div>";
+            } else {
+                echo "<div class='alert alert-danger'>Error updating material: " . htmlspecialchars($conn->error) . "</div>";
+            }
+            $materialUpdateQuery->close();
+        }
+    }
+}
+
+// Handle material deletion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_material') {
+    $material_id = filter_input(INPUT_POST, 'material_id', FILTER_VALIDATE_INT);
+    $selected_batch_id = filter_input(INPUT_POST, 'selected_batch_id', FILTER_VALIDATE_INT);
+    if ($material_id) {
+        // Fetch file path to delete the file
+        $fileQuery = $conn->prepare("SELECT file_path FROM materials WHERE material_id = ?");
+        if (!$fileQuery) {
+            die("File query preparation failed: " . $conn->error);
+        }
+        $fileQuery->bind_param("i", $material_id);
+        $fileQuery->execute();
+        $fileResult = $fileQuery->get_result()->fetch_assoc();
+        $fileQuery->close();
+
+        // Delete the material record
+        $deleteQuery = $conn->prepare("DELETE FROM materials WHERE material_id = ?");
+        if (!$deleteQuery) {
+            die("Delete query preparation failed: " . $conn->error);
+        }
+        $deleteQuery->bind_param("i", $material_id);
+        if ($deleteQuery->execute()) {
+            // Delete the file from server if it exists
+            if ($fileResult['file_path'] && file_exists($fileResult['file_path'])) {
+                unlink($fileResult['file_path']);
+            }
+            echo "<div class='alert alert-success'>Material deleted successfully.</div>";
+            header("Location: upload_materials.php?selected_batch_id=$selected_batch_id");
+            exit();
+        } else {
+            echo "<div class='alert alert-danger'>Error deleting material: " . htmlspecialchars($conn->error) . "</div>";
+        }
+        $deleteQuery->close();
+    } else {
+        echo "<div class='alert alert-danger'>Invalid material ID.</div>";
     }
 }
 
@@ -137,6 +232,7 @@ $batchSelectorResult = $batchSelectorQuery->get_result();
 
 // Fetch materials for the selected batch
 $materialsByBatch = [];
+$selected_batch_id = filter_input(INPUT_POST, 'selected_batch_id', FILTER_VALIDATE_INT) ?: filter_input(INPUT_GET, 'selected_batch_id', FILTER_VALIDATE_INT);
 if ($selected_batch_id) {
     $materialQuery = $conn->prepare("
         SELECT m.material_id, m.title, m.description, m.file_path, m.uploaded_at
@@ -152,8 +248,7 @@ if ($selected_batch_id) {
     $materialsResult = $materialQuery->get_result();
     $materialsByBatch[$selected_batch_id] = [];
     while ($material = $materialsResult->fetch_assoc()) {
-        // Check if file exists without modifying file_path
-        $material['file_exists'] = $material['file_path'] && file_exists($_SERVER['DOCUMENT_ROOT'] . '/Girls-Coding-Academy/' . $material['file_path']);
+        $material['file_exists'] = $material['file_path'] && file_exists($material['file_path']);
         $materialsByBatch[$selected_batch_id][] = $material;
     }
     $materialQuery->close();
@@ -166,14 +261,14 @@ if ($selected_batch_id) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Materials - Girls Coding Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #f9f9f9; color: #333; }
-        header { background: #fff; color: #333; padding: 15px 30px; text-align: center; border-bottom: 1px solid #ddd; }
+        body { font-family: Inter, Arial, sans-serif; background: #f4f4f8; }
+        header { background: linear-gradient(90deg, #7b2cbf, #5a189a); color: #fff; padding: 15px 30px; text-align: center; }
         header h1 { margin: 0; font-size: 22px; }
-        header p { font-size: 14px; }
-        .container { display: flex; min-height: 90vh; }
+        header p { font-size: 14px; margin-bottom: 0; }
+        .container { display: flex; min-height: calc(100vh - 70px); }
         .sidebar {
             width: 240px; background: #1a1a1a; padding: 20px; min-height: 100vh; color: #fff;
         }
@@ -190,21 +285,18 @@ if ($selected_batch_id) {
         }
         .content { flex: 1; padding: 30px; }
         h2 { margin-bottom: 20px; color: #5a189a; }
-        .card {
-            background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            border: 1px solid #eee; margin-bottom: 20px;
-        }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border: 1px solid #eee; margin-bottom: 20px; }
         .card-header { background: #1a1a1a; color: #fff; padding: 10px; border-radius: 6px 6px 0 0; }
         .card-header h4 { margin: 0; }
         .form-label { font-weight: bold; }
-        .form-control, .form-select {
-            border: 1px solid #ddd; border-radius: 4px; padding: 8px; width: 100%;
-        }
+        .form-control, .form-select { border: 1px solid #ddd; border-radius: 4px; padding: 8px; width: 100%; }
         .form-control:focus, .form-select:focus { border-color: #5a189a; outline: none; }
-        .btn-primary {
-            background: #5a189a; border: none; padding: 8px 15px; border-radius: 4px; color: #fff;
-        }
+        .btn-primary { background: #5a189a; border: none; padding: 8px 15px; border-radius: 4px; color: #fff; }
         .btn-primary:hover { background: #7b2cbf; }
+        .btn-warning { background: #ffc107; border: none; padding: 8px 15px; border-radius: 4px; color: #000; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-danger { background: #dc3545; border: none; padding: 8px 15px; border-radius: 4px; color: #fff; }
+        .btn-danger:hover { background: #c82333; }
         .table-responsive { margin-top: 10px; }
         .table { width: 100%; border-collapse: collapse; }
         .table th, .table td { padding: 10px; border: 1px solid #ddd; text-align: left; }
@@ -219,13 +311,13 @@ if ($selected_batch_id) {
 </head>
 <body>
     <header>
-        <h1>Girls Coding Academy - Upload Materials</h1>
+        <h1>Welcome, <?= htmlspecialchars($teacherInfo['username']) ?></h1>
         <p>Email: <?= htmlspecialchars($teacherInfo['email']) ?> | Gender: <?= htmlspecialchars($teacherInfo['gender']) ?> | Phone: <?= htmlspecialchars($teacherInfo['phone']) ?></p>
     </header>
 
     <div class="container">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <nav class="sidebar">
             <img src="admin.png" alt="Teacher Picture" class="teacher-pic">
             <h5>Teacher Dashboard</h5>
             <a href="teacher_dashboard.php"><i class="bi bi-house-door"></i> Dashboard</a>
@@ -235,20 +327,21 @@ if ($selected_batch_id) {
             <a href="mark_attendance.php"><i class="bi bi-check-circle"></i> Mark Attendance</a>
             <a href="message_students.php"><i class="bi bi-chat-dots"></i> Message Students</a>
             <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-        </div>
+        </nav>
 
         <!-- Main Content -->
         <div class="content">
             <h2>Upload Materials</h2>
             <!-- Batch Selection -->
             <form method="POST" class="d-flex mb-4">
-                <select name="selected_batch_id" class="form-select me-2" required>
+                <select name="selected_batch_id" class="form-select me-2" onchange="this.form.submit()" required>
                     <option value="">Select a batch to upload materials</option>
                     <?php while ($row = $batchSelectorResult->fetch_assoc()): ?>
                     <option value="<?= $row['batch_id'] ?>" <?= $selected_batch_id === $row['batch_id'] ? 'selected' : '' ?>>
                         <?= htmlspecialchars($row['batch_code']) ?> (<?= htmlspecialchars($row['courseName']) ?>)
                     </option>
                     <?php endwhile; ?>
+                    <?php $batchSelectorResult->data_seek(0); // Reset result pointer ?>
                 </select>
                 <button type="submit" class="btn btn-primary">Select Batch</button>
             </form>
@@ -262,6 +355,9 @@ if ($selected_batch_id) {
                 INNER JOIN courses c ON b.course_id = c.course_id
                 WHERE b.batch_id = ?
             ");
+            if (!$selectedBatchQuery) {
+                die("Selected batch query preparation failed: " . $conn->error);
+            }
             $selectedBatchQuery->bind_param("i", $selected_batch_id);
             $selectedBatchQuery->execute();
             $selectedBatchResult = $selectedBatchQuery->get_result()->fetch_assoc();
@@ -289,7 +385,7 @@ if ($selected_batch_id) {
                                     <textarea class="form-control" name="description" rows="3" required></textarea>
                                 </div>
                                 <div class="col-12">
-                                    <label class="form-label">Material File (PDF, JPG, PNG, max 5MB)</label>
+                                    <label class="form-label">Material File (PDF, JPG, PNG, max 200MB)</label>
                                     <input class="form-control" type="file" name="material_file" accept=".pdf,.jpg,.jpeg,.png">
                                 </div>
                                 <div class="col-12">
@@ -310,6 +406,7 @@ if ($selected_batch_id) {
                                     <th>Description</th>
                                     <th>File</th>
                                     <th>Uploaded At</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -319,12 +416,48 @@ if ($selected_batch_id) {
                                     <td><?= htmlspecialchars($material['description']) ?></td>
                                     <td>
                                         <?php if ($material['file_path'] && $material['file_exists']): ?>
-                                        <a href="/Girls-Coding-Academy/<?= htmlspecialchars($material['file_path']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">Download</a>
+                                        <a href="<?= htmlspecialchars($material['file_path']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">Download</a>
                                         <?php else: ?>
                                         <span>File not found</span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?= htmlspecialchars($material['uploaded_at']) ?></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning me-2" onclick="toggleEditForm('material_<?= $material['material_id'] ?>')">Edit</button>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this material?');">
+                                            <input type="hidden" name="action" value="delete_material">
+                                            <input type="hidden" name="material_id" value="<?= $material['material_id'] ?>">
+                                            <input type="hidden" name="selected_batch_id" value="<?= $selected_batch_id ?>">
+                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5">
+                                        <form method="POST" enctype="multipart/form-data" class="row g-3 mt-3" id="material_<?= $material['material_id'] ?>" style="display: none;">
+                                            <input type="hidden" name="action" value="update_material">
+                                            <input type="hidden" name="material_id" value="<?= $material['material_id'] ?>">
+                                            <input type="hidden" name="batch_id" value="<?= $selected_batch_id ?>">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Title</label>
+                                                <input class="form-control" type="text" name="title" value="<?= htmlspecialchars($material['title']) ?>" required>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Description</label>
+                                                <textarea class="form-control" name="description" rows="3" required><?= htmlspecialchars($material['description']) ?></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Material File (PDF, JPG, PNG, max 200MB)</label>
+                                                <input class="form-control" type="file" name="material_file" accept=".pdf,.jpg,.jpeg,.png">
+                                                <?php if ($material['file_path'] && $material['file_exists']): ?>
+                                                <p>Current file: <a href="<?= htmlspecialchars($material['file_path']) ?>" target="_blank">View Current File</a></p>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="col-12">
+                                                <button class="btn btn-warning" type="submit">Update Material</button>
+                                            </div>
+                                        </form>
+                                    </td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -341,8 +474,16 @@ if ($selected_batch_id) {
         </div>
     </div>
 
-    <footer>
+    <footer class="bg-dark text-white text-center py-3">
         &copy; <?= date('Y') ?> Girls Coding Academy
     </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleEditForm(id) {
+            var form = document.getElementById(id);
+            form.style.display = (form.style.display === 'none' || form.style.display === '') ? 'block' : 'none';
+        }
+    </script>
 </body>
 </html>

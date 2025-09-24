@@ -53,7 +53,7 @@ if ($course_id <= 0 || $batch_id <= 0) {
 
 // Verify student is enrolled in the batch and course
 $enrollmentQuery = $conn->prepare("
-    SELECT c.courseName, b.batch_code
+    SELECT c.courseName, b.batch_code, ce.enrollment_id
     FROM course_enrollments ce
     INNER JOIN batches b ON ce.batch_id = b.batch_id
     INNER JOIN courses c ON b.course_id = c.course_id
@@ -69,6 +69,7 @@ if ($enrollmentResult->num_rows === 0) {
     die("Error: You are not enrolled in this course or batch. Please enroll in the course or contact the administrator.");
 }
 $courseInfo = $enrollmentResult->fetch_assoc();
+$enrollment_id = (int)$courseInfo['enrollment_id'];
 $enrollmentQuery->close();
 
 // Fetch materials for the batch
@@ -89,6 +90,44 @@ while ($material = $materialsResult->fetch_assoc()) {
     $materials[] = $material;
 }
 $materialQuery->close();
+
+// Fetch activities for the batch
+$activityQuery = $conn->prepare("
+    SELECT a.activity_id, a.title, a.description, a.due_date, a.resource_file, a.created_at, a.status
+    FROM activities a
+    WHERE a.batch_id = ? AND a.status = 'active'
+    ORDER BY a.created_at DESC
+");
+if (!$activityQuery) {
+    die("Activity query preparation failed: " . $conn->error);
+}
+$activityQuery->bind_param("i", $batch_id);
+$activityQuery->execute();
+$activitiesResult = $activityQuery->get_result();
+$activities = [];
+while ($activity = $activitiesResult->fetch_assoc()) {
+    $activities[] = $activity;
+}
+$activityQuery->close();
+
+// Fetch tests for the batch
+$testQuery = $conn->prepare("
+    SELECT t.test_id, t.title, t.description, t.due_date, t.max_score, t.resource_file, t.created_at
+    FROM tests t
+    WHERE t.batch_id = ? AND t.status = 'active'
+    ORDER BY t.created_at DESC
+");
+if (!$testQuery) {
+    die("Test query preparation failed: " . $conn->error);
+}
+$testQuery->bind_param("i", $batch_id);
+$testQuery->execute();
+$testsResult = $testQuery->get_result();
+$tests = [];
+while ($test = $testsResult->fetch_assoc()) {
+    $tests[] = $test;
+}
+$testQuery->close();
 ?>
 
 <!DOCTYPE html>
@@ -97,6 +136,7 @@ $materialQuery->close();
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Course Materials - <?php echo htmlspecialchars($courseInfo['courseName']); ?></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -132,15 +172,16 @@ header { background:#fff; color:#333; padding:15px 30px; text-align:center; bord
 .content { flex:1; padding:30px; }
 h2 { margin-bottom:20px; color:#5a189a; }
 
-/* Materials table */
-.materials-table {
+/* Tables and Grids */
+.materials-table, .activities-grid, .tests-grid {
   background:white;
   border-radius:8px;
   padding:15px;
   box-shadow:0 2px 6px rgba(0,0,0,0.1);
   border:1px solid #eee;
+  margin-bottom:30px;
 }
-.materials-table h3 { color:#5a189a; margin-bottom:15px; }
+.materials-table h3, .activities-grid h3, .tests-grid h3 { color:#5a189a; margin-bottom:15px; }
 .materials-table table { width:100%; border-collapse:collapse; }
 .materials-table th, .materials-table td {
   padding:10px;
@@ -148,9 +189,22 @@ h2 { margin-bottom:20px; color:#5a189a; }
   text-align:left;
 }
 .materials-table th { background:#1a1a1a; color:#fff; }
-.materials-table td a { color:#5a189a; text-decoration:none; }
-.materials-table td a:hover { text-decoration:underline; }
-.no-materials { color:#6c757d; font-style:italic; }
+.materials-table td a, .activities-grid a, .tests-grid a { color:#5a189a; text-decoration:none; }
+.materials-table td a:hover, .activities-grid a:hover, .tests-grid a:hover { text-decoration:underline; }
+.no-materials, .no-activities, .no-tests { color:#6c757d; font-style:italic; }
+
+/* Grid Card Styling */
+.activity-card, .test-card {
+  border:1px solid #ddd;
+  border-radius:8px;
+  padding:15px;
+  margin-bottom:15px;
+  background:white;
+  box-shadow:0 1px 3px rgba(0,0,0,0.1);
+}
+.activity-card h5, .test-card h5 { color:#5a189a; margin-bottom:10px; }
+.activity-card p, .test-card p { margin-bottom:8px; }
+.submit-btn { margin-top:10px; }
 </style>
 </head>
 <body>
@@ -177,6 +231,7 @@ h2 { margin-bottom:20px; color:#5a189a; }
   <div class="content">
     <h2><i class="bi bi-journal-bookmark"></i> Materials for <?php echo htmlspecialchars($courseInfo['courseName']); ?> (Batch: <?php echo htmlspecialchars($courseInfo['batch_code']); ?>)</h2>
 
+    <!-- Materials Section -->
     <div class="materials-table">
       <h3>Uploaded Materials</h3>
       <?php if (empty($materials)): ?>
@@ -197,8 +252,10 @@ h2 { margin-bottom:20px; color:#5a189a; }
                 <td><?php echo htmlspecialchars($material['title']); ?></td>
                 <td><?php echo htmlspecialchars($material['description']); ?></td>
                 <td>
-                  <?php if ($material['file_path']): ?>
+                  <?php if ($material['file_path'] && file_exists($material['file_path'])): ?>
                     <a href="<?php echo htmlspecialchars($material['file_path']); ?>" target="_blank">Download</a>
+                  <?php elseif ($material['file_path']): ?>
+                    <span class="text-danger">File not found: <?php echo htmlspecialchars($material['file_path']); ?></span>
                   <?php else: ?>
                     <span>No file</span>
                   <?php endif; ?>
@@ -210,8 +267,70 @@ h2 { margin-bottom:20px; color:#5a189a; }
         </table>
       <?php endif; ?>
     </div>
+
+    <!-- Activities Section -->
+    <div class="activities-grid">
+      <h3>Assigned Activities</h3>
+      <?php if (empty($activities)): ?>
+        <p class="no-activities">No active activities assigned for this batch.</p>
+      <?php else: ?>
+        <div class="row">
+          <?php foreach ($activities as $activity): ?>
+            <div class="col-md-4">
+              <div class="activity-card">
+                <h5><?php echo htmlspecialchars($activity['title']); ?></h5>
+                <p><strong>Description:</strong> <?php echo htmlspecialchars($activity['description']); ?></p>
+                <p><strong>Due Date:</strong> <?php echo htmlspecialchars($activity['due_date']); ?></p>
+                <p><strong>Resource File:</strong>
+                  <?php if ($activity['resource_file'] && file_exists($activity['resource_file'])): ?>
+                    <a href="<?php echo htmlspecialchars($activity['resource_file']); ?>" target="_blank">Download</a>
+                  <?php elseif ($activity['resource_file']): ?>
+                    <span class="text-danger">File not found: <?php echo htmlspecialchars($activity['resource_file']); ?></span>
+                  <?php else: ?>
+                    <span>No file</span>
+                  <?php endif; ?>
+                </p>
+                <a href="submit_activity.php?activity_id=<?php echo $activity['activity_id']; ?>&course_id=<?php echo $course_id; ?>&batch_id=<?php echo $batch_id; ?>" class="btn btn-primary btn-sm submit-btn">View/Submit</a>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </div>
+
+    <!-- Tests Section -->
+    <div class="tests-grid">
+      <h3>Assigned Tests</h3>
+      <?php if (empty($tests)): ?>
+        <p class="no-tests">No active tests assigned for this batch.</p>
+      <?php else: ?>
+        <div class="row">
+          <?php foreach ($tests as $test): ?>
+            <div class="col-md-4">
+              <div class="test-card">
+                <h5><?php echo htmlspecialchars($test['title']); ?></h5>
+                <p><strong>Description:</strong> <?php echo htmlspecialchars($test['description']); ?></p>
+                <p><strong>Due Date:</strong> <?php echo htmlspecialchars($test['due_date']); ?></p>
+                <p><strong>Max Score:</strong> <?php echo htmlspecialchars($test['max_score']); ?></p>
+                <p><strong>Resource File:</strong>
+                  <?php if ($test['resource_file'] && file_exists($test['resource_file'])): ?>
+                    <a href="<?php echo htmlspecialchars($test['resource_file']); ?>" target="_blank">Download</a>
+                  <?php elseif ($test['resource_file']): ?>
+                    <span class="text-danger">File not found: <?php echo htmlspecialchars($test['resource_file']); ?></span>
+                  <?php else: ?>
+                    <span>No file</span>
+                  <?php endif; ?>
+                </p>
+                <a href="submit_test.php?test_id=<?php echo $test['test_id']; ?>&course_id=<?php echo $course_id; ?>&batch_id=<?php echo $batch_id; ?>" class="btn btn-primary btn-sm submit-btn">View/Submit</a>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </div>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
