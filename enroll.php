@@ -128,13 +128,15 @@ header h1 { margin:0; font-size:22px; }
   <!-- Sidebar -->
   <div class="sidebar">
     <img src="admin.png" alt="Student Picture" class="admin-pic">
-    <h3>Navigation</h3>
+    <h3 style="text-align:center;margin-bottom:10px;">Navigation</h3>
     <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
+     <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
     <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
-    <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
-    <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
-    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> Attendance</a>
-    <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
+     <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
+     <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
+    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> My Schedule</a>
+    <a href="student_marks.php"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a> 
+    <a href="student_gradebook.php"><i class="bi bi-graph-up"></i> My Performance</a>
     <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
   </div>
 

@@ -33,8 +33,8 @@ $studentIdQuery->close();
 
 // Get activity_id, course_id, and batch_id from URL
 $activity_id = isset($_GET['activity_id']) ? (int)$_GET['activity_id'] : 0;
-$course_id = isset($_GET['course_id']) ? (int)$_GET['course_id'] : 0;
-$batch_id = isset($_GET['batch_id']) ? (int)$_GET['batch_id'] : 0;
+$course_id   = isset($_GET['course_id'])   ? (int)$_GET['course_id']   : 0;
+$batch_id    = isset($_GET['batch_id'])    ? (int)$_GET['batch_id']    : 0;
 if ($activity_id <= 0 || $course_id <= 0 || $batch_id <= 0) {
     die("Error: Invalid or missing activity_id, course_id, or batch_id in URL.");
 }
@@ -60,25 +60,25 @@ $enrollment = $enrollmentResult->fetch_assoc();
 $enrollment_id = (int)$enrollment['enrollment_id'];
 $enrollmentQuery->close();
 
-// Fetch activity details
-$activityQuery = $conn->prepare("
-    SELECT a.title, a.description, a.due_date, a.resource_file, a.status,
-           s.submission_id, s.submission_text, s.submission_file, s.submitted_at
-    FROM activities a
-    LEFT JOIN activity_submissions s ON a.activity_id = s.activity_id AND s.enrollment_id = ?
-    WHERE a.activity_id = ? AND a.status = 'active'
-");
-if (!$activityQuery) {
-    die("Activity query preparation failed: " . $conn->error);
+// Function to fetch activity + submission details
+function fetchActivity($conn, $activity_id, $enrollment_id) {
+    $q = $conn->prepare("
+        SELECT a.title, a.description, a.due_date, a.resource_file, a.status,
+               s.submission_id, s.submission_text, s.submission_file, s.submitted_at
+        FROM activities a
+        LEFT JOIN activity_submissions s ON a.activity_id = s.activity_id AND s.enrollment_id = ?
+        WHERE a.activity_id = ? AND a.status = 'active'
+    ");
+    $q->bind_param("ii", $enrollment_id, $activity_id);
+    $q->execute();
+    $res = $q->get_result();
+    $activity = $res->fetch_assoc();
+    $q->close();
+    return $activity;
 }
-$activityQuery->bind_param("ii", $enrollment_id, $activity_id);
-$activityQuery->execute();
-$activityResult = $activityQuery->get_result();
-if ($activityResult->num_rows === 0) {
-    die("Error: Activity not found or is inactive.");
-}
-$activity = $activityResult->fetch_assoc();
-$activityQuery->close();
+
+// Initial fetch
+$activity = fetchActivity($conn, $activity_id, $enrollment_id);
 
 // Handle activity submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_activity') {
@@ -98,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if ($today > $activity['due_date']) {
             echo "<div class='alert alert-danger'>Submission period for this activity has closed.</div>";
         } else {
+            // File upload
             if (isset($_FILES['submission_file']) && $_FILES['submission_file']['error'] === UPLOAD_ERR_OK) {
                 $upload_dir = 'Uploads/';
                 if (!is_dir($upload_dir)) {
@@ -111,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     echo "<div class='alert alert-danger'>File size exceeds 200MB.</div>";
                 } else {
                     $original_name = basename($file['name']);
-                    $filepath = $upload_dir . $original_name;
+                    $filepath = $upload_dir . time() . "_" . $original_name;
                     if (move_uploaded_file($file['tmp_name'], $filepath)) {
                         $submission_file = $filepath;
                     } else {
@@ -120,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 }
             }
 
-            if (!isset($submission_file) || $submission_file || $submission_text) {
+            if ($submission_file || $submission_text) {
                 try {
                     $stmt = $conn->prepare("INSERT INTO activity_submissions (activity_id, enrollment_id, submission_text, submission_file, submitted_at) VALUES (?, ?, ?, ?, NOW())");
                     $submission_file = $submission_file ?? '';
@@ -128,10 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $stmt->execute();
                     $stmt->close();
                     echo "<div class='alert alert-success'>Activity submitted successfully.</div>";
-                    // Refresh activity data
-                    $activityQuery->execute();
-                    $activityResult = $activityQuery->get_result();
-                    $activity = $activityResult->fetch_assoc();
+
+                    // Refresh activity data with new submission
+                    $activity = fetchActivity($conn, $activity_id, $enrollment_id);
                 } catch (Exception $e) {
                     error_log("Error submitting activity: " . $e->getMessage());
                     echo "<div class='alert alert-danger'>Error submitting activity. Please try again.</div>";

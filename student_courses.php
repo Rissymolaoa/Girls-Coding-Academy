@@ -128,6 +128,7 @@ h2 { margin-bottom:20px; color:#5a189a; }
     <h3>Navigation</h3>
     <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
     <a href="student_courses.php" class="active"><i class="bi bi-journal-bookmark"></i> My Courses</a>
+    <a href="student_marks.php"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a>
     <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
     <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
     <a href="attendance.php"><i class="bi bi-card-checklist"></i> Attendance</a>

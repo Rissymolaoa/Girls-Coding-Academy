@@ -61,7 +61,7 @@ h1{margin:0;
 <body>
 <div class="sidebar">
     <div class="text-center mb-3">
-      <img src="admin.jpg" alt="Admin" class="rounded-circle" style="width:92px; height:92px; object-fit:cover; border:3px solid #1abc9c;">
+      <img src="admin.PNG" alt="Admin" class="rounded-circle" style="width:92px; height:92px; object-fit:cover; border:3px solid #1abc9c;">
     </div>
     <h4 class="text-center mb-4">Administration</h4>
     <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>

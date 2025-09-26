@@ -43,6 +43,35 @@ $attendance_sql->execute();
 $attendance_result = $attendance_sql->get_result();
 $attendance = $attendance_result->fetch_all(MYSQLI_ASSOC);
 
+// Fetch tasks (activities) for this student
+$tasks_sql = $conn->prepare("
+    SELECT a.activity_id, a.title, a.description, a.due_date, a.resource_file, c.courseName
+    FROM activities a
+    INNER JOIN batches b ON a.batch_id = b.batch_id
+    INNER JOIN courses c ON b.course_id = c.course_id
+    INNER JOIN course_enrollments ce ON b.batch_id = ce.batch_id
+    WHERE ce.student_id = ? AND a.status = 'active'
+    ORDER BY a.due_date ASC
+");
+$tasks_sql->bind_param("i", $student_id);
+$tasks_sql->execute();
+$tasks_result = $tasks_sql->get_result();
+$tasks = $tasks_result->fetch_all(MYSQLI_ASSOC);
+
+$today = date('Y-m-d');
+$upcoming_tasks = [];
+$overdue_tasks = [];
+
+foreach ($tasks as $task) {
+    if ($task['due_date'] >= $today) {
+        $upcoming_tasks[] = $task;
+    } else {
+        $overdue_tasks[] = $task;
+    }
+}
+
+
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -168,14 +197,68 @@ $attendance = $attendance_result->fetch_all(MYSQLI_ASSOC);
 
         <!-- Tasks / Homework / Announcements -->
         <div class="row">
-            <div class="col-md-4">
-                <div class="card text-center">
-                    <div class="card-header bg-info text-white">Tasks</div>
-                    <div class="card-body">
-                        <p>Tasks assigned to student will appear here.</p>
-                    </div>
-                </div>
-            </div>
+<div class="col-md-4">
+    <div class="card h-100" style="min-height: 400px;">
+        <div class="card-header bg-info text-white text-center">
+            <h5 class="mb-0">Tasks</h5>
+        </div>
+        <div class="card-body" style="overflow-y:auto; max-height:330px;">
+            <?php if (count($upcoming_tasks) > 0): ?>
+                <h6 class="text-success">Upcoming</h6>
+                <ul class="list-group mb-3">
+                    <?php foreach ($upcoming_tasks as $task): ?>
+                        <li class="list-group-item text-start">
+                            <strong><?php echo htmlspecialchars($task['title']); ?></strong><br>
+                            <small><?php echo htmlspecialchars($task['description']); ?></small><br>
+                            <span class="badge bg-secondary">
+                                Due: <?php echo htmlspecialchars($task['due_date']); ?>
+                            </span><br>
+                            <em class="text-muted"><?php echo htmlspecialchars($task['courseName']); ?></em>
+                            <?php if (!empty($task['resource_file']) && file_exists($task['resource_file'])): ?>
+                                <br>
+                                <a href="<?php echo htmlspecialchars($task['resource_file']); ?>" 
+                                   target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="bi bi-file-earmark-arrow-down"></i> View Resource
+                                </a>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+
+            <?php if (count($overdue_tasks) > 0): ?>
+                <h6 class="text-danger">Overdue</h6>
+                <ul class="list-group">
+                    <?php foreach ($overdue_tasks as $task): ?>
+                        <li class="list-group-item text-start bg-light">
+                            <strong><?php echo htmlspecialchars($task['title']); ?></strong><br>
+                            <small><?php echo htmlspecialchars($task['description']); ?></small><br>
+                            <span class="badge bg-danger">
+                                Due: <?php echo htmlspecialchars($task['due_date']); ?>
+                            </span><br>
+                            <em class="text-muted"><?php echo htmlspecialchars($task['courseName']); ?></em>
+                            <?php if (!empty($task['resource_file']) && file_exists($task['resource_file'])): ?>
+                                <br>
+                                <a href="<?php echo htmlspecialchars($task['resource_file']); ?>" 
+                                   target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="bi bi-file-earmark-arrow-down"></i> View Resource
+                                </a>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+
+            <?php if (count($upcoming_tasks) === 0 && count($overdue_tasks) === 0): ?>
+                <p class="text-muted">No tasks assigned yet.</p>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+
+</div>
+
             <div class="col-md-4">
                 <div class="card text-center">
                     <div class="card-header bg-warning text-dark">Homeworks</div>
