@@ -280,7 +280,7 @@ if ($selected_course_id) {
                 <li class="nav-item mb-2"><a class="nav-link text-white" href="upload_materials.php"><i class="bi bi-folder"></i> Upload Materials</a></li>
                 <li class="nav-item mb-2"><a class="nav-link text-white" href="grades.php"><i class="bi bi-pencil-square"></i> Grade</a></li>
                 <li class="nav-item mb-2"><a class="nav-link text-white" href="mark_attendance.php"><i class="bi bi-check-circle"></i> Mark Attendance</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="message_students.php"><i class="bi bi-chat-dots"></i> Message Students</a></li>
+                <li class="nav-item mb-2"><a class="nav-link text-white" href="messages.php"><i class="bi bi-chat-dots"></i> Message Students</a></li>
                 <li class="nav-item mb-2"><a class="nav-link text-white" href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
             </ul>
         </nav>
