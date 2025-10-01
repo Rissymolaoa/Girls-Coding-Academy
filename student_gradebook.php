@@ -99,7 +99,7 @@ function gradeColor($grade) {
 </div>
 
 <div class="main">
-    <h2 class="mb-4">My Grades</h2>
+    <h2 class="mb-4">My Performance</h2>
 
     <?php foreach ($batches as $batch): 
         $sql_grades = "SELECT * FROM internal_grades WHERE student_id = ? AND batch_id = ?";

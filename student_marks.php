@@ -188,8 +188,8 @@ h2 {
     <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
      <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
      <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
-    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> My Schedule</a>
-    <a href="student_marks.php"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a> 
+    <a href="attendance.php"><i class="bi bi-card-checklist"></i> My Schedule</a>
+    <a href="student_marks.php" class="active"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a> 
     <a href="student_gradebook.php"><i class="bi bi-graph-up"></i> My Performance</a>
     <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </nav>

@@ -230,9 +230,6 @@ $today           = date("Y-m-d");
       <span class="text-info me-3">🤒 Sick</span>
     </div>
 
-    <div class="mt-3">
-      <a href="attendance.php" class="btn btn-primary">Back to Dashboard View</a>
-    </div>
   </div>
 </div>
 

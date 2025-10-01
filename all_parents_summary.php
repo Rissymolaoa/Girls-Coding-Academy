@@ -121,7 +121,6 @@ h1{margin:0;
         </table>
     </div>
 
-    <a href="parents_summary.php" class="btn btn-secondary mt-3"><i class="bi bi-arrow-left"></i> Back to Summary</a>
 </div>
 </body>
 </html>

@@ -1,11 +1,11 @@
 <?php
 session_start();
-include 'db.php';
-
-if(!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'parent') {
     header("Location: login.php");
     exit();
 }
+
+include("db.php");
 
 $parent_id = $_SESSION['user_id'];
 
@@ -22,8 +22,8 @@ $parent = $parent_result->fetch_assoc();
 <head>
     <meta charset="UTF-8">
     <title>Parent Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
             display: flex;
@@ -39,9 +39,12 @@ $parent = $parent_result->fetch_assoc();
             width: 100px;
             height: 100px;
             border-radius: 50%;
-            margin-bottom: 15px;
+            margin: 15px auto;
+            display: block;
+            border: 2px solid #6c757d;
         }
         .sidebar h3 {
+            text-align: center;
             margin-bottom: 20px;
         }
         .sidebar a {
@@ -66,6 +69,13 @@ $parent = $parent_result->fetch_assoc();
         .section.active {
             display: block;
         }
+        .card {
+            border: 2px solid #dee2e6; /* added border */
+            border-radius: 12px;
+        }
+        .card h5 {
+            font-weight: bold;
+        }
     </style>
     <script>
         function showSection(id) {
@@ -82,18 +92,15 @@ $parent = $parent_result->fetch_assoc();
 <body>
     <!-- Sidebar -->
     <div class="sidebar">
-        <!-- Admin image placeholder -->
-        <img src="admin.png" alt="Admin Logo">
-        <h3><?= htmlspecialchars($parent['firstName'] . ' ' . $parent['lastName']) ?></h3>
-        <nav>
-            <a href="#" id="home-link" class="nav-link active" onclick="showSection('home')">🏠 Home</a>
-            <a href="#" id="profile-link" class="nav-link" onclick="showSection('profile')">👤 My Profile</a>
-            <a href="children.php" id="children-link" class="nav-link" onclick="showSection('children')">👨‍👩‍👧 My Children</a>
-            <a href="parent_messages.php" id="messages-link" class="nav-link" onclick="showSection('messages')">✉️ Messages</a>
-            <a href="#" id="notifications-link" class="nav-link" onclick="showSection('notifications')">🔔 Notifications</a>
-            <a href="#" id="settings-link" class="nav-link" onclick="showSection('settings')">⚙️ Settings</a>
-            <a href="logout.php" class="nav-link">🚪 Logout</a>
-        </nav>
+    <img src="admin.png" alt="Parent Picture">
+    <h3 class="text-center">Parent Panel</h3>
+    <a href="parent_dashboard.php"  class="active"><i class="bi bi-house-door"></i> Dashboard</a>
+    <a href="children.php"><i class="bi bi-people"></i> My Children</a>
+    <a href="parent_view_attendance.php"><i class="bi bi-card-checklist"></i> Attendance</a>
+    <a href="parent_view_performance.php"><i class="bi bi-graph-up"></i> Performance</a>
+    <a href="parent_view_materials.php"><i class="bi bi-folder"></i> Materials</a>
+    <a href="parent_messages.php"><i class="bi bi-envelope"></i> Messages</a>
+    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </div>
 
     <!-- Main Content -->
@@ -105,11 +112,11 @@ $parent = $parent_result->fetch_assoc();
         <!-- Home Section -->
         <div id="home" class="section active">
             <div class="row">
-                <!-- Number of Children -->
+                <!-- My Children -->
                 <div class="col-md-4">
                     <div class="card text-white bg-primary mb-3 shadow">
-                        <div class="card-body">
-                            <h5 class="card-title">My Children</h5>
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-people"></i> My Children</h5>
                             <?php
                             $count_sql = "SELECT COUNT(*) as total FROM parent_students WHERE parent_id = ?";
                             $stmtCount = $conn->prepare($count_sql);
@@ -122,22 +129,57 @@ $parent = $parent_result->fetch_assoc();
                     </div>
                 </div>
 
-                <!-- Homework -->
+                <!-- Attendance -->
                 <div class="col-md-4">
-                    <div class="card text-white bg-success mb-3 shadow">
-                        <div class="card-body">
-                            <h5 class="card-title">Homeworks</h5>
-                            <p class="card-text fs-3">3 Pending</p>
+                    <div class="card text-white bg-info mb-3 shadow">
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-card-checklist"></i> Attendance</h5>
+                            <p class="card-text fs-3">View Records</p>
+                            <a href="parent_view_attendance.php" class="btn btn-light btn-sm">View</a>
                         </div>
                     </div>
                 </div>
 
-                <!-- Announcements -->
+                <!-- Performance -->
+                <div class="col-md-4">
+                    <div class="card text-white bg-success mb-3 shadow">
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-graph-up"></i> Performance</h5>
+                            <p class="card-text fs-3">Check Progress</p>
+                            <a href="parent_view_performance.php" class="btn btn-light btn-sm">View</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Marks -->
+                <div class="col-md-4">
+                    <div class="card text-white bg-dark mb-3 shadow">
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-bar-chart-line-fill"></i> Marks</h5>
+                            <p class="card-text fs-3">Latest Results</p>
+                            <a href="parent_view_marks.php" class="btn btn-light btn-sm">View</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule -->
                 <div class="col-md-4">
                     <div class="card text-white bg-warning mb-3 shadow">
-                        <div class="card-body">
-                            <h5 class="card-title">Announcements</h5>
-                            <p class="card-text fs-3">5 New</p>
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-calendar-event"></i> Schedule</h5>
+                            <p class="card-text fs-3">View Calendar</p>
+                            <a href="parent_view_schedule.php" class="btn btn-light btn-sm">View</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Materials -->
+                <div class="col-md-4">
+                    <div class="card text-white bg-secondary mb-3 shadow">
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-folder"></i> Materials</h5>
+                            <p class="card-text fs-3">Files & Notes</p>
+                            <a href="parent_view_materials.php" class="btn btn-light btn-sm">View</a>
                         </div>
                     </div>
                 </div>
@@ -147,7 +189,7 @@ $parent = $parent_result->fetch_assoc();
         <!-- Profile Section -->
         <div id="profile" class="section">
             <div class="card shadow p-4">
-                <h2>My Profile</h2>
+                <h2><i class="bi bi-person-circle"></i> My Profile</h2>
                 <p><strong>Full Name:</strong> <?= htmlspecialchars($parent['firstName'] . ' ' . $parent['lastName']) ?></p>
                 <p><strong>Email:</strong> <?= htmlspecialchars($parent['email']) ?></p>
                 <p><strong>Phone:</strong> <?= htmlspecialchars($parent['phone']) ?></p>
@@ -158,7 +200,7 @@ $parent = $parent_result->fetch_assoc();
         <!-- Children Section -->
         <div id="children" class="section">
             <div class="container">
-                <h2 class="mb-4">My Children</h2>
+                <h2 class="mb-4"><i class="bi bi-people"></i> My Children</h2>
                 <div class="row">
                 <?php
                 $children_sql = "SELECT u.*, ps.relationship 
@@ -179,8 +221,7 @@ $parent = $parent_result->fetch_assoc();
                             <div class="card-body text-center">
                                 <h5 class="card-title"><?= htmlspecialchars($child['firstName'].' '.$child['lastName']) ?></h5>
                                 <p class="card-text">Relationship: <?= htmlspecialchars($child['relationship']) ?></p>
-                                <a href="student_profile.php?student_id=<?= $child['user_id'] ?>" class="btn btn-primary btn-sm">View Profile</a>
-                                <a href="student_attendance.php?student_id=<?= $child['user_id'] ?>" class="btn btn-info btn-sm">View Attendance</a>
+                                <a href="student_parent_profile.php?student_id=<?= $child['user_id'] ?>" class="btn btn-primary btn-sm">View Profile</a>
                             </div>
                         </div>
                     </div>
@@ -194,7 +235,7 @@ $parent = $parent_result->fetch_assoc();
         <!-- Messages Section -->
         <div id="messages" class="section">
             <div class="card shadow p-4">
-                <h2>Messages</h2>
+                <h2><i class="bi bi-envelope"></i> Messages</h2>
                 <p>Messages functionality will be implemented here.</p>
             </div>
         </div>
@@ -202,7 +243,7 @@ $parent = $parent_result->fetch_assoc();
         <!-- Notifications Section -->
         <div id="notifications" class="section">
             <div class="card shadow p-4">
-                <h2>Notifications</h2>
+                <h2><i class="bi bi-bell"></i> Notifications</h2>
                 <p>Notifications functionality will be implemented here.</p>
             </div>
         </div>
@@ -210,7 +251,7 @@ $parent = $parent_result->fetch_assoc();
         <!-- Settings Section -->
         <div id="settings" class="section">
             <div class="card shadow p-4">
-                <h2>Settings</h2>
+                <h2><i class="bi bi-gear"></i> Settings</h2>
                 <p>Settings functionality will be implemented here.</p>
             </div>
         </div>

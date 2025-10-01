@@ -114,17 +114,28 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
     } else {
         // add
-        $stmt=$conn->prepare("INSERT INTO addresses (address1,streetName,postalCode,district,country,created_at,updated_at) VALUES (?,?,?,?,?,NOW(),NOW())");
-        $stmt->bind_param("sssss",$address1,$streetName,$postalCode,$district,$country); $stmt->execute(); $address_id=$conn->insert_id; $stmt->close();
+// add
+$stmt=$conn->prepare("INSERT INTO addresses (address1,streetName,postalCode,district,country,created_at,updated_at) VALUES (?,?,?,?,?,NOW(),NOW())");
+$stmt->bind_param("sssss",$address1,$streetName,$postalCode,$district,$country); 
+$stmt->execute(); 
+$address_id=$conn->insert_id; 
+$stmt->close();
 
-        $hash=password_hash($password?:uniqid(),PASSWORD_BCRYPT);
-        $role='parent';
-        $stmt=$conn->prepare("INSERT INTO users (username,firstName,lastName,dob,gender,IDNumber,phone,email,password,status,role,document,address_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())");
-        $stmt->bind_param("sssssssssssi",$username,$firstName,$lastName,$dob,$gender,$IDNumber,$phone,$email,$hash,$status,$role,$documentPath,$address_id); $stmt->execute();
-        $new_user_id=$conn->insert_id; $stmt->close();
+$hash=password_hash($password?:uniqid(),PASSWORD_BCRYPT);
+$role='parent';
 
-        $stmt=$conn->prepare("INSERT INTO parents (user_id,relationship,photo) VALUES (?,?,?)"); 
-        $stmt->bind_param("iss",$new_user_id,$relationship,$photoPath); $stmt->execute(); $stmt->close();
+$stmt = $conn->prepare("INSERT INTO users (username,firstName,lastName,dob,gender,IDNumber,phone,email,password,status,role,document,address_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())");
+$stmt->bind_param("ssssssssssssi", $username, $firstName, $lastName, $dob, $gender, $IDNumber, $phone, $email, $hash, $status, $role, $documentPath, $address_id);
+$stmt->execute();
+
+$new_user_id=$conn->insert_id; 
+$stmt->close();
+
+$stmt=$conn->prepare("INSERT INTO parents (user_id,relationship,photo) VALUES (?,?,?)"); 
+$stmt->bind_param("iss",$new_user_id,$relationship,$photoPath); 
+$stmt->execute(); 
+$stmt->close();
+
     }
 
     header("Location: manage_parents.php"); exit();
