@@ -47,7 +47,11 @@ function gradeColor($grade) {
 
 // Tests list
 $tests = ['test_1','test_2','test_3','test_4','test_5','test_6','test_7','end_examination'];
+
+// Determine current page for active sidebar link
+$currentPage = basename($_SERVER['PHP_SELF']);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -60,88 +64,61 @@ $tests = ['test_1','test_2','test_3','test_4','test_5','test_6','test_7','end_ex
 html, body {
     height: 100%;
     margin: 0; padding: 0;
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
 .container-flex {
     display: flex;
     min-height: 100vh;
-    background: #f8f9fa;
-}
-
-.sidebar {
-    width: 250px;
-    background: #495057;
-    color: #fff;
-    padding: 20px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.sidebar img {
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    border: 2px solid #1abc9c;
-    object-fit: cover;
-    margin-bottom: 15px;
-}
-
-.sidebar h4 {
-    text-align: center;
-    margin-bottom: 10px;
-    font-weight: bold;
-}
-
-.sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: white;
-    text-decoration: none;
-    padding: 10px 15px;
-    margin: 5px 0;
-    border-radius: 6px;
-    transition: background-color 0.3s;
-    width: 100%;
-}
-
-.sidebar a:hover,
-.sidebar a.active {
-    background: #6c757d;
 }
 
 .main-content {
     flex: 1;
-    padding: 30px 40px;
+    padding: 40px 50px;
+    margin-left: 280px;
     overflow-y: auto;
+    height: 100vh;
 }
 
 h2 {
     margin-bottom: 30px;
+    color: #2c3e50;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
 }
 
 .card-summary {
     cursor: pointer;
-    transition: transform 0.2s;
-    padding: 20px;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 0 6px rgba(0,0,0,0.1);
-    height: 150px;
+    transition: all 0.3s ease;
+    padding: 25px;
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+    height: 160px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
     user-select: none;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+}
+
+.card-summary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3498db, #2980b9);
 }
 
 .card-summary:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 30px rgba(52, 73, 94, 0.15);
 }
 
 .row.g-4 {
@@ -150,23 +127,40 @@ h2 {
 
 .grade-table {
     background: white;
-    border-radius: 10px;
-    box-shadow: 0 0 6px rgba(0,0,0,0.1);
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+    overflow: hidden;
 }
 
-.grade-table th, .grade-table td {
+.grade-table th {
+    background: linear-gradient(90deg, #34495e, #2c3e50);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 15px;
     text-align: center;
-    vertical-align: middle !important;
+}
+
+.grade-table td {
+    padding: 15px;
+    vertical-align: middle;
+    text-align: center;
+    border-color: #e9ecef;
+}
+
+.grade-table tbody tr:hover {
+    background: #f8f9fa;
 }
 
 #chart-container {
     margin-top: 40px;
     max-width: 900px;
     display: none;
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 6px rgba(0,0,0,0.1);
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+    overflow: hidden;
 }
 
 .grade-cell {
@@ -174,47 +168,66 @@ h2 {
     font-weight: bold;
     text-align: center;
     user-select: none;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.no-grades {
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 50px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    .row.g-4 {
+        flex-direction: column;
+    }
+    #chart-container {
+        padding: 15px;
+    }
 }
 </style>
 </head>
 <body>
 
 <div class="container-flex">
-    <nav class="sidebar">
-    <img src="admin.png" alt="Student Picture" class="admin-pic">
-    <h3 style="text-align:center;margin-bottom:10px;">Navigation</h3>
-    <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
-     <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
-    <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
-     <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
-     <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
-    <a href="attendance.php"><i class="bi bi-card-checklist"></i> My Schedule</a>
-    <a href="student_marks.php" class="active"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a> 
-    <a href="student_gradebook.php"><i class="bi bi-graph-up"></i> My Performance</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </nav>
+    <!-- Include the consistent navigation -->
+    <?php include("student_navigation.php"); ?>
 
     <main class="main-content">
-        <h2>My Grades Overview</h2>
+        <h2><i class="bi bi-bar-chart-line-fill"></i> My Grades Overview</h2>
+        <p class="mb-4">View your performance across enrolled courses. Click on a course card to see detailed chart.</p>
 
+        <?php if (empty($batches)): ?>
+            <div class="no-grades">No enrolled courses found. <a href="enroll.php">Enroll now</a> to start tracking grades.</div>
+        <?php else: ?>
         <div class="row g-4">
             <?php foreach($batches as $batch): ?>
                 <div class="col-md-4">
-                    <div class="card-summary" data-batch-id="<?php echo $batch['batch_id']; ?>">
-                        <h5><?php echo htmlspecialchars($batch['course_name']); ?></h5>
-                        <h6><?php echo htmlspecialchars($batch['batch_name']); ?></h6>
-                        <p><strong>Average:</strong> <?php echo number_format($batch['average_score'] ?? 0, 2); ?>%</p>
+                    <div class="card-summary" data-batch-id="<?= htmlspecialchars($batch['batch_id']); ?>">
+                        <h5><?= htmlspecialchars($batch['course_name']); ?></h5>
+                        <h6><?= htmlspecialchars($batch['batch_name']); ?></h6>
+                        <p><strong>Average:</strong> <?= number_format($batch['average_score'] ?? 0, 2); ?>%</p>
                     </div>
                 </div>
             <?php endforeach; ?>
         </div>
 
-        <table class="table grade-table table-bordered table-striped">
-            <thead class="table-dark">
+        <table class="table grade-table table-striped">
+            <thead>
                 <tr>
                     <th>Batch</th>
                     <?php foreach ($tests as $test): ?>
-                        <th><?php echo ucfirst(str_replace('_',' ',$test)); ?></th>
+                        <th><?= ucfirst(str_replace('_',' ',$test)); ?></th>
                     <?php endforeach; ?>
                     <th>Total</th>
                     <th>Percentage</th>
@@ -234,15 +247,15 @@ h2 {
                     $max_total = count($tests)*100;
                     $percentage = $max_total ? $total/$max_total*100 : 0;
                 ?>
-                <tr data-batch-id="<?php echo $batch['batch_id']; ?>">
-                    <td><?php echo htmlspecialchars("{$batch['course_name']} - {$batch['batch_name']}"); ?></td>
+                <tr data-batch-id="<?= htmlspecialchars($batch['batch_id']); ?>">
+                    <td><?= htmlspecialchars("{$batch['course_name']} - {$batch['batch_name']}"); ?></td>
                     <?php foreach($tests as $t): ?>
-                        <td class="grade-cell" style="background-color: <?php echo gradeColor($grades[$t] ?? null); ?>;">
-                            <?php echo htmlspecialchars($grades[$t] ?? '-'); ?>
+                        <td class="grade-cell" style="background-color: <?= gradeColor($grades[$t] ?? null); ?>;">
+                            <?= htmlspecialchars($grades[$t] ?? '-'); ?>
                         </td>
                     <?php endforeach; ?>
-                    <td><?php echo $total; ?></td>
-                    <td><?php echo number_format($percentage, 2); ?>%</td>
+                    <td><?= $total; ?></td>
+                    <td><?= number_format($percentage, 2); ?>%</td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -251,13 +264,14 @@ h2 {
         <div id="chart-container">
             <canvas id="gradeChart" style="width:100%;height:300px;"></canvas>
         </div>
+        <?php endif; ?>
     </main>
 </div>
 
 <script>
-const batches = <?php echo json_encode($batches); ?>;
-const tests = <?php echo json_encode($tests); ?>;
-const studentId = <?php echo json_encode($student_id); ?>;
+const batches = <?= json_encode($batches); ?>;
+const tests = <?= json_encode($tests); ?>;
+const studentId = <?= json_encode($student_id); ?>;
 
 const batchGrades = {};
 
@@ -295,15 +309,36 @@ function renderChart(batch_id) {
             datasets: [{
                 label: 'My Score',
                 data: tests.map(t => data[t] ?? 0),
-                borderColor: 'blue',
-                fill: false,
-                tension: 0.2
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                fill: true,
+                tension: 0.4
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'top' }},
-            scales: { y: { beginAtZero: true, max: 100 }}
+            plugins: { 
+                legend: { 
+                    position: 'top',
+                    labels: {
+                        padding: 20
+                    }
+                } 
+            },
+            scales: { 
+                y: { 
+                    beginAtZero: true, 
+                    max: 100,
+                    grid: {
+                        color: '#e9ecef'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
         }
     });
     chartContainer.style.display = 'block';

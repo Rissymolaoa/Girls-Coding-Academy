@@ -3,7 +3,7 @@ session_start();
 
 // Only admins can access
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.html");
+    header("Location: login.php");
     exit();
 }
 
@@ -11,7 +11,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db   = "girlscodingacademydb";
+$db = "girlscodingacademydb";
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
@@ -20,47 +20,125 @@ $course_added = false;
 $course_updated = false;
 $update_error = false;
 $course_deleted = false;
+$image_error = false;
+
+// Ensure upload directory exists
+$upload_dir = 'Uploads/courses/';
+if (!is_dir($upload_dir)) {
+    mkdir($upload_dir, 0755, true);
+}
 
 // Handle add course
 if (isset($_POST['add_course'])) {
-    $stmt = $conn->prepare("INSERT INTO courses (title, courseName, description, category, level, start_date, end_date, price, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param(
-        "sssssssss",
-        $_POST['title'],
-        $_POST['courseName'],
-        $_POST['description'],
-        $_POST['category'],
-        $_POST['level'],
-        $_POST['start_date'],
-        $_POST['end_date'],
-        $_POST['price'],
-        $_POST['status']
-    );
-    $stmt->execute();
-    $stmt->close();
-    $course_added = true;
+    $title = $_POST['title'];
+    $courseName = $_POST['courseName'];
+    $description = $_POST['description'];
+    $category = $_POST['category'];
+    $level = $_POST['level'];
+    $start_date = $_POST['start_date'];
+    $end_date = $_POST['end_date'];
+    $price = $_POST['price'];
+    $status = $_POST['status'];
+    $image_path = 'Uploads/courses/course_default.jpg'; // Default image
+
+    // Handle image upload
+    if (isset($_FILES['course_image']) && $_FILES['course_image']['error'] == UPLOAD_ERR_OK) {
+        $allowed_types = ['image/jpeg', 'image/png'];
+        $max_size = 5 * 1024 * 1024; // 5MB
+        $file_type = $_FILES['course_image']['type'];
+        $file_size = $_FILES['course_image']['size'];
+
+        if (in_array($file_type, $allowed_types) && $file_size <= $max_size) {
+            $ext = pathinfo($_FILES['course_image']['name'], PATHINFO_EXTENSION);
+            $image_path = $upload_dir . 'course_' . time() . '.' . $ext;
+            if (!move_uploaded_file($_FILES['course_image']['tmp_name'], $image_path)) {
+                $image_error = true;
+            }
+        } else {
+            $image_error = true;
+        }
+    }
+
+    if (!$image_error) {
+        $stmt = $conn->prepare("INSERT INTO courses (title, courseName, description, category, level, start_date, end_date, price, status, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param(
+            "ssssssssss",
+            $title,
+            $courseName,
+            $description,
+            $category,
+            $level,
+            $start_date,
+            $end_date,
+            $price,
+            $status,
+            $image_path
+        );
+        $stmt->execute();
+        $stmt->close();
+        $course_added = true;
+    }
 }
 
 // Handle update course
 if (isset($_POST['update_course'])) {
     if (!empty($_POST['title']) && !empty($_POST['courseName'])) {
-        $stmt = $conn->prepare("UPDATE courses SET title=?, courseName=?, description=?, category=?, level=?, start_date=?, end_date=?, price=?, status=? WHERE course_id=?");
-        $stmt->bind_param(
-            "sssssssssi",
-            $_POST['title'],
-            $_POST['courseName'],
-            $_POST['description'],
-            $_POST['category'],
-            $_POST['level'],
-            $_POST['start_date'],
-            $_POST['end_date'],
-            $_POST['price'],
-            $_POST['status'],
-            $_POST['course_id']
-        );
-        $stmt->execute();
-        $stmt->close();
-        $course_updated = true;
+        $title = $_POST['title'];
+        $courseName = $_POST['courseName'];
+        $description = $_POST['description'];
+        $category = $_POST['category'];
+        $level = $_POST['level'];
+        $start_date = $_POST['start_date'];
+        $end_date = $_POST['end_date'];
+        $price = $_POST['price'];
+        $status = $_POST['status'];
+        $course_id = $_POST['course_id'];
+        $image_path = $_POST['existing_image_path']; // Keep existing image by default
+
+        // Handle image upload
+        if (isset($_FILES['course_image']) && $_FILES['course_image']['error'] == UPLOAD_ERR_OK) {
+            $allowed_types = ['image/jpeg', 'image/png'];
+            $max_size = 5 * 1024 * 1024; // 5MB
+            $file_type = $_FILES['course_image']['type'];
+            $file_size = $_FILES['course_image']['size'];
+
+            if (in_array($file_type, $allowed_types) && $file_size <= $max_size) {
+                $ext = pathinfo($_FILES['course_image']['name'], PATHINFO_EXTENSION);
+                $image_path = $upload_dir . 'course_' . time() . '.' . $ext;
+                if (!move_uploaded_file($_FILES['course_image']['tmp_name'], $image_path)) {
+                    $image_error = true;
+                }
+                // Delete old image if not default
+                if ($_POST['existing_image_path'] != 'Uploads/courses/course_default.jpg') {
+                    @unlink($_POST['existing_image_path']);
+                }
+            } else {
+                $image_error = true;
+            }
+        }
+
+        if (!$image_error) {
+            $stmt = $conn->prepare("UPDATE courses SET title=?, courseName=?, description=?, category=?, level=?, start_date=?, end_date=?, price=?, status=?, image_path=? WHERE course_id=?");
+            $stmt->bind_param(
+                "ssssssssssi",
+                $title,
+                $courseName,
+                $description,
+                $category,
+                $level,
+                $start_date,
+                $end_date,
+                $price,
+                $status,
+                $image_path,
+                $course_id
+            );
+            $stmt->execute();
+            $stmt->close();
+            $course_updated = true;
+        } else {
+            $update_error = true;
+        }
     } else {
         $update_error = true;
     }
@@ -69,6 +147,17 @@ if (isset($_POST['update_course'])) {
 // Handle delete course
 if (isset($_GET['delete'])) {
     $course_id = intval($_GET['delete']);
+    // Get image path to delete
+    $stmt = $conn->prepare("SELECT image_path FROM courses WHERE course_id = ?");
+    $stmt->bind_param("i", $course_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    if ($row['image_path'] != 'Uploads/courses/course_default.jpg') {
+        @unlink($row['image_path']);
+    }
+    $stmt->close();
+
     $conn->query("DELETE FROM courses WHERE course_id=$course_id");
     $course_deleted = true;
 }
@@ -91,267 +180,424 @@ $total_enrollments = $conn->query("SELECT COUNT(*) as total FROM course_enrollme
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Manage Courses | Admin Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+        }
 
-<style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding-top: 56px;
+        }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: Arial, sans-serif; background: #f5f6fa; color: #2c3e50; }
+        .content {
+            min-height: calc(100vh - 56px);
+            transition: all 0.3s ease;
+        }
 
+        .main {
+            padding: 2rem 2rem 2rem 1rem;
+        }
 
-header {
-    background: linear-gradient(90deg, #7b2cbf, #5a189a);
-    color: white; padding: 20px 30px; text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-}
-header h1 { font-size: 24px; }
+        .section-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
 
-.container { display: flex; min-height: calc(100vh - 70px); gap: 20px; }
+        .section-card h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
 
-.sidebar {
-    width: 220px; background: #34495e; padding: 20px;
-    display: flex; flex-direction: column; align-items: center;
-        min-height: 100vh;
+        .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
 
-}
+        .search-form {
+            display: flex;
+            gap: 1rem;
+            max-width: 400px;
+        }
 
- 
-.admin-pic {
-    width: 100px; height: 100px; border-radius: 50%;
-    margin-bottom: 15px; border: 3px solid #2cbf64ff; object-fit: cover;
-}
-.sidebar h3 { color: white; margin-bottom: 20px; font-size: 16px; text-align:center;}
-.sidebar a {
-    width: 100%; color: white; text-decoration: none;
-    padding: 10px 15px; margin: 5px 0; border-radius: 5px; font-size: 14px;
-}
-.sidebar a:hover, .sidebar a.active { background: #1abc9c; }
+        .search-form .form-control {
+            flex: 1;
+        }
 
-/* Content and stats wrapper */
-.content-wrapper { display: flex; gap: 20px; }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
 
-/* Main content */
-.content { flex: 3; padding: 10px 0; }
+        .form-row .form-control {
+            padding: 0.75rem;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
 
-/* Stats panel */
-.stats-panel {
-    flex: 1; background: white; padding: 15px; border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    height: fit-content;
-}
-    header {
-        background: #2c3e50;
-        color: white;
-        padding: 2px 2px;
-        text-align: center;
-    }
-    
-    h1{margin:0;
-    font-size:20px;
-    font-weight:600}
-/* Forms */
-form {
-    background: white; padding: 20px; margin-bottom: 20px;
-    border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
-}
-form h3 { grid-column: span 2; }
-input, textarea, select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 100%; }
-textarea { grid-column: span 2; }
-button { grid-column: span 2; background: #7b2cbf; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
-button:hover { background: #5a189a; }
+        .form-row textarea {
+            grid-column: span 2;
+            min-height: 100px;
+        }
 
-/* Table styling */
-table {
-    width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; background: white;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 20px;
-}
-th, td { padding: 12px; text-align: center; border-bottom: 1px solid #732d91; font-size: 14px; }
-th { background: linear-gradient(90deg, #7b2cbf, #5a189a); color: white; }
+        .form-row img {
+            max-width: 100px;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+        }
 
-/* Action buttons */
-.btn { padding: 6px 10px; border-radius: 5px; font-size: 13px; margin: 0 2px; cursor: pointer; border: none; }
-.btn-edit { background: #3498db; color: white; }
-.btn-edit:hover { background: #2980b9; }
-.btn-delete { background: #e74c3c; color: white; }
-.btn-delete:hover { background: #c0392b; }
+        .btn-primary {
+            background: var(--primary-gradient);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
 
-/* Pagination */
-.pagination { margin-top:15px; text-align:center; }
-.pagination a, .pagination span { padding:6px 14px; margin:0 5px; background:#7b2cbf; color:white; border-radius:4px; text-decoration:none; }
-.pagination span.disabled { background:#ccc; color:#666; }
-h1{margin:0;
-    font-size:20px;
-    font-weight:600}
-</style>
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table th {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            font-weight: 600;
+            padding: 1rem;
+        }
+
+        .table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-color: rgba(0,0,0,0.05);
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.05);
+        }
+
+        .table img {
+            max-width: 50px;
+            border-radius: 4px;
+        }
+
+        .btn-edit {
+            background: var(--info-gradient);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            margin-right: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-delete {
+            background: var(--danger-gradient);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-1px);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .pagination a, .pagination span {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            background: rgba(255,255,255,0.8);
+            color: #1f2937;
+            font-weight: 500;
+        }
+
+        .pagination .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stats-section h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            background: rgba(31, 41, 55, 0.8);
+            color: #fff;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            color: #fff;
+            position: fixed;
+            top: 56px;
+            height: calc(100vh - 56px);
+            left: 0;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+            z-index: 1030;
+        }
+
+        @media (min-width: 992px) {
+            .main {
+                padding-left: 1rem;
+                padding-right: 2rem;
+            }
+            .content {
+                margin-left: 280px;
+            }
+        }
+
+        @media (max-width: 991px) {
+            .sidebar {
+                top: 0;
+                height: 100vh;
+                left: -280px;
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .main {
+                padding: 1rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .top-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-form {
+                max-width: none;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .form-row textarea {
+                grid-column: span 1;
+            }
+        }
+    </style>
 </head>
 <body>
-<header><h1>Girls Coding Academy - Admin Dashboard</h1></header>
-<div class="container">
-    <div class="sidebar">
-        <img src="admin.png" alt="Admin Picture" class="admin-pic">
-    <h4 class="text-center mb-4">Administration</h4>
-    <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
-    <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
-    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
-    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
-    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
-    <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
-    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
-    <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
-    <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
-    <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </div>
+<?php include 'top_navigation.php'; ?>
+<?php include 'admin_navigation.php'; ?>
 
-    <div class="content-wrapper">
-        <div class="content">
+<div class="content">
+    <main class="main">
+        <div class="top-row">
             <h2>Manage Courses</h2>
+        </div>
 
-            <!-- Add Course Form -->
-            <form method="POST">
-                <div class="card mb-4 shadow-sm">
-  <div class="card-header bg-gradient text-white" style="background: linear-gradient(90deg, #7b2cbf, #5a189a);">
-    <h5 class="mb-0">Add New Course</h5>
-  </div>
-  <div class="card-body">
-    <form method="POST" class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label">Title</label>
-        <input type="text" name="title" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Course Name</label>
-        <input type="text" name="courseName" class="form-control" required>
-      </div>
-      <div class="col-12">
-        <label class="form-label">Description</label>
-        <textarea name="description" class="form-control" rows="3" required></textarea>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Category</label>
-        <input type="text" name="category" class="form-control" required>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Level</label>
-        <input type="text" name="level" class="form-control" required>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Price</label>
-        <input type="number" step="0.01" name="price" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Start Date</label>
-        <input type="date" name="start_date" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">End Date</label>
-        <input type="date" name="end_date" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Status</label>
-        <select name="status" class="form-select" required>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-      <div class="col-12 text-end">
-        <button type="submit" name="add_course" class="btn btn-primary">
-          <i class="bi bi-plus-circle"></i> Add Course
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-            </form>
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="section-card">
+                    <h3>Add New Course</h3>
+                    <form method="POST" class="form-row" enctype="multipart/form-data">
+                        <input type="text" name="title" placeholder="Title" class="form-control" required>
+                        <input type="text" name="courseName" placeholder="Course Name" class="form-control" required>
+                        <textarea name="description" placeholder="Description" class="form-control" required></textarea>
+                        <input type="text" name="category" placeholder="Category (e.g., Construction Coding)" class="form-control" required>
+                        <input type="text" name="level" placeholder="Level (e.g., Beginner)" class="form-control" required>
+                        <input type="date" name="start_date" class="form-control" required>
+                        <input type="date" name="end_date" class="form-control" required>
+                        <input type="number" step="0.01" name="price" placeholder="Price" class="form-control" required>
+                        <select name="status" class="form-control" required>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                        <div>
+                            <label for="course_image">Course Image (JPG/PNG, max 5MB)</label>
+                            <input type="file" name="course_image" id="course_image" class="form-control" accept="image/jpeg,image/png">
+                        </div>
+                        <button type="submit" name="add_course" class="btn btn-primary">Add Course</button>
+                    </form>
+                </div>
 
-            <!-- Search -->
-            <input type="text" id="searchInput" placeholder="Search courses..." style="margin-bottom:15px;padding:8px;width:100%;">
+                <div class="section-card">
+                    <input type="text" id="searchInput" placeholder="Search courses..." class="form-control mb-3">
+                    <h3>Existing Courses</h3>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle" id="coursesTable">
+                            <thead>
+                                <tr><th>ID</th><th>Image</th><th>Title</th><th>Course Name</th><th>Category</th><th>Level</th><th>Start</th><th>End</th><th>Price</th><th>Status</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                <?php while ($row = $result->fetch_assoc()) { ?>
+                                <tr>
+                                    <td><?= $row['course_id'] ?></td>
+                                    <td><img src="<?= htmlspecialchars($row['image_path']) ?>" alt="Course Image"></td>
+                                    <td><?= htmlspecialchars($row['title']) ?></td>
+                                    <td><?= htmlspecialchars($row['courseName']) ?></td>
+                                    <td><?= htmlspecialchars($row['category']) ?></td>
+                                    <td><?= htmlspecialchars($row['level']) ?></td>
+                                    <td><?= $row['start_date'] ?></td>
+                                    <td><?= $row['end_date'] ?></td>
+                                    <td>$<?= $row['price'] ?></td>
+                                    <td><?= ucfirst($row['status']) ?></td>
+                                    <td>
+                                        <button class="btn btn-edit" onclick='openEditModal(<?= json_encode($row) ?>)'>✏</button>
+                                        <button class="btn btn-delete" onclick="confirmDelete(<?= $row['course_id'] ?>)">🗑</button>
+                                    </td>
+                                </tr>
+                                <?php } ?>
+                            </tbody>
+                        </table>
+                    </div>
 
-            <!-- Existing Courses -->
-            <h3>Existing Courses</h3>
-            <table id="coursesTable">
-                <thead>
-                    <tr><th>ID</th><th>Title</th><th>Course Name</th><th>Category</th><th>Level</th><th>Start</th><th>End</th><th>Price</th><th>Status</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                <?php while ($row = $result->fetch_assoc()) { ?>
-                <tr>
-                    <td><?= $row['course_id'] ?></td>
-                    <td><?= $row['title'] ?></td>
-                    <td><?= $row['courseName'] ?></td>
-                    <td><?= $row['category'] ?></td>
-                    <td><?= $row['level'] ?></td>
-                    <td><?= $row['start_date'] ?></td>
-                    <td><?= $row['end_date'] ?></td>
-                    <td>$<?= $row['price'] ?></td>
-                    <td><?= ucfirst($row['status']) ?></td>
-                    <td>
-                        <button class="btn btn-edit" onclick='openEditModal(<?= json_encode($row) ?>)'>✏</button>
-                        <button class="btn btn-delete" onclick="confirmDelete(<?= $row['course_id'] ?>)">🗑</button>
-                    </td>
-                </tr>
-                <?php } ?>
-                </tbody>
-            </table>
+                    <div class="pagination">
+                        <?php if ($page > 1): ?>
+                            <a href="?page=<?= $page - 1 ?>">&laquo; Prev</a>
+                        <?php else: ?>
+                            <span class="disabled">&laquo; Prev</span>
+                        <?php endif; ?>
 
-            <!-- Pagination -->
-            <div class="pagination">
-                <?php if ($page > 1): ?>
-                    <a href="?page=<?= $page - 1 ?>">&laquo; Prev</a>
-                <?php else: ?>
-                    <span class="disabled">&laquo; Prev</span>
-                <?php endif; ?>
+                        <?php if ($page < $total_pages): ?>
+                            <a href="?page=<?= $page + 1 ?>">Next &raquo;</a>
+                        <?php else: ?>
+                            <span class="disabled">Next &raquo;</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
 
-                <?php if ($page < $total_pages): ?>
-                    <a href="?page=<?= $page + 1 ?>">Next &raquo;</a>
-                <?php else: ?>
-                    <span class="disabled">Next &raquo;</span>
-                <?php endif; ?>
+            <div class="col-lg-4">
+                <div class="stats-section">
+                    <h3>Course Statistics</h3>
+                    <div class="chart-container">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <div class="stats-panel">
-            <h3>Course Statistics</h3>
-            <canvas id="barChart" height="150"></canvas>
-            <canvas id="pieChart" height="150" style="margin-top:20px;"></canvas>
-        </div>
-    </div>
+    </main>
 </div>
 
 <!-- Edit Modal -->
-<div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
-    background:rgba(0,0,0,0.6); justify-content:center; align-items:center;">
-    <div style="background:#fff; padding:20px; border-radius:8px; width:500px; max-width:90%;">
-        <h3>Edit Course</h3>
-        <form method="POST">
-            <input type="hidden" name="course_id" id="edit_course_id">
-            <input type="text" name="title" id="edit_title" placeholder="Title" required>
-            <input type="text" name="courseName" id="edit_courseName" placeholder="Course Name" required>
-            <textarea name="description" id="edit_description" placeholder="Description" required></textarea>
-            <input type="text" name="category" id="edit_category" placeholder="Category" required>
-            <input type="text" name="level" id="edit_level" placeholder="Level" required>
-            <label>Start Date: <input type="date" name="start_date" id="edit_start_date" required></label>
-            <label>End Date: <input type="date" name="end_date" id="edit_end_date" required></label>
-            <input type="number" step="0.01" name="price" id="edit_price" placeholder="Price" required>
-            <select name="status" id="edit_status" required>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-            </select>
-            <div style="margin-top:15px; text-align:right;">
-                <button type="button" onclick="closeEditModal()" style="background:#ccc; padding:8px 12px; border:none; border-radius:4px;">Cancel</button>
-                <button type="submit" name="update_course" style="background:#7b2cbf; color:white; padding:8px 12px; border:none; border-radius:4px;">Update</button>
+<div id="editModal" class="modal fade" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--primary-gradient); color: white;">
+                <h5 class="modal-title">Edit Course</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="closeEditModal()"></button>
             </div>
-        </form>
+            <form method="POST" class="modal-body form-row" enctype="multipart/form-data">
+                <input type="hidden" name="course_id" id="edit_course_id">
+                <input type="hidden" name="existing_image_path" id="edit_image_path">
+                <input type="text" name="title" id="edit_title" placeholder="Title" class="form-control" required>
+                <input type="text" name="courseName" id="edit_courseName" placeholder="Course Name" class="form-control" required>
+                <textarea name="description" id="edit_description" placeholder="Description" class="form-control" required></textarea>
+                <input type="text" name="category" id="edit_category" placeholder="Category" class="form-control" required>
+                <input type="text" name="level" id="edit_level" placeholder="Level" class="form-control" required>
+                <input type="date" name="start_date" id="edit_start_date" class="form-control" required>
+                <input type="date" name="end_date" id="edit_end_date" class="form-control" required>
+                <input type="number" step="0.01" name="price" id="edit_price" placeholder="Price" class="form-control" required>
+                <select name="status" id="edit_status" class="form-control" required>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+                <div>
+                    <label for="edit_course_image">Course Image (JPG/PNG, max 5MB)</label>
+                    <img id="edit_image_preview" src="" alt="Current Image" style="display: none;">
+                    <input type="file" name="course_image" id="edit_course_image" class="form-control" accept="image/jpeg,image/png">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" name="update_course" class="btn btn-primary">Update</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
+<footer class="text-center py-3">
+    <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // Search courses
 document.getElementById('searchInput').addEventListener('keyup', function() {
@@ -375,7 +621,7 @@ function confirmDelete(id) {
         if (result.isConfirmed) {
             window.location.href = '?delete=' + id;
         }
-    })
+    });
 }
 
 function openEditModal(course) {
@@ -389,10 +635,14 @@ function openEditModal(course) {
     document.getElementById('edit_end_date').value = course.end_date;
     document.getElementById('edit_price').value = course.price;
     document.getElementById('edit_status').value = course.status;
-    document.getElementById('editModal').style.display = 'flex';
+    document.getElementById('edit_image_path').value = course.image_path;
+    document.getElementById('edit_image_preview').src = course.image_path;
+    document.getElementById('edit_image_preview').style.display = 'block';
+    new bootstrap.Modal(document.getElementById('editModal')).show();
 }
+
 function closeEditModal() {
-    document.getElementById('editModal').style.display = 'none';
+    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
 }
 
 // Charts
@@ -431,11 +681,13 @@ const pieChart = new Chart(ctxPie, {
 <script>Swal.fire('Updated','Course updated successfully!','success');</script>
 <?php endif; ?>
 <?php if ($update_error): ?>
-<script>Swal.fire('Error','Course title and name are required!','error');</script>
+<script>Swal.fire('Error','Course title, name, or image upload failed!','error');</script>
 <?php endif; ?>
 <?php if ($course_deleted): ?>
 <script>Swal.fire('Deleted','Course deleted successfully!','success');</script>
 <?php endif; ?>
-
+<?php if ($image_error): ?>
+<script>Swal.fire('Error','Invalid image file or size exceeds 5MB!','error');</script>
+<?php endif; ?>
 </body>
 </html>

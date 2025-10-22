@@ -69,131 +69,236 @@ $batches = $conn->query("
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
 <style>
-body { background:#f6f5f8; font-family: Arial,sans-serif; }
-header { background:#343a40; color: #fff; padding: 18px 24px; text-align: center; box-shadow:0 2px 6px rgba(0,0,0,0.12);}
-header h1 { margin:0; font-size:22px; }
-
-.d-flex { display:flex; flex-wrap:nowrap; min-height:100vh; }
-.sidebar { width:250px; background:#343a40; padding:20px; color:#fff; }
-.sidebar h3 { text-align:center; margin-bottom:20px; font-weight:bold; }
-.sidebar a { display:flex; align-items:center; gap:10px; color:white; text-decoration:none; padding:10px; margin:5px 0; border-radius:6px; transition:0.2s; }
-.sidebar a:hover, .sidebar a.active { background:#495057; }
-.admin-pic { width:90px; height:90px; border-radius:50%; display:block; margin:auto; margin-bottom:15px; border:2px solid #1abc9c; object-fit:cover; }
-
-.content { flex:1; padding:30px; }
-
-.batch-card img { max-width:100%; height:150px; object-fit:cover; border-radius:6px; margin-bottom:10px; }
-.batch-card h5 { color:#7b2cbf; margin-bottom:10px; }
-.batch-card p { font-size:14px; color:#333; height:60px; overflow:hidden; margin-bottom:10px; }
-.batch-card small { display:block; margin-bottom:10px; color:#555; }
-.batch-card form button { background:#7b2cbf; color:white; border:none; padding:6px 12px; cursor:pointer; border-radius:4px; }
-.batch-card form button:hover { background:#5a189a; }
-
-.view-toggle { margin-bottom:20px; }
-
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+.container-flex {
+    display: flex;
+    min-height: 100vh;
+}
+.content { 
+    flex: 1; 
+    padding: 40px 50px;
+    margin-left: 280px;
+    overflow-y: auto;
+}
+h2 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+.batch-card { 
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.batch-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3498db, #2980b9);
+}
+.batch-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 10px 30px rgba(52, 73, 94, 0.2);
+}
+.batch-card img { 
+    width: 100%; 
+    height: 180px; 
+    object-fit: cover; 
+    border-radius: 10px; 
+    margin-bottom: 18px; 
+    flex-shrink: 0;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+.batch-card h5 { 
+    color: #2c3e50; 
+    margin-bottom: 10px; 
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+.batch-card p { 
+    font-size: 14px; 
+    color: #7f8c8d; 
+    height: 60px; 
+    overflow: hidden; 
+    margin-bottom: 10px; 
+    line-height: 1.4;
+}
+.batch-card small { 
+    display: block; 
+    margin-bottom: 10px; 
+    color: #95a5a6; 
+    font-size: 0.9rem;
+}
+.batch-card form button { 
+    background: #3498db; 
+    color: white; 
+    border: none; 
+    padding: 10px 20px; 
+    cursor: pointer; 
+    border-radius: 8px; 
+    font-weight: 500;
+    transition: background 0.3s ease;
+}
+.batch-card form button:hover { 
+    background: #2980b9; 
+}
+.view-toggle { 
+    margin-bottom: 25px; 
+    text-align: right;
+}
+.view-toggle button {
+    background: rgba(52, 73, 94, 0.1);
+    border: 2px solid #34495e;
+    color: #34495e;
+    font-size: 1.4rem;
+    cursor: pointer;
+    margin-left: 12px;
+    padding: 8px 12px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+.view-toggle button:hover {
+    background: #34495e;
+    color: white;
+    transform: scale(1.1);
+}
+.view-toggle button.active {
+    background: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
 /* Grid View (default) */
-.batch-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap:20px; }
-
+.batch-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); 
+    gap: 25px; 
+}
 /* List View */
 .list-view {
-    display:flex;
-    flex-direction:column;
-    gap:15px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 .list-view .batch-card {
-    display:flex;
-    flex-direction:row;
-    align-items:center;
-    gap:15px;
-    height:auto;
+    flex-direction: row;
+    align-items: center;
+    height: auto;
+    padding: 20px;
 }
 .list-view .batch-card img {
-    width:150px;
-    height:100px;
-    object-fit:cover;
-    border-radius:6px;
+    width: 200px;
+    height: 140px;
+    margin-right: 25px;
+    margin-bottom: 0;
+    border-radius: 10px;
 }
 .list-view .card-body {
-    flex:1;
+    flex: 1;
+    text-align: left;
+}
+.no-batches {
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 50px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+}
+@media (max-width: 768px) {
+    .content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    .batch-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 </head>
 <body>
 
-<header>
-    <h1>Girls Coding Academy - Student Dashboard</h1>
-</header>
+<div class="container-flex">
+    <!-- Include the consistent navigation -->
+    <?php include("student_navigation.php"); ?>
 
-<div class="d-flex">
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <img src="admin.png" alt="Student Picture" class="admin-pic">
-    <h3 style="text-align:center;margin-bottom:10px;">Navigation</h3>
-    <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
-     <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
-    <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
-     <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
-     <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
-    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> My Schedule</a>
-    <a href="student_marks.php"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a> 
-    <a href="student_gradebook.php"><i class="bi bi-graph-up"></i> My Performance</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-  </div>
+    <!-- Content -->
+    <div class="content">
+        <h2><i class="bi bi-list-task"></i> Available Batches</h2>
+        <?php echo $enrollMessage; ?>
 
-  <!-- Content -->
-  <div class="content flex-fill">
-      <h2>Available Batches</h2>
-      <?php echo $enrollMessage; ?>
-
-      <!-- View Toggle Buttons -->
-      <div class="view-toggle mb-3">
-        <button id="gridView" class="btn btn-sm btn-primary me-2"><i class="bi bi-grid-fill"></i> Grid</button>
-        <button id="listView" class="btn btn-sm btn-secondary"><i class="bi bi-list-ul"></i> List</button>
-      </div>
-
-      <!-- Batch Container -->
-      <div id="batchContainer" class="batch-grid">
-        <?php while($row = $batches->fetch_assoc()) { 
-            $imgPath = !empty($row['image_path']) ? $row['image_path'] : 'course1.jpg';
-        ?>
-        <div class="card batch-card p-3">
-          <img src="<?php echo htmlspecialchars($imgPath); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($row['courseName']); ?>">
-          <div class="card-body">
-            <h5 class="card-title"><?php echo htmlspecialchars($row['courseName']); ?></h5>
-            <p class="card-text"><?php echo htmlspecialchars($row['description']); ?></p>
-            <small>Batch Code: <?php echo htmlspecialchars($row['batch_code']); ?></small><br>
-            <small>Start: <?php echo htmlspecialchars($row['start_date']); ?> | End: <?php echo htmlspecialchars($row['end_date']); ?></small>
-            <form method="POST" action="" class="mt-2">
-                <input type="hidden" name="batch_id" value="<?php echo $row['batch_id']; ?>">
-                <button type="submit" name="enroll" class="btn btn-sm"><i class="bi bi-person-plus"></i> Enroll</button>
-            </form>
-          </div>
+        <!-- View Toggle Buttons -->
+        <div class="view-toggle">
+            <button id="gridView" class="active" aria-pressed="true" title="Grid View"><i class="bi bi-grid-3x3-gap-fill"></i></button>
+            <button id="listView" aria-pressed="false" title="List View"><i class="bi bi-list-ul"></i></button>
         </div>
-        <?php } ?>
-      </div>
-  </div>
-</div>
 
-<footer class="text-center text-white mt-4 p-3" style="background:#343a40;">
-    &copy; <?php echo date("Y"); ?> Girls Coding Academy. All rights reserved.
-</footer>
+        <!-- Batch Container -->
+        <div id="batchContainer" class="batch-grid">
+            <?php if($batches->num_rows > 0): ?>
+                <?php while($row = $batches->fetch_assoc()) { 
+                    $imgPath = !empty($row['image_path']) ? $row['image_path'] : 'uploads/courses/course1.jpg';
+                ?>
+                <div class="batch-card">
+                    <img src="<?php echo htmlspecialchars($imgPath); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($row['courseName']); ?>">
+                    <div class="card-body">
+                        <h5 class="card-title"><?php echo htmlspecialchars($row['courseName']); ?></h5>
+                        <p class="card-text"><?php echo htmlspecialchars($row['description']); ?></p>
+                        <small>Batch Code: <?php echo htmlspecialchars($row['batch_code']); ?></small><br>
+                        <small>Start: <?php echo htmlspecialchars($row['start_date']); ?> | End: <?php echo htmlspecialchars($row['end_date']); ?></small>
+                        <form method="POST" action="" class="mt-2">
+                            <input type="hidden" name="batch_id" value="<?php echo $row['batch_id']; ?>">
+                            <button type="submit" name="enroll" class="btn btn-primary btn-sm"><i class="bi bi-person-plus"></i> Enroll</button>
+                        </form>
+                    </div>
+                </div>
+                <?php } ?>
+            <?php else: ?>
+                <div class="no-batches">No active batches available at the moment. Check back soon!</div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
 
 <script>
 const batchContainer = document.getElementById('batchContainer');
 const gridViewBtn = document.getElementById('gridView');
 const listViewBtn = document.getElementById('listView');
 
-gridViewBtn.addEventListener('click', () => {
+function setGridView() {
     batchContainer.classList.remove('list-view');
-    gridViewBtn.classList.replace('btn-secondary','btn-primary');
-    listViewBtn.classList.replace('btn-primary','btn-secondary');
-});
-
-listViewBtn.addEventListener('click', () => {
+    gridViewBtn.classList.add('active');
+    gridViewBtn.setAttribute('aria-pressed', 'true');
+    listViewBtn.classList.remove('active');
+    listViewBtn.setAttribute('aria-pressed', 'false');
+}
+function setListView() {
     batchContainer.classList.add('list-view');
-    listViewBtn.classList.replace('btn-secondary','btn-primary');
-    gridViewBtn.classList.replace('btn-primary','btn-secondary');
-});
+    listViewBtn.classList.add('active');
+    listViewBtn.setAttribute('aria-pressed', 'true');
+    gridViewBtn.classList.remove('active');
+    gridViewBtn.setAttribute('aria-pressed', 'false');
+}
+
+gridViewBtn.addEventListener('click', setGridView);
+listViewBtn.addEventListener('click', setListView);
 </script>
 
 </body>

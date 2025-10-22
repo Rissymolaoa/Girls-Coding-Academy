@@ -95,115 +95,243 @@ while($row = $courseAttendance->fetch_assoc()) {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { background:#f6f5f8; font-family: Arial,sans-serif; }
-header { background:#343a40; color: #fff; padding: 18px 24px; text-align: center; box-shadow:0 2px 6px rgba(0,0,0,0.12);}
-header h1 { margin:0; font-size:22px; }
-.d-flex { display:flex; flex-wrap:nowrap; min-height:100vh; }
-.sidebar { width:250px; background:#495057; padding:20px; color:#fff; }
-.sidebar h3 { text-align:center; margin-bottom:20px; font-weight:bold; }
-.sidebar a { display:flex; align-items:center; gap:10px; color:white; text-decoration:none; padding:10px; margin:5px 0; border-radius:6px; transition:0.2s; }
-.sidebar a:hover, .sidebar a.active { background:#6c757d; }
-.admin-pic { width:90px; height:90px; border-radius:50%; display:block; margin:auto; margin-bottom:15px; border:2px solid #1abc9c; object-fit:cover; }
-.content { flex:1; padding:30px; }
-.table thead { background:#7b2cbf; color:white; }
-.card-chart { padding:20px; margin-bottom:20px; }
-.summary-card { text-align:center; padding:20px; color:white; border-radius:12px; }
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+.container-flex {
+    display: flex;
+    min-height: 100vh;
+}
+.content { 
+    flex: 1; 
+    padding: 40px 50px;
+    margin-left: 280px;
+    overflow-y: auto;
+}
+h2 {
+    margin-bottom: 20px;
+    color: #2c3e50;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+.summary-cards {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+}
+.summary-card { 
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+    border-radius: 15px;
+    padding: 25px;
+    flex: 1;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+    position: relative;
+    overflow: hidden;
+    min-width: 200px;
+}
+.summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3498db, #2980b9);
+}
+.summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(52, 73, 94, 0.15);
+}
+.summary-card.success { border-left: 5px solid #27ae60; }
+.summary-card.danger { border-left: 5px solid #e74c3c; }
+.summary-card.warning { border-left: 5px solid #f39c12; }
+.summary-card.info { border-left: 5px solid #3498db; }
+.summary-card h3 {
+    font-size: 2rem;
+    margin: 0;
+    color: #2c3e50;
+    font-weight: bold;
+}
+.summary-card p {
+    margin: 5px 0 0 0;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+.table {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+}
+.table thead th {
+    background: linear-gradient(90deg, #34495e, #2c3e50);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 15px;
+}
+.table tbody td {
+    padding: 15px;
+    vertical-align: middle;
+    border-color: #e9ecef;
+}
+.table tbody tr:hover {
+    background: #f8f9fa;
+}
+.badge {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+.btn-view-all {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 20px;
+    transition: background 0.3s ease;
+}
+.btn-view-all:hover {
+    background: #2980b9;
+    color: white;
+}
+.chart-container {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+    margin-bottom: 30px;
+}
+.chart-container h5 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+.no-attendance {
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 50px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(44, 62, 80, 0.1);
+}
+@media (max-width: 768px) {
+    .content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    .summary-cards {
+        flex-direction: column;
+    }
+    .table {
+        font-size: 0.9rem;
+    }
+}
 </style>
 </head>
 <body>
 
-<header>
-    <h1>Girls Coding Academy - My Attendance</h1>
-</header>
+<div class="container-flex">
+    <!-- Include the consistent navigation -->
+    <?php include("student_navigation.php"); ?>
 
-<div class="d-flex">
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <img src="admin.png" alt="Student Picture" class="admin-pic">
-    <h3 style="text-align:center;margin-bottom:10px;">Navigation</h3>
-    <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
-     <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
-    <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
-     <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
-     <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
-    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> My Schedule</a>
-    <a href="student_marks.php"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a> 
-    <a href="student_gradebook.php"><i class="bi bi-graph-up"></i> My Performance</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-  </div>
+    <!-- Content -->
+    <div class="content">
+        <h2><i class="bi bi-card-checklist"></i> My Attendance Records</h2>
+        <p class="mb-4">Track your attendance history and performance overview.</p>
 
-  <!-- Content -->
-  <div class="content flex-fill">
-      <h2>My Attendance Records</h2>
-
-      <!-- Summary Cards -->
-      <div class="row mb-4">
-        <div class="col-md-3"><div class="summary-card bg-success"><h3><?php echo $presentCount; ?></h3><p>Days Present</p></div></div>
-        <div class="col-md-3"><div class="summary-card bg-danger"><h3><?php echo $absentCount; ?></h3><p>Days Absent</p></div></div>
-        <div class="col-md-3"><div class="summary-card bg-warning"><h3><?php echo $lateCount; ?></h3><p>Days Late</p></div></div>
-        <div class="col-md-3"><div class="summary-card bg-info"><h3><?php echo $sickCount; ?></h3><p>Days Sick</p></div></div>
-      </div>
-
-      <!-- Attendance Table -->
-      <div class="table-responsive mb-2">
-        <table class="table table-bordered table-hover">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Course</th>
-              <th>Batch Code</th>
-              <th>Session</th>
-              <th>Status</th>
-              <th>Marked By</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php $i=1; while($row = $attendance->fetch_assoc()) { ?>
-              <tr>
-                <td><?php echo $i++; ?></td>
-                <td><?php echo htmlspecialchars($row['courseName']); ?></td>
-                <td><?php echo htmlspecialchars($row['batch_code']); ?></td>
-                <td><?php echo htmlspecialchars($row['session_id']); ?></td>
-                <td>
-                  <?php 
-                    if($row['status']=='Present') echo "<span class='badge bg-success'>✔ Present</span>";
-                    elseif($row['status']=='Absent') echo "<span class='badge bg-danger'>✖ Absent</span>";
-                    elseif($row['status']=='Late') echo "<span class='badge bg-warning text-dark'>⏰ Late</span>";
-                    elseif($row['status']=='Sick') echo "<span class='badge bg-info text-dark'>🤒 Sick</span>";
-                  ?>
-                </td>
-                <td>
-                  <?php echo htmlspecialchars($row['teacher_name']); ?><br>
-                  <small><?= date('d M Y, H:i', strtotime($row['marked_at'])) ?></small>
-                </td>
-              </tr>
-            <?php } ?>
-          </tbody>
-        </table>
-      </div>
-      <a href="attendance_full.php" class="btn btn-primary">View All Attendance</a>
-
-      <!-- Charts -->
-      <div class="row mt-4">
-        <div class="col-md-6">
-          <div class="card card-chart">
-            <h5 class="text-center">Overall Attendance Pie Chart</h5>
-            <canvas id="pieChart"></canvas>
-          </div>
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card success">
+                <h3><?php echo $presentCount; ?></h3>
+                <p>Days Present</p>
+            </div>
+            <div class="summary-card danger">
+                <h3><?php echo $absentCount; ?></h3>
+                <p>Days Absent</p>
+            </div>
+            <div class="summary-card warning">
+                <h3><?php echo $lateCount; ?></h3>
+                <p>Days Late</p>
+            </div>
+            <div class="summary-card info">
+                <h3><?php echo $sickCount; ?></h3>
+                <p>Days Sick</p>
+            </div>
         </div>
-        <div class="col-md-6">
-          <div class="card card-chart">
-            <h5 class="text-center">Attendance by Course (Bar Chart)</h5>
-            <canvas id="barChart"></canvas>
-          </div>
+
+        <!-- Attendance Table -->
+        <?php if($attendance->num_rows > 0): ?>
+        <div class="table-responsive mb-4">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Course</th>
+                        <th>Batch Code</th>
+                        <th>Session</th>
+                        <th>Status</th>
+                        <th>Marked By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php $i=1; while($row = $attendance->fetch_assoc()) { ?>
+                    <tr>
+                        <td><?php echo $i++; ?></td>
+                        <td><?php echo htmlspecialchars($row['courseName']); ?></td>
+                        <td><?php echo htmlspecialchars($row['batch_code']); ?></td>
+                        <td><?php echo htmlspecialchars($row['session_id']); ?></td>
+                        <td>
+                            <?php 
+                                if($row['status']=='Present') echo "<span class='badge bg-success'>✔ Present</span>";
+                                elseif($row['status']=='Absent') echo "<span class='badge bg-danger'>✖ Absent</span>";
+                                elseif($row['status']=='Late') echo "<span class='badge bg-warning text-dark'>⏰ Late</span>";
+                                elseif($row['status']=='Sick') echo "<span class='badge bg-info text-dark'>🤒 Sick</span>";
+                            ?>
+                        </td>
+                        <td>
+                            <?php echo htmlspecialchars($row['teacher_name']); ?><br>
+                            <small class="text-muted"><?= date('d M Y, H:i', strtotime($row['marked_at'])) ?></small>
+                        </td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
         </div>
-      </div>
-  </div>
+        <a href="attendance_full.php" class="btn-view-all"><i class="bi bi-eye"></i> View All Attendance</a>
+        <?php else: ?>
+        <div class="no-attendance">No attendance records found yet.</div>
+        <?php endif; ?>
+
+        <!-- Charts -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5>Overall Attendance Pie Chart</h5>
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5>Attendance by Course (Bar Chart)</h5>
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-
-<footer class="text-center text-white mt-4 p-3" style="background:#495057;">
-    &copy; <?php echo date("Y"); ?> Girls Coding Academy. All rights reserved.
-</footer>
 
 <script>
 // Pie Chart
@@ -214,12 +342,23 @@ new Chart(pieCtx, {
         labels: ['Present', 'Absent', 'Late', 'Sick'],
         datasets: [{
             data: [<?php echo $presentCount; ?>, <?php echo $absentCount; ?>, <?php echo $lateCount; ?>, <?php echo $sickCount; ?>],
-            backgroundColor: ['#28a745','#dc3545','#ffc107','#17a2b8'],
+            backgroundColor: ['#27ae60','#e74c3c','#f39c12','#3498db'],
             borderColor: '#fff',
             borderWidth: 2
         }]
     },
-    options: { responsive:true, plugins: { legend: { position:'bottom' } } }
+    options: { 
+        responsive: true, 
+        plugins: { 
+            legend: { 
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            } 
+        } 
+    }
 });
 
 // Bar Chart
@@ -229,16 +368,35 @@ new Chart(barCtx, {
     data: {
         labels: <?php echo json_encode($barLabels); ?>,
         datasets: [
-            { label: 'Present', data: <?php echo json_encode($barPresent); ?>, backgroundColor: '#28a745' },
-            { label: 'Absent',  data: <?php echo json_encode($barAbsent); ?>,  backgroundColor: '#dc3545' },
-            { label: 'Late',    data: <?php echo json_encode($barLate); ?>,    backgroundColor: '#ffc107' },
-            { label: 'Sick',    data: <?php echo json_encode($barSick); ?>,    backgroundColor: '#17a2b8' }
+            { label: 'Present', data: <?php echo json_encode($barPresent); ?>, backgroundColor: '#27ae60' },
+            { label: 'Absent',  data: <?php echo json_encode($barAbsent); ?>,  backgroundColor: '#e74c3c' },
+            { label: 'Late',    data: <?php echo json_encode($barLate); ?>,    backgroundColor: '#f39c12' },
+            { label: 'Sick',    data: <?php echo json_encode($barSick); ?>,    backgroundColor: '#3498db' }
         ]
     },
     options: {
-        responsive:true,
-        scales: { y: { beginAtZero:true } },
-        plugins: { legend: { position:'bottom' } }
+        responsive: true,
+        scales: { 
+            y: { 
+                beginAtZero: true,
+                grid: {
+                    color: '#e9ecef'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                }
+            }
+        },
+        plugins: { 
+            legend: { 
+                position: 'bottom',
+                labels: {
+                    padding: 15
+                }
+            } 
+        }
     }
 });
 </script>

@@ -4,164 +4,514 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Girls Coding Academy - Registration</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary-blue: #1e3a8a;
+      --secondary-blue: #3b82f6;
+      --accent-blue: #1d4ed8;
+      --accent-hover: #1e40af;
+      --white: #ffffff;
+      --light-gray: #f8fafc;
+      --border-light: #e2e8f0;
+      --shadow-light: 0 4px 20px rgba(0,0,0,0.1);
+      --shadow-hover: 0 8px 30px rgba(0,0,0,0.15);
+      --error-red: #e74c3c;
+      --text-dark: #1e293b;
+      --text-light: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      background: #f7f7f7;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, var(--primary-blue) 0%, #1e40af 100%);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      color: var(--text-dark);
     }
-    header {
-      background: #7b2cbf;
-      color: #fff;
-      padding: 15px;
+
+    .header-title {
+      background: rgba(30, 58, 138, 0.95);
+      backdrop-filter: blur(10px);
+      color: var(--white);
+      padding: 1rem 2rem;
+      text-align: center;
+      position: relative;
+      z-index: 10;
+    }
+
+.header-title h1 {
+  margin: 0;
+  font-size: 1.75rem; /* smaller size */
+  font-weight: 600; /* corrected from 60 */
+  letter-spacing: -0.5px;
+}
+
+
+    .main-container {
+      display: flex;
+      max-width: 1200px;
+      margin: 2rem auto;
+      background: var(--white);
+      border-radius: 20px;
+      box-shadow: var(--shadow-light);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: box-shadow 0.3s ease;
+      gap: 0;
+    }
+
+    .main-container:hover {
+      box-shadow: var(--shadow-hover);
+    }
+
+    /* Left pane: School Info */
+    .left-pane {
+      width: 40%;
+      background: linear-gradient(145deg, var(--light-gray) 0%, #e2e8f0 100%);
+       padding: 1.5rem 2.5rem 3rem 2.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
       text-align: center;
     }
-    header nav a {
-      color: #fff;
-      margin: 0 15px;
+
+    .school-icon {
+      font-size: 4rem;
+      color: var(--secondary-blue);
+      margin-bottom: 1.5rem;
+    }
+
+    .left-pane h3 {
+      color: var(--text-dark);
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.25px;
+    }
+
+    .left-pane p {
+      color: var(--text-light);
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .info-icons {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      width: 100%;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      transition: transform 0.3s ease;
+    }
+
+    .info-item:hover {
+      transform: translateY(-2px);
+    }
+
+    .info-item i {
+      font-size: 1.5rem;
+      color: var(--secondary-blue);
+      width: 2.5rem;
+      text-align: center;
+    }
+
+    .info-item span {
+      font-size: 0.95rem;
+      color: var(--text-dark);
+      font-weight: 500;
+    }
+
+    /* Right pane: Form */
+    .right-pane {
+      width: 60%;
+      padding: 3rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .right-pane h2 {
+      color: var(--text-dark);
+      text-align: center;
+      margin-bottom: 2rem;
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.25px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-weight: 500;
+      color: var(--text-light);
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    label i {
+      color: var(--secondary-blue);
+      font-size: 1rem;
+    }
+
+    input,
+    select {
+      padding: 0.875rem 1rem;
+      border: 2px solid var(--border-light);
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      background: var(--white);
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--secondary-blue);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+
+    .file-input-wrapper input[type="file"] {
+      opacity: 0;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .file-input-label {
+      padding: 0.875rem 1rem;
+      background: var(--light-gray);
+      border: 2px dashed var(--border-light);
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: var(--text-light);
+      font-size: 0.95rem;
+    }
+
+    .file-input-wrapper:hover .file-input-label {
+      border-color: var(--secondary-blue);
+      background: rgba(59, 130, 246, 0.05);
+      color: var(--secondary-blue);
+    }
+
+    .section-title {
+      grid-column: 1 / -1;
+      color: var(--text-dark);
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 2rem 0 1rem 0;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    #subjectSpecialityDiv {
+      display: none;
+      grid-column: 1 / -1;
+    }
+
+    button[type="submit"] {
+      grid-column: 1 / -1;
+      background: linear-gradient(145deg, var(--secondary-blue) 0%, var(--accent-blue) 100%);
+      color: var(--white);
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    button[type="submit"]:hover {
+      background: linear-gradient(145deg, var(--accent-hover) 0%, var(--primary-blue) 100%);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-light);
+    }
+
+    .login-link {
+      text-align: center;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-light);
+    }
+
+    .login-link p {
+      margin: 0 0 0.5rem 0;
+      color: var(--text-light);
+      font-size: 0.95rem;
+    }
+
+    .login-link a {
+      color: var(--secondary-blue);
       text-decoration: none;
-      font-weight: bold;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.3s ease;
     }
-    .container {
-      max-width: 950px;
-      margin: 30px auto;
-      background: #fff;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+
+    .login-link a:hover {
+      color: var(--accent-blue);
     }
-    h2 {
-      color: #5a189a;
-      text-align: center;
-      margin-bottom: 20px;
-    }
+
     footer {
-      background: #7b2cbf;
-      color: #fff;
+      background: rgba(30, 58, 138, 0.95);
+      backdrop-filter: blur(10px);
+      color: var(--white);
       text-align: center;
-      padding: 10px;
-      margin-top: 30px;
+      padding: 1rem;
+      margin-top: auto;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+        width: 95%;
+        margin: 1rem auto;
+      }
+
+      .left-pane, .right-pane { width: 100%; }
+
+      .left-pane {
+        padding: 2rem;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .header-title h1 {
+        font-size: 2rem;
+      }
+
+      .right-pane {
+        padding: 2rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .left-pane {
+        padding: 1.5rem;
+      }
+
+      .info-icons {
+        gap: 1rem;
+      }
+
+      .right-pane {
+        padding: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
-  <header>
-    <nav>
-      <a href="#">Home</a>
-      <a href="#">Contact</a>
-      <a href="#">About Us</a>
-      <a href="login.html">Login</a>
-      <a href="#">Connect</a>
-      <a href="#">Explore</a>
-    </nav>
-  </header>
-
-  <div class="container">
-    <h2>Register</h2>
-    <form action="registration.php" method="POST" enctype="multipart/form-data" class="row g-3">
-      
-      <!-- First & Last Name -->
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-person"></i> First Name</label>
-        <input type="text" name="firstName" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-person"></i> Last Name</label>
-        <input type="text" name="lastName" class="form-control" required>
-      </div>
-
-      <!-- Email & Password -->
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-envelope"></i> Email</label>
-        <input type="email" name="email" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-lock"></i> Password</label>
-        <input type="password" name="password" class="form-control" required>
-      </div>
-
-      <!-- Gender & DOB -->
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-gender-ambiguous"></i> Gender</label>
-        <select name="gender" class="form-select" required>
-          <option value="">Select Gender</option>
-          <option value="Female">Female</option>
-          <option value="Male">Male</option>
-          <option value="Others">Others</option>
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-calendar"></i> Date of Birth</label>
-        <input type="date" name="dob" class="form-control" required>
-      </div>
-
-      <!-- ID & Phone -->
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-card-text"></i> ID Number</label>
-        <input type="text" name="IDNumber" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-phone"></i> Phone</label>
-        <input type="text" name="phone" class="form-control" required>
-      </div>
-
-      <!-- Username & Role -->
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-person-circle"></i> Username</label>
-        <input type="text" name="username" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-briefcase"></i> Role</label>
-        <select name="role" id="roleSelect" class="form-select" required>
-          <option value="">Select Role</option>
-          <option value="student">Student</option>
-          <option value="teacher">Teacher</option>
-        </select>
-      </div>
-
-      <!-- Transcript Upload -->
-      <div class="col-md-12">
-        <label class="form-label"><i class="bi bi-upload"></i> Upload Transcript Document</label>
-        <input type="file" name="document" class="form-control" required>
-      </div>
-
-      <!-- Subject Speciality -->
-      <div class="col-md-12" id="subjectSpecialityDiv" style="display:none;">
-        <label class="form-label"><i class="bi bi-book"></i> Subject Speciality</label>
-        <input type="text" name="subject_speciality" class="form-control" placeholder="Enter your subject speciality">
-      </div>
-
-      <!-- Address Section -->
-      <div class="col-12"><h3 class="mt-4">Address</h3></div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-house"></i> Address 1</label>
-        <input type="text" name="address1" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-signpost"></i> Street Name</label>
-        <input type="text" name="streetName" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-mailbox"></i> Postal Code</label>
-        <input type="text" name="postalCode" class="form-control" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label"><i class="bi bi-geo-alt"></i> District</label>
-        <input type="text" name="district" class="form-control" required>
-      </div>
-      <div class="col-md-12">
-        <label class="form-label"><i class="bi bi-flag"></i> Country</label>
-        <input type="text" name="country" class="form-control" required>
-      </div>
-
-      <!-- Submit -->
-      <div class="col-12 text-center">
-        <button type="submit" name="register" class="btn btn-primary px-5">
-          <i class="bi bi-check-circle"></i> Register
-        </button>
-      </div>
-    </form>
+  <div class="header-title">
+    <h1>Girls Coding Academy</h1>
   </div>
+
+  <div class="main-container">
+    <!-- Left: School Info -->
+    <div class="left-pane">
+      <div class="school-icon">
+        <i class="fas fa-graduation-cap"></i>
+      </div>
+      <h3>Welcome to Girls Coding Academy</h3>
+      <p>Empowering young women in technology through innovative coding education. Our programs foster creativity, problem-solving, and leadership in STEM fields.</p>
+      <p>Join a vibrant community dedicated to bridging the gender gap in tech. From beginner workshops to advanced development courses, we provide hands-on learning and mentorship.</p>
+      <div class="info-icons">
+        <div class="info-item">
+          <i class="fas fa-users"></i>
+          <span>500+ Empowered Students</span>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-laptop-code"></i>
+          <span>20+ Coding Courses</span>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-award"></i>
+          <span>Certified Mentors</span>
+        </div>
+        <div class="info-item">
+          <i class="fas fa-globe"></i>
+          <span>Global Partnerships</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Form -->
+    <div class="right-pane">
+      <h2><i class="fas fa-user-plus"></i> Register</h2>
+      <form action="registration.php" method="POST" enctype="multipart/form-data" class="form-grid">
+        
+        <!-- First & Last Name -->
+        <div class="form-group">
+          <label><i class="fas fa-user"></i> First Name</label>
+          <input type="text" name="firstName" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-user"></i> Last Name</label>
+          <input type="text" name="lastName" required>
+        </div>
+
+        <!-- Email & Password -->
+        <div class="form-group">
+          <label><i class="fas fa-envelope"></i> Email</label>
+          <input type="email" name="email" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-lock"></i> Password</label>
+          <input type="password" name="password" required>
+        </div>
+
+        <!-- Gender & DOB -->
+        <div class="form-group">
+          <label><i class="fas fa-venus-mars"></i> Gender</label>
+          <select name="gender" required>
+            <option value="">Select Gender</option>
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Others">Others</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-calendar-alt"></i> Date of Birth</label>
+          <input type="date" name="dob" required>
+        </div>
+
+        <!-- ID & Phone -->
+        <div class="form-group">
+          <label><i class="fas fa-id-card"></i> ID Number</label>
+          <input type="text" name="IDNumber" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-phone"></i> Phone</label>
+          <input type="text" name="phone" required>
+        </div>
+
+        <!-- Username & Role -->
+        <div class="form-group">
+          <label><i class="fas fa-user-circle"></i> Username</label>
+          <input type="text" name="username" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-briefcase"></i> Role</label>
+          <select name="role" id="roleSelect" required>
+            <option value="">Select Role</option>
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+          </select>
+        </div>
+
+        <!-- Transcript Upload -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label><i class="fas fa-upload"></i> Upload Transcript Document</label>
+          <div class="file-input-wrapper">
+            <input type="file" name="document" required>
+            <div class="file-input-label">
+              <i class="fas fa-cloud-upload-alt"></i> Choose File
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject Speciality -->
+        <div class="form-group" id="subjectSpecialityDiv" style="grid-column: 1 / -1;">
+          <label><i class="fas fa-book"></i> Subject Speciality</label>
+          <input type="text" name="subject_speciality" placeholder="Enter your subject speciality">
+        </div>
+
+        <!-- Address Section -->
+        <h3 class="section-title"><i class="fas fa-map-marker-alt"></i> Address</h3>
+        <div class="form-group">
+          <label><i class="fas fa-home"></i> Address 1</label>
+          <input type="text" name="address1" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-road"></i> Street Name</label>
+          <input type="text" name="streetName" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-mailbox"></i> Postal Code</label>
+          <input type="text" name="postalCode" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-map-pin"></i> District</label>
+          <input type="text" name="district" required>
+        </div>
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label><i class="fas fa-flag"></i> Country</label>
+          <input type="text" name="country" required>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" name="register">
+          <i class="fas fa-check-circle"></i> Register
+        </button>
+      </form>
+
+      <div class="login-link">
+        <p>Already have an account?</p>
+        <a href="login.html"><i class="fas fa-sign-in-alt"></i> Login here</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 Girls Coding Academy. All rights reserved.</p>
+  </footer>
 
   <script>
     const roleSelect = document.getElementById('roleSelect');
@@ -171,11 +521,5 @@
       subjectDiv.style.display = (this.value === 'teacher') ? 'block' : 'none';
     });
   </script>
-
-  <footer>
-    <p>&copy; 2025 Girls Coding Academy. All rights reserved.</p>
-  </footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

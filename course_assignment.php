@@ -113,7 +113,7 @@ $assignments = $conn->query("
     ORDER BY ca.created_at DESC
 ");
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -121,194 +121,253 @@ $assignments = $conn->query("
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background: #f8f9fa;
-    margin: 0; /* prevent unwanted gaps */
-}
+  :root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+  }
 
-header {
-    background: #2c3e50;
-    padding: 5px 15px; /* small height */
-    position: fixed; /* stays fixed on top */
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-}
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding-top: 56px;
+  }
 
-header .search-box {
-    display: flex;
-    justify-content: center;
-}
+  .content {
+    min-height: calc(100vh - 56px);
+    transition: all 0.3s ease;
+  }
 
-.sidebar {
-    width: 220px;
-    background-color: #2c3e50;
+  .main {
+    padding: 2rem 2rem 2rem 1rem;
+  }
+
+  .section-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .section-card h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1.5rem;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-row .form-control {
+    padding: 0.75rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+  }
+
+  .btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table {
+    margin-bottom: 0;
+  }
+
+  .table th {
+    background: var(--primary-gradient);
     color: white;
+    border: none;
+    font-weight: 600;
+    padding: 1rem;
+  }
+
+  .table td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-color: rgba(0,0,0,0.05);
+  }
+
+  .table-hover tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+  }
+
+  .btn-warning, .btn-danger {
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    margin-right: 0.5rem;
+  }
+
+  footer {
+    background: rgba(31, 41, 55, 0.8);
+    color: #fff;
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    border-radius: 16px 16px 0 0;
+  }
+
+  /* Enhanced Sidebar Styles - Adjusted for Dashboard */
+  .sidebar {
+    width: 280px;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    color: #fff;
     position: fixed;
-    top: 45px; /* starts right under header */
-    bottom: 0;
+    top: 56px;
+    height: calc(100vh - 56px);
     left: 0;
     overflow-y: auto;
-    padding-top: 20px;
-}
+    transition: all 0.3s ease;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+    z-index: 1030;
+  }
 
-.sidebar a {
-    display: block;
-    color: white;
-    padding: 10px;
-    text-decoration: none;
-}
+  @media (min-width: 992px) {
+    .main {
+      padding-left: 1rem;
+      padding-right: 2rem;
+    }
+    .content {
+      margin-left: 280px;
+    }
+  }
 
-.sidebar a:hover, .sidebar a.active {
-    background: #1abc9c;
-}
+  @media (max-width: 991px) {
+    .sidebar {
+      top: 0;
+      height: 100vh;
+      left: -280px;
+    }
+    .sidebar.show {
+      left: 0;
+    }
+    .main {
+      padding: 1rem;
+    }
+  }
 
-.content {
-    margin-left: 240px;
-    margin-top: 55px; /* push content below header */
-    padding: 20px;
-}
-
-.content {
-    margin-left: 240px;
-    padding: 20px;
-}
-.card {
-    margin-bottom: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-.table th {
-    background: #2c3e50;
-    color: white;
-}
-.table-striped tbody tr:nth-of-type(odd) {
-    background-color: #f2f2f2;
-}
-  .sidebar img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid #1abc9c;margin-bottom:12px}
-
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 </head>
 <body>
-<header>
-    <form class="search-box d-flex" role="search">
-        <input class="form-control me-2" type="search" placeholder="Search..." aria-label="Search">
-        <button class="btn btn-light" type="submit"><i class="bi bi-search"></i></button>
-    </form>
-</header>
+<?php include 'top_navigation.php'; ?>
+<?php include 'admin_navigation.php'; ?>
 
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-2 sidebar">
-    <img src="admin.png" alt="Admin">
-            <h4 class="text-center">Administration</h4>
-            <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
-            <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
-            <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
-            <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
-            <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
-            <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
-            <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
-            <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
-            <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
-            <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>
-            <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-        </div>
+<div class="content">
+  <main class="main">
+    <div class="section-card">
+      <h2>Assign Teacher to Batch</h2>
+      <?php if (isset($success)) echo "<div class='alert alert-success'>$success</div>"; ?>
+      <?php if (isset($error)) echo "<div class='alert alert-danger'>$error</div>"; ?>
 
-        <!-- Main Content -->
-        <div class="col-md-10 content">
-            <div class="card p-4">
-                <h2>Assign Teacher to Batch</h2>
-                <?php if (isset($success)) echo "<div class='alert alert-success'>$success</div>"; ?>
-                <?php if (isset($error)) echo "<div class='alert alert-danger'>$error</div>"; ?>
-
-                <form method="POST" class="row g-3">
-                    <div class="col-md-6">
-                        <label for="teacher_user_id" class="form-label">Select Teacher</label>
-                        <select name="teacher_user_id" class="form-select" required>
-                            <option value="">-- Choose Teacher --</option>
-                            <?php $teachers->data_seek(0); while ($row = $teachers->fetch_assoc()): ?>
-                                <option value="<?= $row['user_id'] ?>"><?= $row['firstName'] . " " . $row['lastName'] ?></option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="batch_id" class="form-label">Select Batch</label>
-                        <select name="batch_id" class="form-select" required>
-                            <option value="">-- Choose Batch --</option>
-                            <?php $batches->data_seek(0); while ($row = $batches->fetch_assoc()): ?>
-                                <option value="<?= $row['batch_id'] ?>"><?= $row['batch_code'] ?></option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" name="add_assignment" class="btn btn-primary">Assign Teacher</button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="card p-4">
-                <h2>Existing Assignments</h2>
-                <table class="table table-bordered table-striped align-middle">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Teacher</th>
-                            <th>Batch</th>
-                            <th>Assigned On</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php while ($a = $assignments->fetch_assoc()): ?>
-                        <tr>
-                            <td><?= $a['assignment_id'] ?></td>
-                            <td><?= $a['firstName'] . " " . $a['lastName'] ?></td>
-                            <td><?= $a['batch_code'] ?></td>
-                            <td><?= date("d F Y H:i", strtotime($a['created_at'])) ?></td>
-                            <td>
-                                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal"
-                                    data-id="<?= $a['assignment_id'] ?>" data-batch="<?= $a['batch_id'] ?>" data-teacher="<?= $a['teacher_id'] ?>">
-                                    <i class="bi bi-pencil"></i> Edit
-                                </button>
-                                <a href="delete_assignment.php?id=<?= $a['assignment_id'] ?>" 
-                                   class="btn btn-sm btn-danger"
-                                   onclick="return confirm('Delete this assignment?');">
-                                   <i class="bi bi-trash"></i> Delete
-                                </a>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+      <form method="POST" class="form-row">
+        <select name="teacher_user_id" class="form-control" required>
+          <option value="">-- Choose Teacher --</option>
+          <?php $teachers->data_seek(0); while ($row = $teachers->fetch_assoc()): ?>
+            <option value="<?= $row['user_id'] ?>"><?= $row['firstName'] . " " . $row['lastName'] ?></option>
+          <?php endwhile; ?>
+        </select>
+        <select name="batch_id" class="form-control" required>
+          <option value="">-- Choose Batch --</option>
+          <?php $batches->data_seek(0); while ($row = $batches->fetch_assoc()): ?>
+            <option value="<?= $row['batch_id'] ?>"><?= $row['batch_code'] ?></option>
+          <?php endwhile; ?>
+        </select>
+        <button type="submit" name="add_assignment" class="btn btn-primary">Assign Teacher</button>
+      </form>
     </div>
+
+    <div class="section-card">
+      <h2>Existing Assignments</h2>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Teacher</th>
+              <th>Batch</th>
+              <th>Assigned On</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php while ($a = $assignments->fetch_assoc()): ?>
+            <tr>
+              <td><?= $a['assignment_id'] ?></td>
+              <td><?= $a['firstName'] . " " . $a['lastName'] ?></td>
+              <td><?= $a['batch_code'] ?></td>
+              <td><?= date("d F Y H:i", strtotime($a['created_at'])) ?></td>
+              <td>
+                <button class="btn btn-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#editModal"
+                  data-id="<?= $a['assignment_id'] ?>" data-batch="<?= $a['batch_id'] ?>" data-teacher="<?= $a['teacher_id'] ?>">
+                  <i class="bi bi-pencil"></i> Edit
+                </button>
+                <a href="delete_assignment.php?id=<?= $a['assignment_id'] ?>" 
+                   class="btn btn-danger btn-sm"
+                   onclick="return confirm('Delete this assignment?');">
+                   <i class="bi bi-trash"></i> Delete
+                </a>
+              </td>
+            </tr>
+            <?php endwhile; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
 </div>
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <form method="POST">
-        <div class="modal-header">
+        <div class="modal-header" style="background: var(--primary-gradient); color: white;">
           <h5 class="modal-title">Edit Assignment</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body form-row">
           <input type="hidden" name="assignment_id" id="edit-assignment-id">
-          <label for="teacher_user_id">Select Teacher:</label>
-          <select name="teacher_user_id" id="edit-teacher-id" class="form-select" required>
+          <select name="teacher_user_id" id="edit-teacher-id" class="form-control" required>
             <option value="">-- Choose Teacher --</option>
             <?php $teachers->data_seek(0); while ($row = $teachers->fetch_assoc()): ?>
               <option value="<?= $row['user_id'] ?>"><?= $row['firstName'] . " " . $row['lastName'] ?></option>
             <?php endwhile; ?>
           </select>
-          <label for="batch_id" class="mt-2">Select Batch:</label>
-          <select name="batch_id" id="edit-batch-id" class="form-select" required>
+          <select name="batch_id" id="edit-batch-id" class="form-control" required>
             <option value="">-- Choose Batch --</option>
             <?php $batches->data_seek(0); while ($row = $batches->fetch_assoc()): ?>
               <option value="<?= $row['batch_id'] ?>"><?= $row['batch_code'] ?></option>
@@ -316,12 +375,17 @@ header .search-box {
           </select>
         </div>
         <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" name="edit_assignment" class="btn btn-success">Save Changes</button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<footer class="text-center py-3">
+  <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>

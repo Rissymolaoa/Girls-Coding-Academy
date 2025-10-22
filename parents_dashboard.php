@@ -100,6 +100,7 @@ $parent = $parent_result->fetch_assoc();
     <a href="parent_view_performance.php"><i class="bi bi-graph-up"></i> Performance</a>
     <a href="parent_view_materials.php"><i class="bi bi-folder"></i> Materials</a>
     <a href="parent_messages.php"><i class="bi bi-envelope"></i> Messages</a>
+    <a href="parents_chatting.php"><i class="bi bi-chat"></i> Group Chat</a>
     <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </div>
 

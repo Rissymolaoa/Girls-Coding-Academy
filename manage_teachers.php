@@ -201,124 +201,294 @@ if ($search) {
 $total_pages = ceil($total_row['total'] / $limit);
 ?>
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Manage Teachers - Admin</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
 
 <style>
-:root {
-    --primary:#7b2cbf; --accent:#5a189a; --muted:#f4f4f8; --card:#ffffff; --text:#222;
-}
-*{box-sizing:border-box}
-body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:var(--muted);color:var(--text)}
-header { background: #2c3e50; color: white; padding: 12px; text-align: center; }
-.layout{display:flex;min-height:calc(100vh - 56px)}
-.sidebar{width:220px;background:#34495e;padding:20px;display:flex;flex-direction:column;align-items:center;color:#fff}
-.sidebar img{width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid #1abc9c;margin-bottom:12px}
-.sidebar h3{font-size:13px;margin:0 0 12px}
-.nav a{width:100%;display:block;color:#fff;text-decoration:none;padding:10px;border-radius:6px;margin:6px 0;text-align:left}
-.nav a.active, .nav a:hover{background:#1abc9c;color:#062018}
-.main{flex:1;padding:26px}
-.top-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
-.btn-primary{background:var(--primary);border:0}
-.table-card{background:var(--card);padding:14px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06)}
-.table thead th{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff}
-.table td, .table th{vertical-align:middle}
-.action-icons a{margin:0 6px;font-size:1.2rem;color:#333}
-.action-icons a:hover{color:var(--accent)}
-.placeholder-photo{width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;color:#999;border:2px dashed #ddd}
-.modal-img-preview{width:140px;height:140px;border-radius:8px;object-fit:cover;border:2px solid #ddd;display:block;margin:12px auto}
-.modal-form .field label{font-weight:600}
-@media(max-width:900px){.sidebar{display:none}}
+  :root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding-top: 56px;
+  }
+
+  .content {
+    min-height: calc(100vh - 56px);
+    transition: all 0.3s ease;
+  }
+
+  .main {
+    padding: 2rem 2rem 2rem 1rem;
+  }
+
+  .section-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .section-card h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1.5rem;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .search-form {
+    display: flex;
+    gap: 1rem;
+    max-width: 400px;
+  }
+
+  .search-form .form-control {
+    flex: 1;
+  }
+
+  .table {
+    margin-bottom: 0;
+  }
+
+  .table th {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 1rem;
+  }
+
+  .table td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-color: rgba(0,0,0,0.05);
+  }
+
+  .table-hover tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+  }
+
+  .placeholder-photo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    border: 2px dashed rgba(0,0,0,0.1);
+    font-size: 0.875rem;
+  }
+
+  .action-icons a {
+    margin: 0 0.5rem;
+    font-size: 1.25rem;
+    color: #6b7280;
+    transition: all 0.3s ease;
+    border-radius: 50%;
+    padding: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+  }
+
+  .action-icons a:hover {
+    color: #1f2937;
+    background: rgba(102, 126, 234, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+  }
+
+  .pagination .btn {
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+  }
+
+  .modal-img-preview {
+    width: 140px;
+    height: 140px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 2px solid rgba(0,0,0,0.1);
+    display: block;
+    margin: 1rem auto;
+  }
+
+  .modal-form .form-label {
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .modal-form .row {
+    gap: 1.5rem;
+  }
+
+  footer {
+    background: rgba(31, 41, 55, 0.8);
+    color: #fff;
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    border-radius: 16px 16px 0 0;
+  }
+
+  /* Enhanced Sidebar Styles - Adjusted for Dashboard */
+  .sidebar {
+    width: 280px;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    color: #fff;
+    position: fixed;
+    top: 56px;
+    height: calc(100vh - 56px);
+    left: 0;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+    z-index: 1030;
+  }
+
+  @media (min-width: 992px) {
+    .main {
+      padding-left: 1rem;
+      padding-right: 2rem;
+    }
+    .content {
+      margin-left: 280px;
+    }
+  }
+
+  @media (max-width: 991px) {
+    .sidebar {
+      top: 0;
+      height: 100vh;
+      left: -280px;
+    }
+    .sidebar.show {
+      left: 0;
+    }
+    .main {
+      padding: 1rem;
+    }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .top-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .search-form {
+      max-width: none;
+    }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Girls Coding Academy - Admin Dashboard</h1>
-</header>
+<?php include 'top_navigation.php'; ?>
+<?php include 'admin_navigation.php'; ?>
 
-<div class="layout">
-  <aside class="sidebar">
-    <img src="admin.png" alt="Admin" />
-    <h3>GIRLS CODING ACADEMY</h3>
-<nav class="nav">
-    <h4 class="text-center mb-4">Administration</h4>
-    <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
-    <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
-    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
-    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
-    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
-    <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
-    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
-    <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
-    <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
-    <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-</nav>
-  </aside>
-
+<div class="content">
   <main class="main">
     <div class="top-row">
-      <h2 style="margin:0;color:#333">Manage Teachers</h2>
-      <div>
-        <button class="btn btn-primary" onclick="openModal();"><i class="bi bi-plus-lg"></i> Add Teacher</button>
-      </div>
+      <h2>Manage Teachers</h2>
+      <button class="btn" style="background: var(--primary-gradient); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 500;" onclick="openModal();">
+        <i class="bi bi-plus-lg me-2"></i>Add Teacher
+      </button>
     </div>
 
-    <form method="get" class="mb-3 d-flex gap-2">
-      <input type="text" name="search" placeholder="Search teachers..." value="<?= htmlspecialchars($search) ?>" class="form-control w-50" />
+    <form method="get" class="search-form mb-4">
+      <input type="text" name="search" placeholder="Search teachers..." value="<?= htmlspecialchars($search) ?>" class="form-control" />
       <button type="submit" class="btn btn-outline-secondary">Search</button>
     </form>
 
-    <div class="table-card">
-      <table class="table table-hover align-middle">
-        <thead>
-          <tr>
-            <th>Photo</th><th>Username</th><th>First Name</th><th>Last Name</th><th>Gender</th><th>DOB</th><th>Email</th><th>Phone</th><th>ID No</th><th>Address</th><th>Status</th><th class="text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div class="section-card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Photo</th><th>Username</th><th>First Name</th><th>Last Name</th><th>Gender</th><th>DOB</th><th>Email</th><th>Phone</th><th>ID No</th><th>Address</th><th>Status</th><th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
 <?php while ($t = $teachers->fetch_assoc()):
     $json = json_encode($t, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);
 ?>
-          <tr>
-            <td style="text-align:center; width: 100px;">
-              <?php if (!empty($t['photo']) && file_exists($t['photo'])): ?>
-                <img src="<?= htmlspecialchars($t['photo']) ?>" alt="Photo" style="width:60px;height:60px;object-fit:cover;border-radius:50%;" />
-              <?php else: ?>
-                <div class="placeholder-photo">No Photo</div>
-              <?php endif; ?>
-            </td>
-            <td><?= htmlspecialchars($t['username']) ?></td>
-            <td><?= htmlspecialchars($t['firstName']) ?></td>
-            <td><?= htmlspecialchars($t['lastName']) ?></td>
-            <td><?= htmlspecialchars($t['gender']) ?></td>
-            <td><?= htmlspecialchars($t['dob']) ?></td>
-            <td><?= htmlspecialchars($t['email']) ?></td>
-            <td><?= htmlspecialchars($t['phone']) ?></td>
-            <td><?= htmlspecialchars($t['IDNumber']) ?></td>
-            <td><?= htmlspecialchars(trim(($t['address1']??'').' '.($t['streetName']??'').' '.($t['district']??'').' '.($t['postalCode']??'').' '.($t['country']??''))) ?></td>
-            <td><span class="badge <?= $t['status']=='active' ? 'bg-success' : 'bg-secondary' ?>"><?= htmlspecialchars($t['status']) ?></span></td>
-            <td class="text-center">
-              <a href="#" class="action-icons" title="Edit" onclick='editTeacher(<?= $json ?>); return false;'>
-                <i class="bi bi-pencil-square"></i>
-              </a>
-              <a href="?delete=<?= intval($t['user_id']) ?>" class="action-icons" title="Delete" onclick="return confirm('Delete this teacher?')">
-                <i class="bi bi-trash"></i>
-              </a>
-            </td>
-          </tr>
+            <tr>
+              <td style="text-align:center; width: 100px;">
+                <?php if (!empty($t['photo']) && file_exists($t['photo'])): ?>
+                  <img src="<?= htmlspecialchars($t['photo']) ?>" alt="Photo" style="width:60px;height:60px;object-fit:cover;border-radius:50%;" />
+                <?php else: ?>
+                  <div class="placeholder-photo">No Photo</div>
+                <?php endif; ?>
+              </td>
+              <td><?= htmlspecialchars($t['username']) ?></td>
+              <td><?= htmlspecialchars($t['firstName']) ?></td>
+              <td><?= htmlspecialchars($t['lastName']) ?></td>
+              <td><?= htmlspecialchars($t['gender']) ?></td>
+              <td><?= htmlspecialchars($t['dob']) ?></td>
+              <td><?= htmlspecialchars($t['email']) ?></td>
+              <td><?= htmlspecialchars($t['phone']) ?></td>
+              <td><?= htmlspecialchars($t['IDNumber']) ?></td>
+              <td><?= htmlspecialchars(trim(($t['address1']??'').' '.($t['streetName']??'').' '.($t['district']??'').' '.($t['postalCode']??'').' '.($t['country']??''))) ?></td>
+              <td><span class="badge <?= $t['status']=='active' ? 'bg-success' : 'bg-secondary' ?>"><?= htmlspecialchars($t['status']) ?></span></td>
+              <td class="text-center">
+                <a href="#" class="action-icons" title="Edit" onclick='editTeacher(<?= $json ?>); return false;'>
+                  <i class="bi bi-pencil-square"></i>
+                </a>
+                <a href="?delete=<?= intval($t['user_id']) ?>" class="action-icons" title="Delete" onclick="return confirm('Delete this teacher?')">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </td>
+            </tr>
 <?php endwhile; ?>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
-      <div class="pagination d-flex justify-content-center gap-3 mt-3">
+      <div class="pagination">
 <?php
 $qs = $search ? "&search=".urlencode($search) : "";
 if ($page > 1):
@@ -443,6 +613,10 @@ if ($page > 1):
     </div>
   </div>
 </div>
+
+<footer class="text-center py-3">
+  <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>

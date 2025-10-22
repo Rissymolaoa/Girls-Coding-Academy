@@ -57,174 +57,263 @@ $username = $_SESSION['username'] ?? "Admin";
 <title>Parents — Admin</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
 <style>
- :root {
-  --primary:#7b2cbf;
-  --accent:#5a189a;
-  --muted:#f4f4f8;
-  --card:#fff;
-  --text:#222;
-  --border1:#e63946;
-  --border2:#1d3557;
-  --border3:#2a9d8f;
-}
+  :root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+  }
 
-body {
-  font-family: Inter, system-ui, sans-serif;
-  background: var(--muted);
-  color: var(--text);
-}
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding-top: 56px;
+  }
 
-/* Topbar */
-.topbar {
-  background: var(--primary);
-  padding: 10px 20px;
-  color: #fff;
-}
-.topbar .search-input {
-  max-width: 420px;
-}
-.topbar .icon-btn {
-  width:42px; height:42px; border-radius:8px;
-  display:inline-flex; align-items:center; justify-content:center;
-  background: rgba(255,255,255,0.12); color: #fff; border: none;
-}
+  .content {
+    min-height: calc(100vh - 56px);
+    transition: all 0.3s ease;
+  }
 
-/* Sidebar */
-.sidebar {
-  background:#34495e;
-  min-height:calc(100vh - 56px);
-  padding:20px;
-  color:#fff;
-}
-.sidebar a {
-  color:#fff; text-decoration:none;
-  display:block; padding:8px 10px; border-radius:6px;
-}
-.sidebar a.active,
-.sidebar a:hover {
-  background:#1abc9c; color:#062018;
-}
+  .main {
+    padding: 2rem 2rem 2rem 1rem;
+  }
 
-/* Table */
-.table-card {
-  padding:16px;
-  border-radius:10px;
-  background:#fff;
-  box-shadow:0 6px 18px rgba(12,12,24,0.06);
-}
-.table thead th {
-  background: linear-gradient(90deg,var(--primary),var(--accent));
-  color:#fff;
-}
-.table td, .table th {
-  vertical-align: middle;
-}
+  .section-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
 
-/* View all link */
-.view-all {
-  margin-bottom: 8px;
-  text-align: right;
-}
-.view-all a {
-  text-decoration:none;
-  color:var(--primary);
-  font-weight:600;
-}
+  .section-card h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1.5rem;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 
-/* Student images */
-.student-card { text-align:center; }
-.student-photo {
-  width:110px; height:110px; object-fit:cover;
-  border-radius: 50% / 40%;
-  border: 3px solid var(--primary);
-  display:block; margin:0 auto 8px;
-}
+  .table {
+    margin-bottom: 0;
+  }
 
-/* Summary cards (below table) */
-.summary {
-  margin-top: 20px;
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-}
-.summary .summary-card {
-  width:120px; height:120px;
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  border-radius:12px; background:#fff;
-  box-shadow:0 6px 16px rgba(12,12,24,0.06);
-  font-weight:600;
-}
-.summary .summary-card i {
-  font-size:22px; color:#fff;
-  padding:8px; border-radius:6px; margin-bottom:8px;
-}
-.summary .parents { border:3px solid var(--border1); }
-.summary .parents i { background:var(--border1); }
-.summary .relations { border:3px solid var(--border2); }
-.summary .relations i { background:var(--border2); }
-.summary .students { border:3px solid var(--border3); }
-.summary .students i { background:var(--border3); }
+  .table th {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 1rem;
+  }
 
+  .table td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-color: rgba(0,0,0,0.05);
+  }
 
+  .table-hover tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+  }
+
+  .view-all {
+    text-align: right;
+    margin-bottom: 1rem;
+  }
+
+  .view-all a {
+    color: #1f2937;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+  }
+
+  .view-all a:hover {
+    color: #667eea;
+  }
+
+  .student-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .student-card {
+    text-align: center;
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+  }
+
+  .student-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .student-photo {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid var(--primary-gradient);
+    display: block;
+    margin: 0 auto 0.5rem;
+  }
+
+  .summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .summary-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .summary-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .summary-card i {
+    font-size: 2rem;
+    color: white;
+    padding: 0.75rem;
+    border-radius: 50%;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+  }
+
+  .summary-card .parents i {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+  }
+
+  .summary-card .relations i {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+  }
+
+  .summary-card .students i {
+    background: linear-gradient(135deg, #27ae60, #229954);
+  }
+
+  .summary-card h6 {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 600;
+  }
+
+  .summary-card p {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  footer {
+    background: rgba(31, 41, 55, 0.8);
+    color: #fff;
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    border-radius: 16px 16px 0 0;
+  }
+
+  /* Enhanced Sidebar Styles - Adjusted for Dashboard */
+  .sidebar {
+    width: 280px;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    color: #fff;
+    position: fixed;
+    top: 56px;
+    height: calc(100vh - 56px);
+    left: 0;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+    z-index: 1030;
+  }
+
+  @media (min-width: 992px) {
+    .main {
+      padding-left: 1rem;
+      padding-right: 2rem;
+    }
+    .content {
+      margin-left: 280px;
+    }
+  }
+
+  @media (max-width: 991px) {
+    .sidebar {
+      top: 0;
+      height: 100vh;
+      left: -280px;
+    }
+    .sidebar.show {
+      left: 0;
+    }
+    .main {
+      padding: 1rem;
+    }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .student-photos {
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    }
+    .summary-cards {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+  }
 </style>
 </head>
 <body>
+<?php include 'top_navigation.php'; ?>
+<?php include 'admin_navigation.php'; ?>
 
-<div class="topbar d-flex align-items-center justify-content-between">
-  <form class="d-flex align-items-center" method="get" action="">
-    <input type="search" name="search" class="form-control form-control-sm search-input me-2" placeholder="Search parents, students, phone or email...">
-    <button class="btn btn-light btn-sm" type="submit"><i class="bi bi-search"></i></button>
-  </form>
-
-  <div class="d-flex align-items-center gap-2">
-    <button class="icon-btn" title="Notifications"><i class="bi bi-bell-fill" aria-hidden="true"></i></button>
-    <button class="icon-btn" title="Messages"><i class="bi bi-envelope-fill" aria-hidden="true"></i></button>
-    <div class="ms-2 fw-semibold"><?= htmlspecialchars($username) ?></div>
-  </div>
-</div>
-
-<div class="d-flex">
-  <!-- SIDEBAR -->
-  <aside class="sidebar pe-3" style="width:240px;">
-    <div class="text-center mb-3">
-      <img src="admin.png" alt="Admin" class="rounded-circle" style="width:92px; height:92px; object-fit:cover; border:3px solid #1abc9c;">
-    </div>
-    <nav class="mt-3">
-    <h4 class="text-center mb-4">Administration</h4>
-    <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
-    <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
-    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
-    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
-    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
-    <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
-    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
-    <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
-    <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
-    <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </nav>
-  </aside>
-
-  <!-- MAIN -->
-  <main class="flex-fill p-4">
+<div class="content">
+  <main class="main">
     <div class="row">
-      <div class="col-12 mb-3 d-flex justify-content-between align-items-center">
-        <h4 class="m-0">Manage Parents</h4>
-        <div class="view-all"><a href="all_parents_summary.php">View All</a></div>
+      <div class="col-12 mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <h2>Manage Parents</h2>
+          <div class="view-all"><a href="all_parents_summary.php">View All</a></div>
+        </div>
       </div>
     </div>
 
     <div class="row">
       <div class="col-lg-8">
-        <div class="table-card">
+        <div class="section-card">
           <div class="table-responsive">
-            <table class="table table-striped table-hover table-bordered align-middle mb-0">
+            <table class="table table-striped table-hover align-middle">
               <thead>
                 <tr>
                   <th>Firstname</th>
@@ -253,49 +342,47 @@ body {
       </div>
 
       <div class="col-lg-4">
-        <!-- student photos grid -->
-        <div class="card mb-3">
-          <div class="card-body">
-            <h6 class="card-title">Students</h6>
-            <div class="row g-3">
-              <?php foreach ($parents_data as $p): ?>
-                <?php if (!empty($p['studentPhoto'])): ?>
-                  <div class="col-6 text-center">
-                    <div class="student-card">
-                      <img src="<?= htmlspecialchars($p['studentPhoto']) ?>" alt="" class="student-photo">
-                      <div class="small"><?= htmlspecialchars(trim($p['studentFirstName'].' '.$p['studentLastName'])) ?></div>
-                    </div>
-                  </div>
-                <?php endif; ?>
-              <?php endforeach; ?>
-            </div>
+        <div class="section-card">
+          <h3>Students</h3>
+          <div class="student-photos">
+            <?php foreach ($parents_data as $p): ?>
+              <?php if (!empty($p['studentPhoto'])): ?>
+                <div class="student-card">
+                  <img src="<?= htmlspecialchars($p['studentPhoto']) ?>" alt="" class="student-photo">
+                  <div class="small fw-semibold"><?= htmlspecialchars(trim($p['studentFirstName'].' '.$p['studentLastName'])) ?></div>
+                </div>
+              <?php endif; ?>
+            <?php endforeach; ?>
           </div>
         </div>
 
-        <!-- summary cards -->
-        <div class="d-flex summary">
-          <div class="summary-card parents text-center">
+        <div class="summary-cards">
+          <div class="summary-card parents">
             <i class="bi bi-people-fill"></i>
-            <div class="small mt-1">Parents</div>
-            <div class="h5 mt-1"><?= $total_parents ?></div>
+            <h6>Parents</h6>
+            <p><?= $total_parents ?></p>
           </div>
 
-          <div class="summary-card relations text-center ms-3">
+          <div class="summary-card relations">
             <i class="bi bi-link-45deg"></i>
-            <div class="small mt-1">Relations</div>
-            <div class="h5 mt-1"><?= $total_relations ?></div>
+            <h6>Relations</h6>
+            <p><?= $total_relations ?></p>
           </div>
 
-          <div class="summary-card students text-center ms-3">
+          <div class="summary-card students">
             <i class="bi bi-mortarboard-fill"></i>
-            <div class="small mt-1">Students</div>
-            <div class="h5 mt-1"><?= $total_students ?></div>
+            <h6>Students</h6>
+            <p><?= $total_students ?></p>
           </div>
         </div>
       </div>
     </div>
   </main>
 </div>
+
+<footer class="text-center py-3">
+  <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
+</footer>
 
 <!-- Bootstrap JS (optional for interactive components) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

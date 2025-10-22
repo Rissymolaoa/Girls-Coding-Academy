@@ -1,297 +1,554 @@
+<?php
+// login.php
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Girls Coding Academy - Login</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background: #fdfdf6; /* Cream white */
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-  }
-
-  header {
-    background: #f5f5dc; /* Soft cream */
-    color: #333;
-    padding: 15px;
-    text-align: center;
-    border-bottom: 1px solid #ddd;
-  }
-
-  .main-container {
-    display: flex;
-    max-width: 700px;
-    margin: 40px auto;
-    background: #fffef9; /* Subtle cream */
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    overflow: hidden;
-  }
-
-  /* Left pane: roles */
-  .left-pane {
-    width: 45%;
-    background: #f8f5e9; /* Lighter cream */
-    color: #333;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px 20px;
-    padding: 20px;
-    justify-items: center;
-    align-items: center;
-  }
-
-  .role-box {
-    background: #fdfdf6; 
-    border: 1px solid #ddd;
-    padding: 20px;
-    width: 100%;
-    text-align: center;
-    cursor: pointer;
-    border-radius: 8px;
-    transition: background 0.3s, transform 0.2s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .role-box:hover {
-    background: #f5f5dc;
-    transform: translateY(-3px);
-  }
-
-  .role-box.active {
-    background: #e0dfd5;
-    border-color: #bbb;
-  }
-
-  .role-box i {
-    font-size: 28px;
-    margin-bottom: 10px;
-  }
-
-  /* Right pane: form */
-  .right-pane {
-    width: 55%;
-    padding: 30px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .right-pane h2 {
-    color: #555;
-    text-align: center;
-    margin-bottom: 20px;
-  }
-
-  form {
-    display: grid;
-    gap: 15px;
-  }
-
-  label {
-    font-weight: bold;
-    color: #444;
-  }
-
-  input {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    width: 100%;
-  }
-
-  button {
-    background: #d6cfc4; /* Cream button */
-    color: #333;
-    border: none;
-    padding: 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: bold;
-  }
-
-  button:hover {
-    background: #c9c2b9;
-  }
-
-  .link {
-    text-align: center;
-    margin-top: 10px;
-  }
-
-  .link a {
-    color: #444;
-    text-decoration: none;
-    font-weight: bold;
-  }
-
-  .link a:hover {
-    text-decoration: underline;
-  }
-
-  /* Track application link */
-  .track-link {
-    text-align: center;
-    margin-top: 12px;
-  }
-  .track-link a {
-    color: #555;
-    text-decoration: none;
-    font-weight: bold;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .track-link a:hover {
-    color: #000;
-  }
-
-  footer {
-    background: #f5f5dc;
-    color: #333;
-    text-align: center;
-    padding: 10px;
-    margin-top: auto;
-    border-top: 1px solid #ddd;
-  }
-
-  /* Modal styles */
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0; top: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5);
-  }
-  .modal-content {
-    background: #fffef9;
-    margin: 20% auto;
-    padding: 20px;
-    width: 300px;
-    text-align: center;
-    border-radius: 10px;
-    position: relative;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-  }
-  .close {
-    position: absolute;
-    right: 15px;
-    top: 10px;
-    font-size: 20px;
-    font-weight: bold;
-    cursor: pointer;
-    color: #aaa;
-  }
-  .close:hover { color: #000; }
-  .modal-icon {
-    font-size: 40px;
-    color: #e74c3c;
-    margin-bottom: 10px;
-  }
-  .modal-text { font-size: 16px; }
-
-  @media(max-width: 750px){
-    .main-container {
-      flex-direction: column;
-      width: 90%;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Girls Coding Academy - Login</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-blue: #1e3a8a;
+      --secondary-blue: #3b82f6;
+      --accent-blue: #1d4ed8;
+      --accent-hover: #1e40af;
+      --white: #ffffff;
+      --light-gray: #f8fafc;
+      --border-light: #e2e8f0;
+      --shadow-light: 0 4px 20px rgba(0,0,0,0.1);
+      --shadow-hover: 0 8px 30px rgba(0,0,0,0.15);
+      --error-red: #e74c3c;
+      --text-dark: #1e293b;
+      --text-light: #64748b;
     }
-    .left-pane, .right-pane { width: 100%; }
-    .left-pane { grid-template-columns: repeat(4, 1fr); padding: 15px; }
-  }
-</style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, var(--primary-blue) 0%, #1e40af 100%);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      color: var(--text-dark);
+    }
+
+    header {
+      background: rgba(30, 58, 138, 0.95);
+      backdrop-filter: blur(10px);
+      color: var(--white);
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border-light);
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: var(--white);
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.3s ease, transform 0.3s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--secondary-blue);
+      transform: translateY(-2px);
+    }
+
+    .nav-links i {
+      font-size: 1.2rem;
+    }
+
+    .main-container {
+      display: flex;
+      max-width: 800px;
+      margin: 2rem auto;
+      background: var(--white);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      box-shadow: var(--shadow-light);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: box-shadow 0.3s ease;
+    }
+
+    .main-container:hover {
+      box-shadow: var(--shadow-hover);
+    }
+
+    .left-pane {
+      width: 45%;
+      background: linear-gradient(145deg, var(--light-gray) 0%, #e2e8f0 100%);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      padding: 2rem;
+      justify-items: center;
+      align-items: center;
+    }
+
+    .role-box {
+      background: var(--white);
+      border: 2px solid var(--border-light);
+      padding: 1.5rem;
+      width: 100%;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 16px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .role-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      transition: left 0.5s;
+    }
+
+    .role-box:hover::before {
+      left: 100%;
+    }
+
+    .role-box:hover {
+      background: var(--secondary-blue);
+      border-color: var(--accent-blue);
+      color: var(--white);
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: var(--shadow-hover);
+    }
+
+    .role-box.active {
+      background: var(--accent-blue);
+      border-color: var(--primary-blue);
+      color: var(--white);
+      transform: translateY(-2px);
+    }
+
+    .role-box i {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-dark);
+      transition: color 0.3s ease;
+    }
+
+    .role-box:hover i,
+    .role-box.active i {
+      color: var(--white);
+    }
+
+    .role-box span {
+      font-size: 0.9rem;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+
+    .role-box:hover span,
+    .role-box.active span {
+      color: var(--white);
+    }
+
+    .right-pane {
+      width: 55%;
+      padding: 3rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: var(--white);
+    }
+
+    .right-pane h2 {
+      color: var(--text-dark);
+      text-align: center;
+      margin-bottom: 2rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.25px;
+    }
+
+    form {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    label {
+      font-weight: 500;
+      color: var(--text-light);
+      font-size: 0.9rem;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    input {
+      padding: 0.875rem 1rem;
+      border: 2px solid var(--border-light);
+      border-radius: 12px;
+      width: 100%;
+      font-size: 1rem;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      background: var(--white);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--secondary-blue);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    button {
+      background: linear-gradient(145deg, var(--secondary-blue) 0%, var(--accent-blue) 100%);
+      color: var(--white);
+      border: none;
+      padding: 1rem;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    button:hover {
+      background: linear-gradient(145deg, var(--accent-hover) 0%, var(--primary-blue) 100%);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-light);
+    }
+
+    .link {
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+
+    .link p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .link a {
+      color: var(--secondary-blue);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+
+    .link a:hover {
+      color: var(--accent-blue);
+      text-decoration: underline;
+    }
+
+    .track-link {
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+
+    .track-link a {
+      color: var(--secondary-blue);
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      transition: color 0.3s ease;
+    }
+
+    .track-link a:hover {
+      color: var(--accent-blue);
+    }
+
+    .track-link i {
+      font-size: 1rem;
+    }
+
+    footer {
+      background: rgba(30, 58, 138, 0.95);
+      backdrop-filter: blur(10px);
+      color: var(--white);
+      text-align: center;
+      padding: 1rem;
+      margin-top: auto;
+      border-top: 1px solid var(--border-light);
+      font-size: 0.85rem;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(5px);
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      background: var(--white);
+      backdrop-filter: blur(20px);
+      margin: 10% auto;
+      padding: 2.5rem;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      border-radius: 20px;
+      position: relative;
+      box-shadow: var(--shadow-hover);
+      animation: slideUp 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .close {
+      position: absolute;
+      right: 1.5rem;
+      top: 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 300;
+      cursor: pointer;
+      color: #aaa;
+      transition: color 0.3s ease;
+      background: none;
+      border: none;
+    }
+
+    .close:hover { color: var(--text-dark); }
+
+    .modal-icon {
+      font-size: 3rem;
+      color: var(--error-red);
+      margin-bottom: 1rem;
+    }
+
+    .modal-text { 
+      font-size: 1rem; 
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+      color: var(--text-dark);
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+        width: 95%;
+        margin: 1rem auto;
+      }
+
+      .left-pane, .right-pane { width: 100%; }
+
+      .left-pane { 
+        grid-template-columns: repeat(2, 1fr); 
+        padding: 1.5rem;
+        gap: 1rem;
+      }
+
+      .right-pane {
+        padding: 2rem;
+      }
+
+      header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+      }
+
+      .nav-links {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+      }
+
+      .modal-content {
+        margin: 20% auto;
+        padding: 2rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .left-pane { 
+        grid-template-columns: 1fr;
+        padding: 1rem;
+      }
+
+      .right-pane {
+        padding: 1.5rem;
+      }
+
+      .nav-links {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .nav-links a {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
 </head>
 <body>
+  <header>
+    <h1>Girls Coding Academy</h1>
+    <nav class="nav-links">
+      <a href="help_desk.php"><i class="fas fa-headset"></i> Help Desk</a>
+      <a href="prospectus.php"><i class="fas fa-book"></i> Prospectus</a>
+      <a href="about.php"><i class="fas fa-info-circle"></i> About the School</a>
+      <a href="events.php"><i class="fas fa-calendar-alt"></i> Events</a>
+    </nav>
+  </header>
 
-<header>
-  <h1>Girls Coding Academy</h1>
-</header>
-
-<div class="main-container">
-  <!-- Left: Roles -->
-  <div class="left-pane">
-    <div class="role-box" data-role="admin"><i class="fas fa-user-shield"></i>Administrator</div>
-    <div class="role-box" data-role="student"><i class="fas fa-user-graduate"></i>Student</div>
-    <div class="role-box" data-role="teacher"><i class="fas fa-chalkboard-teacher"></i>Teacher</div>
-    <div class="role-box" data-role="parent"><i class="fas fa-user"></i>Parent</div>
-  </div>pare
-
-  <!-- Right: Form -->
-  <div class="right-pane">
-    <h2 id="form-title">Select Role to Login</h2>
-    <form action="login.php" method="POST" id="login-form">
-      <input type="hidden" name="role" id="role-input" value="">
-      <label>Email</label>
-      <input type="text" name="username" required>
-      <label>Password</label>
-      <input type="password" name="password" required>
-      <button type="submit" name="login">Login</button>
-    </form>
-    <div class="link">
-      <p>Don't have an account? <a href="registration.html">Register here</a></p>
+  <div class="main-container">
+    <!-- Left: Roles -->
+    <div class="left-pane">
+      <div class="role-box" data-role="admin">
+        <i class="fas fa-user-shield"></i>
+        <span>Administrator</span>
+      </div>
+      <div class="role-box" data-role="student">
+        <i class="fas fa-user-graduate"></i>
+        <span>Student</span>
+      </div>
+      <div class="role-box" data-role="teacher">
+        <i class="fas fa-chalkboard-teacher"></i>
+        <span>Teacher</span>
+      </div>
+      <div class="role-box" data-role="parent">
+        <i class="fas fa-user"></i>
+        <span>Parent</span>
+      </div>
     </div>
-    <!-- Track application link -->
-    <div class="track-link">
-      <a href="track_application.php"><i class="fas fa-search"></i> Track Your Application</a>
+
+    <!-- Right: Form -->
+    <div class="right-pane">
+      <h2 id="form-title">Select Role to Login</h2>
+      <form action="login.php" method="POST" id="login-form">
+        <input type="hidden" name="role" id="role-input" value="">
+        <div>
+          <label for="username">Email</label>
+          <input type="email" id="username" name="username" required>
+        </div>
+        <div>
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" name="login">Login</button>
+      </form>
+      <div class="link">
+        <p>Don't have an account? <a href="registration.html">Register here</a></p>
+      </div>
+      <div class="track-link">
+        <a href="track_application.php"><i class="fas fa-search"></i> Track Your Application</a>
+      </div>
     </div>
   </div>
-</div>
 
-<footer>
-  &copy; 2025 Girls Coding Academy. All rights reserved.
-</footer>
+  <footer>
+    &copy; 2025 Girls Coding Academy. All rights reserved.
+  </footer>
 
-<!-- Modal for errors -->
-<div id="errorModal" class="modal">
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <div class="modal-icon"><i class="fas fa-exclamation-triangle"></i></div>
-    <div class="modal-text" id="errorText"></div>
+  <!-- Modal for errors -->
+  <div id="errorModal" class="modal">
+    <div class="modal-content">
+      <button class="close">&times;</button>
+      <div class="modal-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <div class="modal-text" id="errorText"></div>
+    </div>
   </div>
-</div>
 
-<script>
-  const roleBoxes = document.querySelectorAll('.role-box');
-  const formTitle = document.getElementById('form-title');
-  const roleInput = document.getElementById('role-input');
+  <script>
+    const roleBoxes = document.querySelectorAll('.role-box');
+    const formTitle = document.getElementById('form-title');
+    const roleInput = document.getElementById('role-input');
 
-  roleBoxes.forEach(box => {
-    box.addEventListener('click', () => {
-      roleBoxes.forEach(b => b.classList.remove('active'));
-      box.classList.add('active');
+    roleBoxes.forEach(box => {
+      box.addEventListener('click', () => {
+        roleBoxes.forEach(b => b.classList.remove('active'));
+        box.classList.add('active');
 
-      const role = box.getAttribute('data-role');
-      roleInput.value = role;
-      formTitle.textContent = role.charAt(0).toUpperCase() + role.slice(1) + " Login";
+        const role = box.getAttribute('data-role');
+        roleInput.value = role;
+        formTitle.textContent = role.charAt(0).toUpperCase() + role.slice(1) + " Login";
+      });
     });
-  });
 
-  // Modal logic
-  const urlParams = new URLSearchParams(window.location.search);
-  const error = urlParams.get('error');
-  if(error){
-    const modal = document.getElementById("errorModal");
-    const errorText = document.getElementById("errorText");
-    const span = document.getElementsByClassName("close")[0];
+    // Modal logic
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error) {
+      const modal = document.getElementById("errorModal");
+      const errorText = document.getElementById("errorText");
+      const closeBtn = document.querySelector(".close");
 
-    errorText.textContent = error;
-    modal.style.display = "block";
+      errorText.textContent = decodeURIComponent(error);
+      modal.style.display = "block";
 
-    span.onclick = function(){ modal.style.display = "none"; }
-    window.onclick = function(event){
-      if(event.target == modal) modal.style.display = "none";
+      closeBtn.onclick = function() { modal.style.display = "none"; }
+      window.onclick = function(event) {
+        if (event.target === modal) modal.style.display = "none";
+      }
     }
-  }
-</script>
-
+  </script>
 </body>
 </html>

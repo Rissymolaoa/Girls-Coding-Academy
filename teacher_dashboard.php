@@ -7,7 +7,7 @@ include 'db.php';
 
 // Ensure teacher is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
-    header("Location: login.html");
+    header("Location: login.php");
     exit();
 }
 
@@ -42,51 +42,28 @@ $teacher_id = (int)$teacher['teacher_id'];
 $teacherIdQuery->close();
 
 // Fetch total stats
-// Total batches
-$totalBatchesQuery = $conn->prepare("
-    SELECT COUNT(DISTINCT ca.batch_id) AS total_batches
-    FROM course_assignments ca
-    WHERE ca.teacher_id = ?
-");
+$totalBatchesQuery = $conn->prepare("SELECT COUNT(DISTINCT ca.batch_id) AS total_batches FROM course_assignments ca WHERE ca.teacher_id = ?");
 $totalBatchesQuery->bind_param("i", $teacher_id);
 $totalBatchesQuery->execute();
 $totalBatchesResult = $totalBatchesQuery->get_result()->fetch_assoc();
 $total_batches = $totalBatchesResult['total_batches'];
 $totalBatchesQuery->close();
 
-// Total learners (total enrollments, not unique students)
-$totalLearnersQuery = $conn->prepare("
-    SELECT COUNT(*) AS total_learners
-    FROM course_enrollments ce
-    INNER JOIN course_assignments ca ON ce.batch_id = ca.batch_id
-    WHERE ca.teacher_id = ? AND ce.status = 'active'
-");
+$totalLearnersQuery = $conn->prepare("SELECT COUNT(*) AS total_learners FROM course_enrollments ce INNER JOIN course_assignments ca ON ce.batch_id = ca.batch_id WHERE ca.teacher_id = ? AND ce.status = 'active'");
 $totalLearnersQuery->bind_param("i", $teacher_id);
 $totalLearnersQuery->execute();
 $totalLearnersResult = $totalLearnersQuery->get_result()->fetch_assoc();
 $total_learners = $totalLearnersResult['total_learners'];
 $totalLearnersQuery->close();
 
-// Total activities
-$totalActivitiesQuery = $conn->prepare("
-    SELECT COUNT(*) AS total_activities
-    FROM activities
-    WHERE teacher_id = ?
-");
+$totalActivitiesQuery = $conn->prepare("SELECT COUNT(*) AS total_activities FROM activities WHERE teacher_id = ?");
 $totalActivitiesQuery->bind_param("i", $teacher_id);
 $totalActivitiesQuery->execute();
 $totalActivitiesResult = $totalActivitiesQuery->get_result()->fetch_assoc();
 $total_activities = $totalActivitiesResult['total_activities'];
 $totalActivitiesQuery->close();
 
-// Total internals (grades recorded)
-$totalInternalsQuery = $conn->prepare("
-    SELECT COUNT(*) AS total_internals
-    FROM internal_grades g
-    INNER JOIN course_enrollments ce ON g.student_id = ce.student_id AND g.batch_id = ce.batch_id
-    INNER JOIN course_assignments ca ON ce.batch_id = ca.batch_id
-    WHERE ca.teacher_id = ?
-");
+$totalInternalsQuery = $conn->prepare("SELECT COUNT(*) AS total_internals FROM internal_grades g INNER JOIN course_enrollments ce ON g.student_id = ce.student_id AND g.batch_id = ce.batch_id INNER JOIN course_assignments ca ON ce.batch_id = ca.batch_id WHERE ca.teacher_id = ?");
 if (!$totalInternalsQuery) {
     die("Total internals query preparation failed: " . $conn->error);
 }
@@ -96,16 +73,7 @@ $totalInternalsResult = $totalInternalsQuery->get_result()->fetch_assoc();
 $total_internals = $totalInternalsResult['total_internals'];
 $totalInternalsQuery->close();
 
-// Get courses assigned to teacher
-$courseQuery = $conn->prepare("
-    SELECT ca.assignment_id, b.batch_id, b.batch_code, b.start_date, b.end_date, b.status, c.courseName
-    FROM course_assignments ca
-    INNER JOIN batches b ON ca.batch_id = b.batch_id
-    INNER JOIN courses c ON b.course_id = c.course_id
-    INNER JOIN teachers t ON ca.teacher_id = t.teacher_id
-    WHERE t.user_id = ?
-    ORDER BY b.start_date DESC
-");
+$courseQuery = $conn->prepare("SELECT ca.assignment_id, b.batch_id, b.batch_code, b.start_date, b.end_date, b.status, c.courseName FROM course_assignments ca INNER JOIN batches b ON ca.batch_id = b.batch_id INNER JOIN courses c ON b.course_id = c.course_id INNER JOIN teachers t ON ca.teacher_id = t.teacher_id WHERE t.user_id = ? ORDER BY b.start_date DESC");
 if (!$courseQuery) {
     die("Course query preparation failed: " . $conn->error);
 }
@@ -114,7 +82,6 @@ $courseQuery->execute();
 $assignedCourses = $courseQuery->get_result();
 $courseQuery->close();
 
-// Fetch batch stats
 $batchStats = [];
 while ($batch = $assignedCourses->fetch_assoc()) {
     $batch_id = (int)$batch['batch_id'];
@@ -155,124 +122,161 @@ while ($batch = $assignedCourses->fetch_assoc()) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Teacher Dashboard</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
-<style>
-body {
-    font-family: Inter, Arial, Helvetica, sans-serif;
-    background: #f4f6f9;
-}
-header {
-    background: linear-gradient(90deg, #7b2cbf, #5a189a);
-    color: #fff;
-}
-header h1 {
-    margin: 0;
-    font-size: 22px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - Girls Coding Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .gradient-header {
+            background: linear-gradient(90deg, #7b2cbf, #5a189a);
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        .table th, .table td {
+            white-space: nowrap;
+        }
+        .sidebar {
+            transition: transform 0.3s ease;
+        }
+        .sidebar-hidden {
+            transform: translateX(-100%);
+        }
+        @media (min-width: 768px) {
+            .sidebar {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 16rem; /* Matches sidebar width (w-64 = 16rem) */
+            }
+        }
+        @media (max-width: 767px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 50;
+                transform: translateX(-100%);
+            }
+            .sidebar:not(.sidebar-hidden) {
+                transform: translateX(0);
+            }
+        }
+    </style>
 </head>
-<body>
-<header class="py-3 px-4 text-center">
-    <h1>Welcome, <?= htmlspecialchars($teacherInfo['username']) ?></h1>
-    <p class="mb-0">Email: <?= htmlspecialchars($teacherInfo['email']) ?> | Gender: <?= htmlspecialchars($teacherInfo['gender']) ?> | Phone: <?= htmlspecialchars($teacherInfo['phone']) ?></p>
-</header>
-
-<div class="container-fluid d-flex flex-nowrap" style="min-height: calc(100vh - 70px);">
-    <nav class="col-md-3 col-xl-2 bg-dark text-white p-3 vh-100" style="min-width:220px;">
-        <div class="text-center mb-4">
-            <img src="admin.png" class="rounded-circle border border-info mb-2" width="92" height="92" alt="Teacher">
-            <h5>Teacher Dashboard</h5>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <header class="gradient-header text-white py-4 px-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-semibold">Welcome, <?= htmlspecialchars($teacherInfo['username']) ?></h1>
+            <p class="text-sm">Email: <?= htmlspecialchars($teacherInfo['email']) ?> | Gender: <?= htmlspecialchars($teacherInfo['gender']) ?> | Phone: <?= htmlspecialchars($teacherInfo['phone']) ?></p>
         </div>
-        <ul class="nav flex-column">
-            <li class="nav-item mb-2"><a class="nav-link text-white active" href="teacher_dashboard.php"><i class="bi bi-house-door"></i> Dashboard</a></li>
-            <li class="nav-item mb-2"><a class="nav-link text-white" href="manage_teacher_courses.php"><i class="bi bi-journal-bookmark"></i> Manage Courses</a></li>
-            <li class="nav-item mb-2"><a class="nav-link text-white" href="upload_materials.php"><i class="bi bi-folder"></i> Upload Materials</a></li>
-            <li class="nav-item mb-2"><a class="nav-link text-white" href="grades.php"><i class="bi bi-pencil-square"></i> Grade</a></li>
-            <li class="nav-item mb-2"><a class="nav-link text-white" href="mark_attendance.php"><i class="bi bi-check-circle"></i> Mark Attendance</a></li>
-            <li class="nav-item mb-2"><a class="nav-link text-white" href="messages.php"><i class="bi bi-chat-dots"></i> Message Students</a></li>
-            <li class="nav-item mb-2"><a class="nav-link text-white" href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
-        </ul>
-    </nav>
+        <button id="menu-toggle" class="md:hidden text-white focus:outline-none">
+            <i class="fas fa-bars text-xl"></i>
+        </button>
+    </header>
 
-    <main class="col py-4">
-        <h2>Dashboard Overview</h2>
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Batches</h5>
-                        <p class="card-text display-4"><?= $total_batches ?></p>
-                    </div>
+    <div class="flex flex-1">
+        <?php include 'teacher_navigation.php'; ?>
+
+        <main class="flex-1 p-6 main-content">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Dashboard Overview</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="card bg-white rounded-lg shadow-lg p-6">
+                    <i class="fas fa-chalkboard-teacher text-3xl text-purple-600 mb-2"></i>
+                    <h3 class="text-lg font-semibold text-gray-700">Total Batches</h3>
+                    <p class="text-3xl font-bold text-gray-900"><?= $total_batches ?></p>
+                </div>
+                <div class="card bg-white rounded-lg shadow-lg p-6">
+                    <i class="fas fa-users text-3xl text-purple-600 mb-2"></i>
+                    <h3 class="text-lg font-semibold text-gray-700">Total Learners</h3>
+                    <p class="text-3xl font-bold text-gray-900"><?= $total_learners ?></p>
+                </div>
+                <div class="card bg-white rounded-lg shadow-lg p-6">
+                    <i class="fas fa-tasks text-3xl text-purple-600 mb-2"></i>
+                    <h3 class="text-lg font-semibold text-gray-700">Total Activities</h3>
+                    <p class="text-3xl font-bold text-gray-900"><?= $total_activities ?></p>
+                </div>
+                <div class="card bg-white rounded-lg shadow-lg p-6">
+                    <i class="fas fa-clipboard-check text-3xl text-purple-600 mb-2"></i>
+                    <h3 class="text-lg font-semibold text-gray-700">Total Internals Graded</h3>
+                    <p class="text-3xl font-bold text-gray-900"><?= $total_internals ?></p>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Learners</h5>
-                        <p class="card-text display-4"><?= $total_learners ?></p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Activities</h5>
-                        <p class="card-text display-4"><?= $total_activities ?></p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Internals Graded</h5>
-                        <p class="card-text display-4"><?= $total_internals ?></p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <h2>Batches Overview</h2>
-        <div class="table-responsive mb-4">
-            <table class="table table-striped table-bordered">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Batch Code</th>
-                        <th>Course Name</th>
-                        <th>Start Date</th>
-                        <th>End Date</th>
-                        <th>Status</th>
-                        <th>Students</th>
-                        <th>Activities</th>
-                        <th>Grades</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($batchStats as $stat): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($stat['batch_code']) ?></td>
-                        <td><?= htmlspecialchars($stat['courseName']) ?></td>
-                        <td><?= htmlspecialchars($stat['start_date']) ?></td>
-                        <td><?= htmlspecialchars($stat['end_date']) ?></td>
-                        <td><span class="badge <?= $stat['status'] === 'active' ? 'bg-success' : 'bg-secondary' ?>"><?= htmlspecialchars($stat['status']) ?></span></td>
-                        <td><?= $stat['student_count'] ?></td>
-                        <td><?= $stat['activity_count'] ?></td>
-                        <td><?= $stat['grade_count'] ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </main>
-</div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Batches Overview</h2>
+            <div class="table-container bg-white rounded-lg shadow-lg">
+                <table class="table w-full">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="py-3 px-4 text-left text-gray-600 font-semibold">Batch Code</th>
+                            <th class="py-3 px-4 text-left text-gray-600 font-semibold">Course Name</th>
+                            <th class="py-3 px-4 text-left text-gray-600 font-semibold">Start Date</th>
+                            <th class="py-3 px-4 text-left text-gray-600 font-semibold">End Date</th>
+                            <th class="py-3 px-4 text-left text-gray-600 font-semibold">Status</th>
+                            <th class="py-3 px-4 text-left text-gray-600 font-semibold">Students</th>
+                            <th class="py-3 px-4 text-left text-gray-600 font-semibold">Activities</th>
+                            <th class="py-3 px-4 text-left text-gray-600 font-semibold">Grades</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($batchStats as $stat): ?>
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="py-3 px-4"><?= htmlspecialchars($stat['batch_code']) ?></td>
+                            <td class="py-3 px-4"><?= htmlspecialchars($stat['courseName']) ?></td>
+                            <td class="py-3 px-4"><?= htmlspecialchars($stat['start_date']) ?></td>
+                            <td class="py-3 px-4"><?= htmlspecialchars($stat['end_date']) ?></td>
+                            <td class="py-3 px-4">
+                                <span class="inline-block px-2 py-1 rounded-full text-sm font-medium <?= $stat['status'] === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' ?>">
+                                    <?= htmlspecialchars($stat['status']) ?>
+                                </span>
+                            </td>
+                            <td class="py-3 px-4"><?= $stat['student_count'] ?></td>
+                            <td class="py-3 px-4"><?= $stat['activity_count'] ?></td>
+                            <td class="py-3 px-4"><?= $stat['grade_count'] ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
 
-<footer class="bg-dark text-white text-center py-3 mt-4">
-    &copy; <?= date('Y') ?> Girls Coding Academy
-</footer>
+    <footer class="bg-gray-800 text-white text-center py-4 mt-4">
+        &copy; <?= date('Y') ?> Girls Coding Academy
+    </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('menu-toggle').addEventListener('click', function () {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('sidebar-hidden');
+        });
+
+        // Ensure sidebar is visible on page load for larger screens
+        window.addEventListener('resize', function () {
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth >= 768) {
+                sidebar.classList.remove('sidebar-hidden');
+            }
+        });
+
+        // Initial check for sidebar visibility
+        if (window.innerWidth >= 768) {
+            document.getElementById('sidebar').classList.remove('sidebar-hidden');
+        }
+    </script>
 </body>
 </html>

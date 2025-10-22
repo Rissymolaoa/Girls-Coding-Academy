@@ -103,172 +103,341 @@ $assignments = $conn->query("
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Assign Student to Parent</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
-<style> :root{ --primary:#7b2cbf; --accent:#5a189a; --muted:#f4f4f8; --card:#ffffff; --text:#222; } 
-*{box-sizing:border-box} body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:var(--muted);color:var(--text)} header{ background:linear-gradient(90deg,var(--primary),var(--accent)); color:#fff; padding:18px 24px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.12) } 
-header h1{margin:0;font-size:20px;font-weight:600} /* Layout */ .layout{display:flex;min-height:calc(100vh - 72px)} .sidebar{ width:220px; background:#34495e; padding:20px; display:flex; flex-direction:column; align-items:center; color:#fff; } 
-.sidebar img{ width:92px; height:92px; border-radius:50%; object-fit:cover; border:3px solid #1abc9c; margin-bottom:12px; } 
-.sidebar h3{font-size:13px;margin:0 0 12px} 
-    header {
-        background: #2c3e50;
-        color: white;
-        padding: 2px 2px;
-        text-align: center;
+<style>
+  :root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding-top: 56px;
+  }
+
+  .content {
+    min-height: calc(100vh - 56px);
+    transition: all 0.3s ease;
+  }
+
+  .main {
+    padding: 2rem 2rem 2rem 1rem;
+  }
+
+  .section-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .section-card h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1.5rem;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-row .form-control {
+    padding: 0.75rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+  }
+
+  .btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .message {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  .message.success {
+    background: rgba(40, 167, 69, 0.1);
+    color: #155724;
+    border: 1px solid rgba(40, 167, 69, 0.2);
+  }
+
+  .message.error {
+    background: rgba(220, 53, 69, 0.1);
+    color: #721c24;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+  }
+
+  .table {
+    margin-bottom: 0;
+  }
+
+  .table th {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 1rem;
+  }
+
+  .table td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-color: rgba(0,0,0,0.05);
+  }
+
+  .table-hover tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+  }
+
+  footer {
+    background: rgba(31, 41, 55, 0.8);
+    color: #fff;
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    border-radius: 16px 16px 0 0;
+  }
+
+  /* Enhanced Sidebar Styles - Adjusted for Dashboard */
+  .sidebar {
+    width: 280px;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    color: #fff;
+    position: fixed;
+    top: 56px;
+    height: calc(100vh - 56px);
+    left: 0;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
+    z-index: 1030;
+  }
+
+  @media (min-width: 992px) {
+    .main {
+      padding-left: 1rem;
+      padding-right: 2rem;
     }
-    
-    h1{margin:0;
-    font-size:20px;
-    font-weight:600}
-.nav a{ width:100%; display:block; color:#fff; text-decoration:none; padding:10px; border-radius:6px; margin:6px 0; text-align:left; } 
-.nav a.active, .nav a:hover{background:#1abc9c;color:#062018} 
-.main{ flex:1; padding:26px; } h2{margin-bottom:16px;color:#333} 
-form{display:flex;flex-direction:column;gap:15px;margin-bottom:25px;} 
-label{font-weight:bold;} select,input{padding:10px;border:1px solid #ccc;border-radius:6px;width:100%;} 
-button{background:var(--accent);color:#fff;padding:12px;border:none;border-radius:6px;cursor:pointer;font-size:16px;}
- button:hover{background:var(--primary);} .message{margin:10px 0;padding:10px;border-radius:6px;text-align:center;} 
- .success{background:#d4edda;color:#155724;} .error{background:#f8d7da;color:#721c24;} table{width:100%;border-collapse:collapse;margin-top:20px;} 
- th,td{border:1px solid #ddd;padding:10px;text-align:left;} th{background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;} 
- tr:hover{background:#f9f9f9;} footer{background:#2c3e50;color:#fff;text-align:center;padding:15px;margin-top:30px;} @media(max-width:900px){.sidebar{display:none}} 
- </style>
+    .content {
+      margin-left: 280px;
+    }
+  }
+
+  @media (max-width: 991px) {
+    .sidebar {
+      top: 0;
+      height: 100vh;
+      left: -280px;
+    }
+    .sidebar.show {
+      left: 0;
+    }
+    .main {
+      padding: 1rem;
+    }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    justify-content: center;
+    align-items: center;
+    z-index: 1050;
+  }
+
+  .modal-content {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 16px;
+    width: 400px;
+    max-width: 90%;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .close {
+    position: absolute;
+    top: 1rem; right: 1.5rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+    transition: color 0.3s ease;
+  }
+
+  .close:hover {
+    color: #1f2937;
+  }
+</style>
 </head>
 <body>
+<?php include 'top_navigation.php'; ?>
+<?php include 'admin_navigation.php'; ?>
 
-<header>
-  <h1>Girls Coding Academy - Admin Dashboard</h1>
-</header>
-
-<div class="layout">
-  <aside class="sidebar">
-    <img src="admin.jpg" alt="Admin">
-    <h3>GIRLS CODING ACADEMY</h3>
-    <nav class="nav">
-    <h4 class="text-center mb-4">Administration</h4>
-    <a href="admin_dashboard.php" class="active"><i class="bi bi-house-door-fill"></i> Dashboard</a>
-    <a href="approve_users.php"><i class="bi bi-person-check-fill"></i> Approve Users</a>
-    <a href="manage_courses.php"><i class="bi bi-journal-bookmark-fill"></i> Manage Courses</a>
-    <a href="manage_students.php"><i class="bi bi-people-fill"></i> Manage Students</a>
-    <a href="manage_teachers.php"><i class="bi bi-person-badge-fill"></i> Manage Teachers</a>
-    <a href="parents_summary.php"><i class="bi bi-people"></i> Parent Summary</a>
-    <a href="manage_parents.php"><i class="bi bi-person-lines-fill"></i> Manage Parents</a>
-    <a href="assign_parent_student.php"><i class="bi bi-person-plus-fill"></i> Assign Students</a>
-    <a href="course_assignment.php"><i class="bi bi-book-half"></i> Assign Courses</a>
-    <a href="add_batch.php"><i class="bi bi-plus-circle-fill"></i> Add Batch</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </nav>
-  </aside>
-
+<div class="content">
   <main class="main">
-    <h2>Assign Student to Parent</h2>
-    <?php if(isset($success)): ?>
+    <div class="section-card">
+      <h2>Assign Student to Parent</h2>
+      <?php if(isset($success)): ?>
         <div class="message success"><?= htmlspecialchars($success) ?></div>
-    <?php elseif(isset($error)): ?>
+      <?php elseif(isset($error)): ?>
         <div class="message error"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
+      <?php endif; ?>
 
-<form method="POST">
-    <input type="hidden" name="action" value="add">
-    <label for="parent_id">Select Parent:</label>
-    <select name="parent_id" id="parent_id" required>
-        <option value="">-- Choose Parent --</option>
-        <?php while($p = $parents->fetch_assoc()): ?>
+      <form method="POST" class="form-row">
+        <input type="hidden" name="action" value="add">
+        <select name="parent_id" class="form-control" required>
+          <option value="">-- Choose Parent --</option>
+          <?php $parents->data_seek(0); while($p = $parents->fetch_assoc()): ?>
             <option value="<?= $p['parent_id'] ?>">
-                <?= htmlspecialchars($p['firstName']." ".$p['lastName']." (".$p['relationship'].")") ?>
+              <?= htmlspecialchars($p['firstName']." ".$p['lastName']." (".$p['relationship'].")") ?>
             </option>
-        <?php endwhile; ?>
-    </select>
-
-    <label for="student_id">Select Student:</label>
-    <select name="student_id" id="student_id" required>
-        <option value="">-- Choose Student --</option>
-        <?php while($s = $students->fetch_assoc()): ?>
+          <?php endwhile; ?>
+        </select>
+        <select name="student_id" class="form-control" required>
+          <option value="">-- Choose Student --</option>
+          <?php $students->data_seek(0); while($s = $students->fetch_assoc()): ?>
             <option value="<?= $s['student_id'] ?>">
-                <?= htmlspecialchars($s['firstName']." ".$s['lastName']) ?>
+              <?= htmlspecialchars($s['firstName']." ".$s['lastName']) ?>
             </option>
-        <?php endwhile; ?>
-    </select>
+          <?php endwhile; ?>
+        </select>
+        <select name="relationship" class="form-control" required>
+          <option value="">-- Choose Relationship --</option>
+          <option value="Mother">Mother</option>
+          <option value="Father">Father</option>
+          <option value="Guardian">Guardian</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Assign Student</button>
+      </form>
+    </div>
 
-    <label for="relationship">Relationship to Student:</label>
-    <select name="relationship" id="relationship" required>
-        <option value="">-- Choose Relationship --</option>
-        <option value="Mother">Mother</option>
-        <option value="Father">Father</option>
-        <option value="Guardian">Guardian</option>
-    </select>
-
-    <button type="submit">Assign Student</button>
-</form>
-
-<h2>Existing Assignments</h2>
-<table id="assignmentsTable">
-    <tr>
-        <th>Parent</th>
-        <th>Student</th>
-        <th>Relationship</th>
-        <th>Assigned At</th>
-        <th>Actions</th>
-    </tr>
-    <?php while($a = $assignments->fetch_assoc()): ?>
-    <tr>
-        <td><?= htmlspecialchars($a['parentFirst']." ".$a['parentLast']) ?></td>
-        <td><?= htmlspecialchars($a['studentFirst']." ".$a['studentLast']) ?></td>
-        <td><?= htmlspecialchars($a['relationship']) ?></td>
-        <td><?= htmlspecialchars($a['created_at']) ?></td>
-        <td>
-            <button class="editBtn" data-id="<?= $a['id'] ?>" data-relationship="<?= htmlspecialchars($a['relationship']) ?>">✏️ Edit</button>
-            <form method="POST" style="display:inline;">
-                <input type="hidden" name="action" value="delete">
-                <input type="hidden" name="id" value="<?= $a['id'] ?>">
-                <button type="submit" onclick="return confirm('Are you sure you want to delete this assignment?');">🗑️ Delete</button>
-            </form>
-        </td>
-    </tr>
-    <?php endwhile; ?>
-</table>
+    <div class="section-card">
+      <h2>Existing Assignments</h2>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle" id="assignmentsTable">
+          <thead>
+            <tr>
+              <th>Parent</th>
+              <th>Student</th>
+              <th>Relationship</th>
+              <th>Assigned At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php while($a = $assignments->fetch_assoc()): ?>
+            <tr>
+              <td><?= htmlspecialchars($a['parentFirst']." ".$a['parentLast']) ?></td>
+              <td><?= htmlspecialchars($a['studentFirst']." ".$a['studentLast']) ?></td>
+              <td><?= htmlspecialchars($a['relationship']) ?></td>
+              <td><?= htmlspecialchars($a['created_at']) ?></td>
+              <td>
+                <button class="editBtn btn btn-warning btn-sm me-2" data-id="<?= $a['id'] ?>" data-relationship="<?= htmlspecialchars($a['relationship']) ?>"><i class="bi bi-pencil"></i> Edit</button>
+                <form method="POST" style="display:inline;" class="d-inline">
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="id" value="<?= $a['id'] ?>">
+                  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this assignment?');"><i class="bi bi-trash"></i> Delete</button>
+                </form>
+              </td>
+            </tr>
+            <?php endwhile; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
 
 <!-- Edit Modal -->
-<div id="editModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;">
-  <div style="background:#fff;padding:20px;border-radius:10px;min-width:300px;position:relative;">
-    <h3>Edit Assignment</h3>
-    <form method="POST">
+<div id="editModal" class="modal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Assignment</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" class="modal-body">
         <input type="hidden" name="action" value="edit">
         <input type="hidden" name="id" id="edit_id">
-        <label for="edit_relationship">Relationship:</label>
-        <select name="relationship" id="edit_relationship" required>
+        <div class="mb-3">
+          <label for="edit_relationship" class="form-label">Relationship:</label>
+          <select name="relationship" id="edit_relationship" class="form-control" required>
             <option value="Mother">Mother</option>
             <option value="Father">Father</option>
             <option value="Guardian">Guardian</option>
-        </select>
-        <div style="margin-top:15px;text-align:right;">
-            <button type="button" id="closeModal" style="margin-right:10px;">Cancel</button>
-            <button type="submit">Save Changes</button>
+          </select>
         </div>
-    </form>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
-<script>
-const editModal = document.getElementById('editModal');
-const closeModal = document.getElementById('closeModal');
-
-document.querySelectorAll('.editBtn').forEach(btn => {
-    btn.addEventListener('click', function(){
-        const id = this.dataset.id;
-        const relationship = this.dataset.relationship;
-
-        document.getElementById('edit_id').value = id;
-        document.getElementById('edit_relationship').value = relationship;
-
-        editModal.style.display = 'flex';
-    });
-});
-
-closeModal.addEventListener('click', () => editModal.style.display = 'none');
-</script>
-
-<footer>
-  &copy; <?= date('Y') ?> Girls Coding Academy. All rights reserved.
+<footer class="text-center py-3">
+  <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+document.querySelectorAll('.editBtn').forEach(btn => {
+  btn.addEventListener('click', function(){
+    const id = this.dataset.id;
+    const relationship = this.dataset.relationship;
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_relationship').value = relationship;
+    editModal.show();
+  });
+});
+</script>
 </body>
 </html>

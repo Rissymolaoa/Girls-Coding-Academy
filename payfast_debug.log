@@ -1,0 +1,51 @@
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Tshepiso
+    [name_last] => Molaoa
+    [email_address] => mazumbe@gmail.com
+    [cell_number] => 0817716743
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for student access to courses and resources
+    [custom_str1] => 73
+    [signature] => d713d1c867c9da9a4b73b843c55d0687
+)
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Tebel;lo
+    [name_last] => Seello
+    [email_address] => nathnaelsello25@gmail.com
+    [cell_number] => 0635428965
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for student access to courses and resources
+    [custom_str1] => 74
+    [signature] => 17f4c9bb7dfe18cb086029c7422d9458
+)
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Tokollo
+    [name_last] => Serame
+    [email_address] => tokollo@gmail.com
+    [cell_number] => 0635245689
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for student access to courses and resources
+    [custom_str1] => 75
+    [signature] => 2a82efc726e4668df9bb8435276275b3
+)
