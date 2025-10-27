@@ -28,20 +28,65 @@ if ($res->num_rows > 0) {
     die("Error: Student not found.");
 }
 
-// Enroll action
+// Enroll action - Now creates invoice and redirects to payment
 $enrollMessage = "";
 if (isset($_POST['enroll'])) {
     $batch_id = intval($_POST['batch_id']);
-    $check = $conn->query("SELECT * FROM course_enrollments WHERE student_id=$student_id AND batch_id=$batch_id");
-    if ($check->num_rows == 0) {
-        $conn->query("INSERT INTO course_enrollments (student_id, batch_id) VALUES ($student_id, $batch_id)");
-        $enrollMessage = "<div class='alert alert-success'>Enrolled successfully!</div>";
+    
+    // Fetch batch and course info including fee
+    $batch_info_query = $conn->query("
+        SELECT c.course_id, c.price 
+        FROM batches b 
+        INNER JOIN courses c ON b.course_id = c.course_id 
+        WHERE b.batch_id = $batch_id
+    ");
+    
+    if ($batch_info_query->num_rows == 0) {
+        $enrollMessage = "<div class='alert alert-danger'>Batch not found.</div>";
     } else {
-        $enrollMessage = "<div class='alert alert-danger'>You are already enrolled in this batch.</div>";
+        $batch_info = $batch_info_query->fetch_assoc();
+        $course_id = $batch_info['course_id'];
+        $fee = $batch_info['price'];
+        
+        if ($fee <= 0) {
+            $enrollMessage = "<div class='alert alert-danger'>Invalid course fee.</div>";
+        } else {
+            // Check if already enrolled
+            $check_enroll = $conn->query("SELECT * FROM course_enrollments WHERE student_id=$student_id AND batch_id=$batch_id");
+            if ($check_enroll->num_rows > 0) {
+                $enrollMessage = "<div class='alert alert-danger'>You are already enrolled in this batch.</div>";
+            } else {
+                // Check if there's a pending invoice for this batch
+                $check_invoice = $conn->query("SELECT invoice_id FROM invoices WHERE student_id=$student_id AND batch_id=$batch_id AND status='pending'");
+                if ($check_invoice->num_rows > 0) {
+                    $pending_invoice = $check_invoice->fetch_assoc();
+                    header("Location: payment.php?invoice_id=" . $pending_invoice['invoice_id']);
+                    exit();
+                } else {
+                    // Create new invoice
+                    $insert_invoice = $conn->query("
+                        INSERT INTO invoices (student_id, batch_id, course_id, amount, status, due_date, created_date) 
+                        VALUES ($student_id, $batch_id, $course_id, $fee, 'pending', DATE_ADD(NOW(), INTERVAL 30 DAY), NOW())
+                    ");
+                    
+                    if ($conn->affected_rows > 0) {
+                        $invoice_id = $conn->insert_id;
+                        $invoice_number = 'INV-' . date('Y') . '-' . str_pad($invoice_id, 6, '0', STR_PAD_LEFT);
+                        $conn->query("UPDATE invoices SET invoice_number = '$invoice_number' WHERE invoice_id = $invoice_id");
+                        
+                        // Redirect to payment gateway handler
+                        header("Location: payment.php?invoice_id=" . $invoice_id);
+                        exit();
+                    } else {
+                        $enrollMessage = "<div class='alert alert-danger'>Failed to create invoice. Please try again.</div>";
+                    }
+                }
+            }
+        }
     }
 }
 
-// Get batches with course info
+// Get batches with course info including fee
 $batches = $conn->query("
     SELECT 
         b.batch_id, 
@@ -51,7 +96,8 @@ $batches = $conn->query("
         b.status, 
         c.courseName, 
         c.image_path, 
-        c.description
+        c.description,
+        c.price
     FROM batches b
     INNER JOIN courses c ON b.course_id = c.course_id
     WHERE b.status='active'
@@ -146,15 +192,22 @@ h2 {
     color: #95a5a6; 
     font-size: 0.9rem;
 }
+.batch-card .fee-info {
+    font-weight: bold;
+    color: #27ae60;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
 .batch-card form button { 
     background: #3498db; 
     color: white; 
     border: none; 
-    padding: 10px 20px; 
+    padding: 12px 24px; 
     cursor: pointer; 
     border-radius: 8px; 
     font-weight: 500;
     transition: background 0.3s ease;
+    width: 100%;
 }
 .batch-card form button:hover { 
     background: #2980b9; 
@@ -261,11 +314,12 @@ h2 {
                     <div class="card-body">
                         <h5 class="card-title"><?php echo htmlspecialchars($row['courseName']); ?></h5>
                         <p class="card-text"><?php echo htmlspecialchars($row['description']); ?></p>
+                        <div class="fee-info">Course Fee: M <?php echo number_format($row['price'], 2); ?></div>
                         <small>Batch Code: <?php echo htmlspecialchars($row['batch_code']); ?></small><br>
                         <small>Start: <?php echo htmlspecialchars($row['start_date']); ?> | End: <?php echo htmlspecialchars($row['end_date']); ?></small>
                         <form method="POST" action="" class="mt-2">
                             <input type="hidden" name="batch_id" value="<?php echo $row['batch_id']; ?>">
-                            <button type="submit" name="enroll" class="btn btn-primary btn-sm"><i class="bi bi-person-plus"></i> Enroll</button>
+                            <button type="submit" name="enroll" class="btn btn-primary btn-sm"><i class="bi bi-credit-card"></i> Enroll & Pay</button>
                         </form>
                     </div>
                 </div>

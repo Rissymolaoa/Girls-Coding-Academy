@@ -24,26 +24,35 @@ $student_id = $studentInfo['student_id'];
 // === Summary Stats from DB ===
 
 // Activities count
-$res = $conn->query("
+$res = $conn->prepare("
     SELECT COUNT(*) AS total
     FROM activities a
     JOIN course_enrollments e ON a.batch_id = e.batch_id
-    WHERE e.student_id = $student_id
+    WHERE e.student_id = ?
 ");
-$activities = $res->fetch_assoc()['total'] ?? 0;
+$res->bind_param("i", $student_id);
+$res->execute();
+$result_activities = $res->get_result();
+$activities = $result_activities->fetch_assoc()['total'] ?? 0;
 
 // Attendance %
-$res = $conn->query("SELECT 
+$res = $conn->prepare("SELECT 
     (SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) / COUNT(*)) * 100 AS attendance_pct
-    FROM attendance WHERE student_id = $student_id");
-$attendance = number_format($res->fetch_assoc()['attendance_pct'] ?? 0, 2) . "%";
+    FROM attendance WHERE student_id = ?");
+$res->bind_param("i", $student_id);
+$res->execute();
+$result_attendance = $res->get_result();
+$attendance = number_format($result_attendance->fetch_assoc()['attendance_pct'] ?? 0, 2) . "%";
 
 // Overall Performance (average % from internal_grades)
-$res = $conn->query("SELECT 
+$res = $conn->prepare("SELECT 
     AVG((COALESCE(test_1,0)+COALESCE(test_2,0)+COALESCE(test_3,0)+COALESCE(test_4,0)+
          COALESCE(test_5,0)+COALESCE(test_6,0)+COALESCE(test_7,0)+COALESCE(end_examination,0)) / 800 * 100) 
-    AS perf FROM internal_grades WHERE student_id = $student_id");
-$performance = number_format($res->fetch_assoc()['perf'] ?? 0, 2) . "%";
+    AS perf FROM internal_grades WHERE student_id = ?");
+$res->bind_param("i", $student_id);
+$res->execute();
+$result_perf = $res->get_result();
+$performance = number_format($result_perf->fetch_assoc()['perf'] ?? 0, 2) . "%";
 
 // Stats array for cards (with icons + smart borders)
 $stats = [
@@ -69,6 +78,17 @@ $result_tasks = $res->get_result();
 while ($row = $result_tasks->fetch_assoc()) {
     $tasks[] = $row;
 }
+
+// Fetch unread payment notifications
+$notify_res = $conn->prepare("
+    SELECT * FROM notifications 
+    WHERE student_id = ? AND type = 'Payment' AND is_read = 0 
+    ORDER BY date DESC LIMIT 3
+");
+$notify_res->bind_param("i", $student_id);
+$notify_res->execute();
+$notifications = $notify_res->get_result()->fetch_all(MYSQLI_ASSOC);
+$notify_res->close();
 
 // Determine current page for active sidebar link
 $currentPage = basename($_SERVER['PHP_SELF']);
@@ -228,6 +248,23 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             <?php endforeach; ?>
         </div>
 
+        <!-- Payment Notifications Section -->
+        <?php if (!empty($notifications)): ?>
+        <section class="section" aria-label="Payment notifications">
+            <h3><i class="bi bi-bell"></i> Payment Alerts</h3>
+            <ul class="tasks-list">
+                <?php foreach ($notifications as $notif): ?>
+                <li style="border-left-color: #e74c3c;">
+                    <strong><?= htmlspecialchars($notif['title']) ?></strong>
+                    <p><?= htmlspecialchars($notif['description']) ?></p>
+                    <small><?= date('M j, Y', strtotime($notif['date'])) ?></small>
+                    <a href="make_payment.php" class="btn btn-sm btn-warning mt-2">Pay Now</a>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </section>
+        <?php endif; ?>
+
         <!-- Tasks by Teachers -->
         <section class="section" aria-label="Tasks assigned by teachers">
             <h3><i class="bi bi-list-task"></i> Tasks Given by Teachers</h3>
@@ -247,6 +284,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                 <div class="no-tasks">No tasks assigned yet. Check your <a href="student_courses.php">courses</a> for updates.</div>
             <?php endif; ?>
         </section>
+
+        
     </main>
 </div>
 

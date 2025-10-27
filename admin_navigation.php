@@ -20,7 +20,6 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
         <hr class="divider my-2" style="border-color: rgba(255,255,255,0.1);">
 
         <!-- User Management Section -->
-        <div class="section-header small fw-bold text-uppercase text-muted mb-2">User Management</div>
         <a href="approve_users.php" class="nav-link <?= ($current_page == 'approve_users.php') ? 'active' : '' ?>">
             <i class="bi bi-person-check me-2"></i> Approve Users
         </a>
@@ -37,7 +36,6 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
         <hr class="divider my-2" style="border-color: rgba(255,255,255,0.1);">
 
         <!-- Academic Management Section -->
-        <div class="section-header small fw-bold text-uppercase text-muted mb-2">Academic Management</div>
         <a href="manage_courses.php" class="nav-link <?= ($current_page == 'manage_courses.php') ? 'active' : '' ?>">
             <i class="bi bi-journal-bookmark me-2"></i> Manage Courses
         </a>
@@ -49,9 +47,11 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
         </a>
 
         <hr class="divider my-2" style="border-color: rgba(255,255,255,0.1);">
+        <a href="finance_dashboard.php" class="nav-link <?= ($current_page == 'finance_dashboard.php') ? 'active' : '' ?>">
+    <i class="bi bi-graph-up me-2"></i> Finance Dashboard
+</a>
 
         <!-- Parent-Student Relations Section -->
-        <div class="section-header small fw-bold text-uppercase text-muted mb-2">Parent-Student Relations</div>
         <a href="parents_summary.php" class="nav-link <?= ($current_page == 'parents_summary.php') ? 'active' : '' ?>">
             <i class="bi bi-people-fill me-2"></i> Parent Summary
         </a>
@@ -62,7 +62,6 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
         <hr class="divider my-2" style="border-color: rgba(255,255,255,0.1);">
 
         <!-- Communications Section -->
-        <div class="section-header small fw-bold text-uppercase text-muted mb-2">Communications</div>
         <a href="admin_announcements.php" class="nav-link <?= ($current_page == 'admin_announcements.php') ? 'active' : '' ?>">
             <i class="bi bi-megaphone-fill me-2"></i> Announcements
         </a>
@@ -73,10 +72,6 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
             <i class="bi bi-chat me-2"></i> Parents Group Chat
         </a>
         <!-- Add this in the Communications or a new Finance section in admin_navigation.php -->
-<div class="section-header small fw-bold text-uppercase text-muted mb-2">Finance Management</div>
-<a href="finance_dashboard.php" class="nav-link <?= ($current_page == 'finance_dashboard.php') ? 'active' : '' ?>">
-    <i class="bi bi-graph-up me-2"></i> Finance Dashboard
-</a>
 
         <hr class="divider my-3" style="border-color: rgba(255,255,255,0.1);">
 

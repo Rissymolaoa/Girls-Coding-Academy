@@ -47,6 +47,7 @@ try {
 }
 
 // Handle student removal
+$message = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_student'])) {
     $enrollment_id = filter_input(INPUT_POST, 'enrollment_id', FILTER_VALIDATE_INT);
     $selected_course_id = filter_input(INPUT_POST, 'selected_course_id', FILTER_VALIDATE_INT);
@@ -56,14 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_student'])) {
             $stmt->bind_param("i", $enrollment_id);
             $stmt->execute();
             $stmt->close();
-            header("Location: manage_teacher_courses.php?course_id=$selected_course_id");
-            exit();
+            $message = "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex items-center'>Student removed successfully. <i class='fas fa-check-circle ml-2'></i></div>";
         } catch (Exception $e) {
             error_log("Error removing student: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error removing student: " . htmlspecialchars($e->getMessage()) . "</div>";
+            $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error removing student: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
         }
     } else {
-        echo "<div class='alert alert-danger'>Invalid input for student removal.</div>";
+        $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Invalid input for student removal. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
     }
 }
 
@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $resource_file = null;
 
     if (!$batch_id || !$title || !$description || !$due_date) {
-        echo "<div class='alert alert-danger'>All fields are required for activity assignment.</div>";
+        $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>All fields are required for activity assignment. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
     } else {
         if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
             $upload_dir = 'Uploads/';
@@ -86,31 +86,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
             $file = $_FILES['resource_file'];
             if (!in_array($file['type'], $allowed_types)) {
-                echo "<div class='alert alert-danger'>Allowed file types: PDF, JPG, PNG.</div>";
+                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Allowed file types: PDF, JPG, PNG. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
             } elseif ($file['size'] > 200 * 1024 * 1024) {
-                echo "<div class='alert alert-danger'>File size exceeds 200MB.</div>";
+                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>File size exceeds 200MB. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
             } else {
                 $original_name = basename($file['name']);
                 $filepath = $upload_dir . $original_name;
                 if (move_uploaded_file($file['tmp_name'], $filepath)) {
                     $resource_file = $filepath;
                 } else {
-                    echo "<div class='alert alert-danger'>Error uploading file. Please try again.</div>";
+                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error uploading file. Please try again. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
                 }
             }
         }
 
-        if (!isset($error)) {
+        if (!isset($message)) {
             try {
                 $stmt = $conn->prepare("INSERT INTO activities (batch_id, teacher_id, title, description, due_date, resource_file, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
                 $resource_file = $resource_file ?? '';
                 $stmt->bind_param("iissss", $batch_id, $teacher_id, $title, $description, $due_date, $resource_file);
                 $stmt->execute();
                 $stmt->close();
-                echo "<div class='alert alert-success'>Activity assigned successfully.</div>";
+                $message = "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex items-center'>Activity assigned successfully. <i class='fas fa-check-circle ml-2'></i></div>";
             } catch (Exception $e) {
                 error_log("Error assigning activity: " . $e->getMessage());
-                echo "<div class='alert alert-danger'>Error assigning activity: " . htmlspecialchars($e->getMessage()) . "</div>";
+                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error assigning activity: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
             }
         }
     }
@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $resource_file = null;
 
     if (!$batch_id || !$title || !$description || !$due_date || $max_score === false || $max_score <= 0 || $max_score > 100) {
-        echo "<div class='alert alert-danger'>All fields are required, and max score must be between 0 and 100.</div>";
+        $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>All fields are required, and max score must be between 0 and 100. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
     } else {
         if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
             $upload_dir = 'Uploads/';
@@ -136,31 +136,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
             $file = $_FILES['resource_file'];
             if (!in_array($file['type'], $allowed_types)) {
-                echo "<div class='alert alert-danger'>Allowed file types: PDF, JPG, PNG.</div>";
+                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Allowed file types: PDF, JPG, PNG. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
             } elseif ($file['size'] > 200 * 1024 * 1024) {
-                echo "<div class='alert alert-danger'>File size exceeds 200MB.</div>";
+                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>File size exceeds 200MB. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
             } else {
                 $original_name = basename($file['name']);
                 $filepath = $upload_dir . $original_name;
                 if (move_uploaded_file($file['tmp_name'], $filepath)) {
                     $resource_file = $filepath;
                 } else {
-                    echo "<div class='alert alert-danger'>Error uploading file. Please try again.</div>";
+                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error uploading file. Please try again. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
                 }
             }
         }
 
-        if (!isset($error)) {
+        if (!isset($message)) {
             try {
                 $stmt = $conn->prepare("INSERT INTO tests (batch_id, teacher_id, title, description, due_date, max_score, resource_file, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
                 $resource_file = $resource_file ?? '';
                 $stmt->bind_param("iisssds", $batch_id, $teacher_id, $title, $description, $due_date, $max_score, $resource_file);
                 $stmt->execute();
                 $stmt->close();
-                echo "<div class='alert alert-success'>Test assigned successfully.</div>";
+                $message = "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex items-center'>Test assigned successfully. <i class='fas fa-check-circle ml-2'></i></div>";
             } catch (Exception $e) {
                 error_log("Error assigning test: " . $e->getMessage());
-                echo "<div class='alert alert-danger'>Error assigning test: " . htmlspecialchars($e->getMessage()) . "</div>";
+                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error assigning test: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
             }
         }
     }
@@ -185,7 +185,7 @@ try {
     $course_stmt->close();
 } catch (Exception $e) {
     error_log("Error fetching courses: " . $e->getMessage());
-    echo "<div class='alert alert-danger'>Error loading courses: " . htmlspecialchars($e->getMessage()) . "</div>";
+    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error loading courses: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
 }
 
 $selected_course_id = filter_input(INPUT_GET, 'course_id', FILTER_VALIDATE_INT) ?:
@@ -201,13 +201,13 @@ if ($selected_course_id) {
         $stmt_check_batch->execute();
         $res_check_batch = $stmt_check_batch->get_result();
         if ($res_check_batch->num_rows === 0) {
-            echo "<div class='alert alert-danger'>Invalid batch ID selected.</div>";
+            $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Invalid batch ID selected. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
             $selected_course_id = null;
         }
         $stmt_check_batch->close();
     } catch (Exception $e) {
         error_log("Error validating batch ID: " . $e->getMessage());
-        echo "<div class='alert alert-danger'>Error validating batch ID: " . htmlspecialchars($e->getMessage()) . "</div>";
+        $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error validating batch ID: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
         $selected_course_id = null;
     }
 
@@ -232,7 +232,7 @@ if ($selected_course_id) {
             $stmt_students->close();
         } catch (Exception $e) {
             error_log("Error fetching students: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching students: " . htmlspecialchars($e->getMessage()) . "</div>";
+            $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error fetching students: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
         }
     }
 }
@@ -241,66 +241,182 @@ if ($selected_course_id) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Manage Teacher Courses</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Teacher Courses - Girls Coding Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Inter, Arial, Helvetica, sans-serif;
-            background: #f4f4f8;
+            font-family: 'Inter', sans-serif;
         }
-        header {
+        .gradient-header {
             background: linear-gradient(90deg, #7b2cbf, #5a189a);
-            color: #fff;
         }
-        header h1 {
-            margin: 0;
-            font-size: 22px;
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(180deg, #7b2cbf, #5a189a);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+        .sidebar-link {
+            transition: all 0.3s ease;
+        }
+        .sidebar-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            padding-left: 1.5rem;
+        }
+        .sidebar-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-left: 4px solid white;
+        }
+        .main-content {
+            margin-left: 250px;
+            transition: margin-left 0.3s ease;
+        }
+        .main-content.expanded {
+            margin-left: 0;
+        }
+        .batch-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .batch-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(123, 44, 191, 0.2);
+            border-color: #7b2cbf;
+        }
+        .batch-card.selected {
+            border-color: #7b2cbf;
+            background: linear-gradient(135deg, #f3e7ff 0%, #ffffff 100%);
+        }
+        .mobile-toggle {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .mobile-toggle {
+                display: block;
+            }
         }
     </style>
 </head>
-<body>
-    <header class="py-3 px-4 text-center">
-        <h1>Welcome, <?= htmlspecialchars($teacher_info['username']) ?></h1>
-        <p class="mb-0">Email: <?= htmlspecialchars($teacher_info['email']) ?> | Gender: <?= htmlspecialchars($teacher_info['gender']) ?> | Phone: <?= htmlspecialchars($teacher_info['phone']) ?></p>
-    </header>
-
-    <div class="container-fluid d-flex flex-nowrap" style="min-height: calc(100vh - 70px);">
-        <!-- Sidebar -->
-        <nav class="col-md-3 col-xl-2 bg-dark text-white p-3 vh-100" style="min-width:220px;">
-            <div class="text-center mb-4">
-                <img src="admin.png" class="rounded-circle border border-info mb-2" width="92" height="92" alt="Teacher" />
-                <h5>Teacher Dashboard</h5>
+<body class="bg-gray-100">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="p-6">
+            <div class="flex items-center mb-8">
+                <i class="fas fa-graduation-cap text-white text-3xl mr-3"></i>
+                <h2 class="text-white text-xl font-bold">GCA Portal</h2>
             </div>
-            <ul class="nav flex-column">
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="teacher_dashboard.php"><i class="bi bi-house-door"></i> Dashboard</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white active" href="manage_teacher_courses.php"><i class="bi bi-journal-bookmark"></i> Manage Courses</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="upload_materials.php"><i class="bi bi-folder"></i> Upload Materials</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="grades.php"><i class="bi bi-pencil-square"></i> Grade</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="mark_attendance.php"><i class="bi bi-check-circle"></i> Mark Attendance</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="messages.php"><i class="bi bi-chat-dots"></i> Message Students</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
-            </ul>
-        </nav>
+            
+            <nav>
+                <a href="teacher_dashboard.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-home mr-3"></i>
+                    Dashboard
+                </a>
+                <a href="manage_teacher_courses.php" class="sidebar-link active flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-chalkboard-teacher mr-3"></i>
+                    Manage Courses
+                </a>
+                <a href="upload_materials.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-book mr-3"></i>
+                    Upload Materials
+                </a>
+                <a href="grades.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-clipboard-check mr-3"></i>
+                    Grade
+                </a>
+                <a href="mark_attendance.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-calendar-check mr-3"></i>
+                    Mark Attendance
+                </a>
+                <a href="message_students.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-envelope mr-3"></i>
+                    Message Students
+                </a>
+                <a href="teacher_profile.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-user mr-3"></i>
+                    Profile
+                </a>
+                <a href="logout.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-sign-out-alt mr-3"></i>
+                    Logout
+                </a>
+            </nav>
+        </div>
+    </aside>
 
-        <!-- Main Content -->
-        <main class="col py-4">
-            <h2 class="mb-3">Your Courses / Batches</h2>
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Header -->
+        <header class="gradient-header text-white py-4 px-6 flex justify-between items-center">
+            <button class="mobile-toggle text-white text-2xl" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div>
+                <h1 class="text-xl font-semibold">Welcome, <?= htmlspecialchars($teacher_info['username']) ?>!</h1>
+                <p class="text-sm">Email: <?= htmlspecialchars($teacher_info['email']) ?> | Gender: <?= htmlspecialchars($teacher_info['gender']) ?> | Phone: <?= htmlspecialchars($teacher_info['phone']) ?></p>
+            </div>
+        </header>
 
-            <!-- Course dropdown -->
-            <form method="GET" class="mb-4 d-flex align-items-center gap-2">
-                <select name="course_id" class="form-select w-auto" onchange="this.form.submit()">
-                    <option value="">-- Select a batch --</option>
+        <!-- Main Content Area -->
+        <main class="p-6">
+            <?= $message ?? '' ?>
+
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Your Courses / Batches</h2>
+                <p class="text-gray-600">Select a batch to manage students, assign activities, or assign tests</p>
+            </div>
+
+            <!-- Batch Selection Cards -->
+            <div class="mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-folder-open mr-2 text-purple-600"></i>Select Batch
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <?php foreach ($courses as $course): ?>
-                        <option value="<?= $course['batch_id'] ?>" <?= ($selected_course_id == $course['batch_id']) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($course['courseName']) ?> (<?= htmlspecialchars($course['batch_code']) ?>)
-                        </option>
+                        <a href="?course_id=<?= $course['batch_id'] ?>" 
+                           class="batch-card bg-white rounded-lg shadow-lg p-6 no-underline <?= $course['batch_id'] == $selected_course_id ? 'selected' : '' ?>">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex-1">
+                                    <h4 class="text-lg font-semibold text-gray-800 mb-1">
+                                        <?= htmlspecialchars($course['courseName']) ?>
+                                    </h4>
+                                    <p class="text-sm text-gray-600">Batch Code: <?= htmlspecialchars($course['batch_code']) ?></p>
+                                </div>
+                                <span class="inline-block px-3 py-1 rounded-full text-xs font-medium <?= $course['status'] === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600' ?>">
+                                    <?= htmlspecialchars($course['status']) ?>
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-calendar mr-2 text-purple-600"></i>
+                                    <span class="text-sm"><?= date('M j, Y', strtotime($course['start_date'])) ?> - <?= date('M j, Y', strtotime($course['end_date'])) ?></span>
+                                </div>
+                            </div>
+                        </a>
                     <?php endforeach; ?>
-                </select>
-            </form>
+                </div>
+            </div>
 
+            <!-- Batch Management -->
             <?php if ($selected_course_id): ?>
                 <?php
                 // Fetch batch details
@@ -317,40 +433,51 @@ if ($selected_course_id) {
                     $stmt_batch->close();
 
                     if (!$batch_details) {
-                        echo "<div class='alert alert-danger'>Invalid batch selected.</div>";
+                        $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Invalid batch selected. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
                         $selected_course_id = null;
                     }
                 } catch (Exception $e) {
                     error_log("Error fetching batch details: " . $e->getMessage());
-                    echo "<div class='alert alert-danger'>Error fetching batch details: " . htmlspecialchars($e->getMessage()) . "</div>";
+                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error fetching batch details: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
                     $selected_course_id = null;
                 }
                 ?>
 
                 <?php if ($selected_course_id): ?>
-                    <div class="card mb-4">
-                        <div class="card-header bg-primary text-white">
-                            <h4>Batch: <?= htmlspecialchars($batch_details['batch_code']) ?> (<?= htmlspecialchars($batch_details['courseName']) ?>)</h4>
+                    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">
+                                <i class="fas fa-graduation-cap mr-2 text-purple-600"></i>Batch: <?= htmlspecialchars($batch_details['batch_code']) ?> (<?= htmlspecialchars($batch_details['courseName']) ?>)
+                            </h3>
                         </div>
-                        <div class="card-body">
-                            <!-- Students enrolled -->
-                            <h5>Enrolled Students</h5>
+
+                        <!-- Students enrolled -->
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">Enrolled Students</h4>
                             <?php if (!empty($students_by_batch[$selected_course_id])): ?>
-                                <div class="table-responsive mb-4">
-                                    <table class="table table-striped table-bordered mb-0">
-                                        <thead class="table-dark">
-                                            <tr><th>Name</th><th>Email</th><th>Remove</th></tr>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                            </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody class="bg-white divide-y divide-gray-200">
                                             <?php foreach ($students_by_batch[$selected_course_id] as $student): ?>
-                                                <tr>
-                                                    <td><?= htmlspecialchars($student['firstName'] . ' ' . $student['lastName']) ?></td>
-                                                    <td><?= htmlspecialchars($student['email']) ?></td>
-                                                    <td>
-                                                        <form method="POST" class="d-inline" onsubmit="return confirm('Remove this student?');">
+                                                <tr class="hover:bg-gray-50">
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <div class="text-sm font-medium text-gray-900"><?= htmlspecialchars($student['firstName'] . ' ' . $student['lastName']) ?></div>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <div class="text-sm text-gray-500"><?= htmlspecialchars($student['email']) ?></div>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                        <form method="POST" class="inline" onsubmit="return confirm('Remove this student from the batch?');">
                                                             <input type="hidden" name="enrollment_id" value="<?= $student['enrollment_id'] ?>">
                                                             <input type="hidden" name="selected_course_id" value="<?= $selected_course_id ?>">
-                                                            <button type="submit" name="remove_student" class="btn btn-sm btn-danger" onclick="this.disabled=true; this.form.submit();">Remove</button>
+                                                            <button type="submit" name="remove_student" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors">Remove</button>
                                                         </form>
                                                     </td>
                                                 </tr>
@@ -359,89 +486,121 @@ if ($selected_course_id) {
                                     </table>
                                 </div>
                             <?php else: ?>
-                                <p>No students enrolled.</p>
+                                <div class="bg-blue-50 border border-blue-200 text-blue-800 px-6 py-4 rounded-lg flex items-center">
+                                    <i class="fas fa-info-circle mr-3 text-xl"></i>
+                                    <p>No students enrolled in this batch.</p>
+                                </div>
                             <?php endif; ?>
+                        </div>
 
-                            <!-- Assign activity -->
-                            <h5>Assign Class Activity / Homework</h5>
-                            <div class="card mb-4">
-                                <div class="card-body">
-                                    <form method="POST" enctype="multipart/form-data" class="row g-3">
-                                        <input type="hidden" name="action" value="assign_activity" />
-                                        <input type="hidden" name="batch_id" value="<?= $selected_course_id ?>">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Title</label>
-                                            <input class="form-control" type="text" name="title" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Due Date</label>
-                                            <input class="form-control" type="date" name="due_date" required>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">Description</label>
-                                            <textarea class="form-control" name="description" rows="3" required></textarea>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">Resource File (PDF, JPG, PNG, max 200MB)</label>
-                                            <input class="form-control" type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png">
-                                        </div>
-                                        <div class="col-12 mt-3">
-                                            <button class="btn btn-primary" type="submit">Assign</button>
-                                            <a href="view_assigned_activities.php?course_id=<?= $selected_course_id ?>" class="btn btn-outline-secondary ms-2">View Assigned Activities</a>
-                                        </div>
-                                    </form>
+                        <!-- Assign activity -->
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">Assign Class Activity / Homework</h4>
+                            <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                                <input type="hidden" name="action" value="assign_activity">
+                                <input type="hidden" name="batch_id" value="<?= $selected_course_id ?>">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                                        <input type="text" name="title" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                                        <input type="date" name="due_date" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    </div>
                                 </div>
-                            </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                    <textarea name="description" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Resource File (PDF, JPG, PNG, max 200MB)</label>
+                                    <input type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                </div>
+                                <div class="flex justify-end space-x-3">
+                                    <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded-md font-medium hover:bg-purple-700 transition-colors flex items-center">
+                                        <i class="fas fa-plus mr-2"></i>
+                                        Assign Activity
+                                    </button>
+                                    <a href="view_assigned_activities.php?course_id=<?= $selected_course_id ?>" class="px-6 py-2 bg-gray-500 text-white rounded-md font-medium hover:bg-gray-600 transition-colors">View Assigned Activities</a>
+                                </div>
+                            </form>
+                        </div>
 
-                            <!-- Assign test -->
-                            <h5>Assign Test</h5>
-                            <div class="card mb-4">
-                                <div class="card-body">
-                                    <form method="POST" enctype="multipart/form-data" class="row g-3">
-                                        <input type="hidden" name="action" value="assign_test" />
-                                        <input type="hidden" name="batch_id" value="<?= $selected_course_id ?>">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Test Title</label>
-                                            <input class="form-control" type="text" name="title" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Due Date</label>
-                                            <input class="form-control" type="date" name="due_date" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Maximum Score</label>
-                                            <input class="form-control" type="number" name="max_score" min="0" max="100" step="0.1" required>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">Description</label>
-                                            <textarea class="form-control" name="description" rows="3" required></textarea>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">Resource File (PDF, JPG, PNG, max 200MB)</label>
-                                            <input class="form-control" type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png">
-                                        </div>
-                                        <div class="col-12 mt-3">
-                                            <button class="btn btn-primary" type="submit">Assign Test</button>
-                                            <a href="view_assigned_tests.php?course_id=<?= $selected_course_id ?>" class="btn btn-outline-secondary ms-2">View Assigned Tests</a>
-                                        </div>
-                                    </form>
+                        <!-- Assign test -->
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">Assign Test</h4>
+                            <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                                <input type="hidden" name="action" value="assign_test">
+                                <input type="hidden" name="batch_id" value="<?= $selected_course_id ?>">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
+                                        <input type="text" name="title" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                                        <input type="date" name="due_date" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Maximum Score</label>
+                                        <input type="number" name="max_score" min="0" max="100" step="0.1" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    </div>
                                 </div>
-                            </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                    <textarea name="description" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Resource File (PDF, JPG, PNG, max 200MB)</label>
+                                    <input type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                </div>
+                                <div class="flex justify-end space-x-3">
+                                    <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded-md font-medium hover:bg-purple-700 transition-colors flex items-center">
+                                        <i class="fas fa-plus mr-2"></i>
+                                        Assign Test
+                                    </button>
+                                    <a href="view_assigned_tests.php?course_id=<?= $selected_course_id ?>" class="px-6 py-2 bg-gray-500 text-white rounded-md font-medium hover:bg-gray-600 transition-colors">View Assigned Tests</a>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 <?php endif; ?>
             <?php elseif (empty($courses)): ?>
-                <div class="alert alert-info">No courses assigned to you.</div>
+                <div class="bg-blue-50 border border-blue-200 text-blue-800 px-6 py-4 rounded-lg flex items-center">
+                    <i class="fas fa-info-circle mr-3 text-xl"></i>
+                    <p>No courses assigned to you.</p>
+                </div>
             <?php else: ?>
-                <div class='alert alert-info'>Please select a course to manage.</div>
+                <div class="bg-blue-50 border border-blue-200 text-blue-800 px-6 py-4 rounded-lg flex items-center">
+                    <i class="fas fa-info-circle mr-3 text-xl"></i>
+                    <p>Please select a batch to manage.</p>
+                </div>
             <?php endif; ?>
         </main>
     </div>
 
-    <footer class="bg-dark text-white text-center py-3 mt-4">
-        &copy; <?= date('Y') ?> Girls Coding Academy
-    </footer>
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('mobile-open');
+            
+            if (sidebar.classList.contains('mobile-open')) {
+                document.addEventListener('click', closeSidebarOnClickOutside);
+            } else {
+                document.removeEventListener('click', closeSidebarOnClickOutside);
+            }
+        }
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        function closeSidebarOnClickOutside(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = event.target.closest('.mobile-toggle');
+            
+            if (!sidebar.contains(event.target) && !toggleBtn) {
+                sidebar.classList.remove('mobile-open');
+                document.removeEventListener('click', closeSidebarOnClickOutside);
+            }
+        }
+    </script>
 </body>
 </html>

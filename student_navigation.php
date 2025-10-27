@@ -40,7 +40,7 @@ if (!isset($currentPage)) {
     <a href="student_profile.php" class="<?= ($currentPage == 'student_profile.php') ? 'active' : '' ?>"><i class="bi bi-person-circle"></i> My Profile</a>
     <a href="student_courses.php" class="<?= in_array($currentPage, ['student_courses.php','submit_test.php','submit_activity.php']) ? 'active' : '' ?>"><i class="bi bi-journal-bookmark"></i> My Courses</a>
     <a href="student_tasks.php" class="<?= ($currentPage == 'student_tasks.php') ? 'active' : '' ?>"><i class="bi bi-list-task"></i> My Tasks</a>
-    <a href="enroll.php" class="<?= ($currentPage == 'enroll.php') ? 'active' : '' ?>"><i class="bi bi-plus-circle"></i> Enroll</a>
+     <a href="enroll.php" class="<?= ($currentPage == 'enroll.php') ? 'active' : '' ?>"><i class="bi bi-plus-circle"></i> Enroll</a>
     <a href="student_announcements.php" class="<?= ($currentPage == 'student_announcements.php') ? 'active' : '' ?>"><i class="bi bi-megaphone"></i> Announcements</a>
     <a href="student_calendar.php" class="<?= ($currentPage == 'student_calendar.php') ? 'active' : '' ?>"><i class="bi bi-calendar-event"></i> My Calendar</a>
     <a href="attendance.php" class="<?= ($currentPage == 'attendance.php') ? 'active' : '' ?>"><i class="bi bi-card-checklist"></i> My Attendance</a>

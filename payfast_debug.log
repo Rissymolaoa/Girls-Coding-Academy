@@ -49,3 +49,37 @@ Array
     [custom_str1] => 75
     [signature] => 2a82efc726e4668df9bb8435276275b3
 )
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Lerato
+    [name_last] => Thuso
+    [email_address] => leratothuso6@gmail.com
+    [cell_number] => 6458264
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for student access to courses and resources
+    [custom_str1] => 466
+    [signature] => c5c881de5a70265f03c6f7c9e16b35ea
+)
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Seiso
+    [name_last] => Maqaleko
+    [email_address] => maqaleko@gmail.com
+    [cell_number] => 0632451869
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for student access to courses and resources
+    [custom_str1] => 469
+    [signature] => 6643d187e965f4de2514b25db66aef4c
+)
