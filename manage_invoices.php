@@ -450,13 +450,13 @@ $stats = $conn->query($stats_sql)->fetch_assoc();
         <div class="stat-card pending">
             <div class="stat-label">Pending Invoices</div>
             <div class="stat-value"><?= $stats['pending_count'] ?? 0 ?></div>
-            <div class="stat-subtitle">$<?= number_format($stats['pending_amount'] ?? 0, 2) ?> awaiting payment</div>
+            <div class="stat-subtitle">M<?= number_format($stats['pending_amount'] ?? 0, 2) ?> awaiting payment</div>
         </div>
 
         <div class="stat-card paid">
             <div class="stat-label">Paid Invoices</div>
             <div class="stat-value"><?= $stats['paid_count'] ?? 0 ?></div>
-            <div class="stat-subtitle">$<?= number_format($stats['paid_amount'] ?? 0, 2) ?> received</div>
+            <div class="stat-subtitle">M<?= number_format($stats['paid_amount'] ?? 0, 2) ?> received</div>
         </div>
 
         <div class="stat-card overdue">
@@ -467,7 +467,7 @@ $stats = $conn->query($stats_sql)->fetch_assoc();
 
         <div class="stat-card">
             <div class="stat-label">Total Amount</div>
-            <div class="stat-value">$<?= number_format($stats['total_amount'] ?? 0, 2) ?></div>
+            <div class="stat-value">M<?= number_format($stats['total_amount'] ?? 0, 2) ?></div>
             <div class="stat-subtitle">All invoices combined</div>
         </div>
     </div>

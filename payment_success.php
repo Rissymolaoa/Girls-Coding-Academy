@@ -179,7 +179,7 @@ $amount = isset($_GET['amount']) ? number_format(floatval($_GET['amount']), 2) :
         </div>
         <div class="detail-row">
             <span class="detail-label">Amount Paid:</span>
-            <span class="detail-value">$<?= $amount ?></span>
+            <span class="detail-value">M<?= $amount ?></span>
         </div>
     </div>
     

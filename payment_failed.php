@@ -201,7 +201,9 @@ $conn->close();
 </style>
 </head>
 <body>
-<?php include 'top_navigation.php'; ?>
+<?php include 'student_navigation.php'; ?>
+
+
 
 <div class="content">
   <main class="main">
@@ -275,7 +277,7 @@ $conn->close();
       <?php if ($role !== 'admin'): ?>
         <div class="text-center mt-4">
           <p class="text-muted">Need help? <a href="contact_support.php">Contact Support</a> or try a different payment method.</p>
-          <a href="dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
+          <a href="student.php" class="btn btn-secondary">Back to Dashboard</a>
         </div>
       <?php endif; ?>
     </div>

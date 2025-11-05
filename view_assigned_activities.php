@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $resource_file = null;
 
     if (!$activity_id || !$title || !$description || !$due_date || !in_array($status, ['active', 'inactive'])) {
-        echo "<div class='alert alert-danger'>All fields are required, and status must be 'active' or 'inactive'.</div>";
+        echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>All fields are required, and status must be 'active' or 'inactive'.</div>";
     } else {
         if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
             $upload_dir = 'Uploads/';
@@ -66,9 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
             $file = $_FILES['resource_file'];
             if (!in_array($file['type'], $allowed_types)) {
-                echo "<div class='alert alert-danger'>Allowed file types: PDF, JPG, PNG.</div>";
+                echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Allowed file types: PDF, JPG, PNG.</div>";
             } elseif ($file['size'] > 200 * 1024 * 1024) {
-                echo "<div class='alert alert-danger'>File size exceeds 200MB.</div>";
+                echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>File size exceeds 200MB.</div>";
             } else {
                 $original_name = basename($file['name']);
                 $filepath = $upload_dir . $original_name;
@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     }
                     $resource_file = $filepath;
                 } else {
-                    echo "<div class='alert alert-danger'>Error uploading file. Please try again.</div>";
+                    echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error uploading file. Please try again.</div>";
                 }
             }
         }
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $query .= " WHERE activity_id = ?";
                 $stmt = $conn->prepare($query);
                 $params = [$title, $description, $due_date, $status];
-                $types = "isss";
+                $types = "ssss";
                 if ($resource_file) {
                     $params[] = $resource_file;
                     $types .= "s";
@@ -108,10 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $stmt->bind_param($types, ...$params);
                 $stmt->execute();
                 $stmt->close();
-                echo "<div class='alert alert-success'>Activity updated successfully.</div>";
+                echo "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4'>Activity updated successfully.</div>";
             } catch (Exception $e) {
                 error_log("Error updating activity: " . $e->getMessage());
-                echo "<div class='alert alert-danger'>Error updating activity: " . htmlspecialchars($e->getMessage()) . "</div>";
+                echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error updating activity: " . htmlspecialchars($e->getMessage()) . "</div>";
             }
         }
     }
@@ -143,10 +143,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             exit();
         } catch (Exception $e) {
             error_log("Error deleting activity: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error deleting activity: " . htmlspecialchars($e->getMessage()) . "</div>";
+            echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error deleting activity: " . htmlspecialchars($e->getMessage()) . "</div>";
         }
     } else {
-        echo "<div class='alert alert-danger'>Invalid activity ID.</div>";
+        echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Invalid activity ID.</div>";
     }
 }
 
@@ -164,10 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             exit();
         } catch (Exception $e) {
             error_log("Error clearing activity: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error clearing activity: " . htmlspecialchars($e->getMessage()) . "</div>";
+            echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error clearing activity: " . htmlspecialchars($e->getMessage()) . "</div>";
         }
     } else {
-        echo "<div class='alert alert-danger'>Invalid activity ID.</div>";
+        echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Invalid activity ID.</div>";
     }
 }
 
@@ -184,13 +184,13 @@ if ($selected_course_id) {
         $stmt_check_batch->execute();
         $res_check_batch = $stmt_check_batch->get_result();
         if ($res_check_batch->num_rows === 0) {
-            echo "<div class='alert alert-danger'>Invalid batch ID selected.</div>";
+            echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Invalid batch ID selected.</div>";
             $selected_course_id = null;
         }
         $stmt_check_batch->close();
     } catch (Exception $e) {
         error_log("Error validating batch ID: " . $e->getMessage());
-        echo "<div class='alert alert-danger'>Error validating batch ID: " . htmlspecialchars($e->getMessage()) . "</div>";
+        echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error validating batch ID: " . htmlspecialchars($e->getMessage()) . "</div>";
         $selected_course_id = null;
     }
 
@@ -209,12 +209,12 @@ if ($selected_course_id) {
             $stmt_batch->close();
 
             if (!$batch_details) {
-                echo "<div class='alert alert-danger'>Invalid batch selected.</div>";
+                echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Invalid batch selected.</div>";
                 $selected_course_id = null;
             }
         } catch (Exception $e) {
             error_log("Error fetching batch details: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching batch details: " . htmlspecialchars($e->getMessage()) . "</div>";
+            echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error fetching batch details: " . htmlspecialchars($e->getMessage()) . "</div>";
             $selected_course_id = null;
         }
 
@@ -238,7 +238,7 @@ if ($selected_course_id) {
             $stmt_students->close();
         } catch (Exception $e) {
             error_log("Error fetching students: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching students: " . htmlspecialchars($e->getMessage()) . "</div>";
+            echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error fetching students: " . htmlspecialchars($e->getMessage()) . "</div>";
         }
 
         // Activities
@@ -259,7 +259,7 @@ if ($selected_course_id) {
             $stmt_activities->close();
         } catch (Exception $e) {
             error_log("Error fetching activities: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching activities: " . htmlspecialchars($e->getMessage()) . "</div>";
+            echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error fetching activities: " . htmlspecialchars($e->getMessage()) . "</div>";
         }
 
         // Activity Submissions
@@ -282,7 +282,7 @@ if ($selected_course_id) {
             $stmt_subs->close();
         } catch (Exception $e) {
             error_log("Error fetching activity submissions: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching activity submissions: " . htmlspecialchars($e->getMessage()) . "</div>";
+            echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4'>Error fetching activity submissions: " . htmlspecialchars($e->getMessage()) . "</div>";
         }
     }
 }
@@ -291,141 +291,246 @@ if ($selected_course_id) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>View Assigned Activities</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Assigned Activities - Girls Coding Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Inter, Arial, Helvetica, sans-serif;
-            background: #f4f4f8;
+            font-family: 'Inter', sans-serif;
         }
-        header {
+        .gradient-header {
             background: linear-gradient(90deg, #7b2cbf, #5a189a);
-            color: #fff;
         }
-        header h1 {
-            margin: 0;
-            font-size: 22px;
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(180deg, #7b2cbf, #5a189a);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1000;
         }
-        .badge-active {
-            background-color: #28a745;
+        .sidebar.hidden {
+            transform: translateX(-100%);
         }
-        .badge-inactive {
-            background-color: #6c757d;
+        .sidebar-link {
+            transition: all 0.3s ease;
+        }
+        .sidebar-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            padding-left: 1.5rem;
+        }
+        .sidebar-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-left: 4px solid white;
+        }
+        .main-content {
+            margin-left: 250px;
+            transition: margin-left 0.3s ease;
+        }
+        .main-content.expanded {
+            margin-left: 0;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+        .mobile-toggle {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .mobile-toggle {
+                display: block;
+            }
         }
     </style>
 </head>
-<body>
-    <header class="py-3 px-4 text-center">
-        <h1>Welcome, <?= htmlspecialchars($teacher_info['username']) ?></h1>
-        <p class="mb-0">Email: <?= htmlspecialchars($teacher_info['email']) ?> | Gender: <?= htmlspecialchars($teacher_info['gender']) ?> | Phone: <?= htmlspecialchars($teacher_info['phone']) ?></p>
-    </header>
-
-    <div class="container-fluid d-flex flex-nowrap" style="min-height: calc(100vh - 70px);">
-        <!-- Sidebar -->
-        <nav class="col-md-3 col-xl-2 bg-dark text-white p-3 vh-100" style="min-width:220px;">
-            <div class="text-center mb-4">
-                <img src="admin.png" class="rounded-circle border border-info mb-2" width="92" height="92" alt="Teacher" />
-                <h5>Teacher Dashboard</h5>
+<body class="bg-gray-100">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="p-6">
+            <div class="flex items-center mb-8">
+                <i class="fas fa-graduation-cap text-white text-3xl mr-3"></i>
+                <h2 class="text-white text-xl font-bold">GCA Portal</h2>
             </div>
-            <ul class="nav flex-column">
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="teacher_dashboard.php"><i class="bi bi-house-door"></i> Dashboard</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white active" href="manage_teacher_courses.php"><i class="bi bi-journal-bookmark"></i> Manage Courses</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="upload_materials.php"><i class="bi bi-folder"></i> Upload Materials</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="grades.php"><i class="bi bi-pencil-square"></i> Grade</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="mark_attendance.php"><i class="bi bi-check-circle"></i> Mark Attendance</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="message_students.php"><i class="bi bi-chat-dots"></i> Message Students</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
-            </ul>
-        </nav>
+            
+            <nav>
+                <a href="teacher_dashboard.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-home mr-3"></i>
+                    Dashboard
+                </a>
+                <a href="manage_teacher_courses.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 active">
+                    <i class="fas fa-chalkboard-teacher mr-3"></i>
+                    Manage Courses
+                </a>
+                <a href="schedule_class.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-calendar-alt mr-3"></i>
+                    Schedule Class
+                </a>
+                <a href="upload_materials.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-book mr-3"></i>
+                    Upload Materials
+                </a>
+                <a href="grades.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-clipboard-check mr-3"></i>
+                    Grade
+                </a>
+                <a href="mark_attendance.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-calendar-check mr-3"></i>
+                    Mark Attendance
+                </a>
+                <a href="message_students.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-envelope mr-3"></i>
+                    Message Students
+                </a>
+                <a href="teacher_profile.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-user mr-3"></i>
+                    Profile
+                </a>
+                <a href="logout.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-sign-out-alt mr-3"></i>
+                    Logout
+                </a>
+            </nav>
+        </div>
+    </aside>
 
-        <!-- Main Content -->
-        <main class="col py-4">
-            <h2 class="mb-3">Assigned Activities / Homeworks</h2>
-            <a href="manage_teacher_courses.php?course_id=<?= $selected_course_id ?>" class="btn btn-outline-primary mb-3">Back to Manage Courses</a>
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Header -->
+        <header class="gradient-header text-white py-4 px-6 flex justify-between items-center">
+            <button class="mobile-toggle text-white text-2xl" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div>
+                <h1 class="text-xl font-semibold">Welcome, <?= htmlspecialchars($teacher_info['username']) ?>!</h1>
+                <p class="text-sm">Email: <?= htmlspecialchars($teacher_info['email']) ?> | Gender: <?= htmlspecialchars($teacher_info['gender']) ?> | Phone: <?= htmlspecialchars($teacher_info['phone']) ?></p>
+            </div>
+        </header>
 
-            <?php if ($selected_course_id && $batch_details): ?>
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h4>Batch: <?= htmlspecialchars($batch_details['batch_code']) ?> (<?= htmlspecialchars($batch_details['courseName']) ?>)</h4>
+        <!-- Main Content Area -->
+        <main class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Assigned Activities / Homeworks</h2>
+                <a href="manage_teacher_courses.php?course_id=<?= $selected_course_id ?>" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Manage Courses
+                </a>
+            </div>
+
+            <?php if ($selected_course_id && isset($batch_details)): ?>
+                <div class="bg-white rounded-lg shadow-lg mb-6">
+                    <div class="gradient-header text-white p-4 rounded-t-lg">
+                        <h4 class="text-xl font-semibold">Batch: <?= htmlspecialchars($batch_details['batch_code']) ?> (<?= htmlspecialchars($batch_details['courseName']) ?>)</h4>
                     </div>
-                    <div class="card-body">
+                    <div class="p-6">
                         <?php if (!empty($activitiesByBatch[$selected_course_id])): ?>
                             <?php foreach ($activitiesByBatch[$selected_course_id] as $activity): ?>
-                                <div class="card mb-4">
-                                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                                        <h5 class="mb-0">
-                                            <?= htmlspecialchars($activity['title']) ?> (Due: <?= htmlspecialchars($activity['due_date']) ?>)
-                                            <span class="badge <?= $activity['status'] === 'active' ? 'badge-active' : 'badge-inactive' ?> ms-2">
+                                <div class="card bg-white rounded-lg shadow-md mb-6 overflow-hidden">
+                                    <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+                                        <h5 class="text-lg font-semibold mb-0">
+                                            <?= htmlspecialchars($activity['title']) ?> 
+                                            <span class="text-sm">(Due: <?= htmlspecialchars($activity['due_date']) ?>)</span>
+                                            <span class="inline-block px-3 py-1 ml-2 rounded-full text-xs font-medium <?= $activity['status'] === 'active' ? 'bg-green-500' : 'bg-gray-500' ?>">
                                                 <?= htmlspecialchars(ucfirst($activity['status'])) ?>
                                             </span>
                                         </h5>
-                                        <div>
-                                            <button class="btn btn-sm btn-warning me-2" onclick="toggleEditForm('activity_<?= $activity['activity_id'] ?>')">Edit</button>
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this activity?');">
+                                        <div class="flex gap-2">
+                                            <button class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm transition" onclick="toggleEditForm('activity_<?= $activity['activity_id'] ?>')">
+                                                <i class="fas fa-edit mr-1"></i>Edit
+                                            </button>
+                                            <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this activity?');">
                                                 <input type="hidden" name="action" value="delete_activity">
                                                 <input type="hidden" name="activity_id" value="<?= $activity['activity_id'] ?>">
                                                 <input type="hidden" name="selected_course_id" value="<?= $selected_course_id ?>">
-                                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-sm transition">
+                                                    <i class="fas fa-trash mr-1"></i>Delete
+                                                </button>
                                             </form>
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to clear this activity?');">
+                                            <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to clear this activity?');">
                                                 <input type="hidden" name="action" value="clear_activity">
                                                 <input type="hidden" name="activity_id" value="<?= $activity['activity_id'] ?>">
                                                 <input type="hidden" name="selected_course_id" value="<?= $selected_course_id ?>">
-                                                <button type="submit" class="btn btn-sm btn-secondary ms-2">Clear</button>
+                                                <button type="submit" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded text-sm transition">
+                                                    <i class="fas fa-times mr-1"></i>Clear
+                                                </button>
                                             </form>
                                         </div>
                                     </div>
-                                    <div class="card-body">
-                                        <p><?= htmlspecialchars($activity['description']) ?></p>
+                                    <div class="p-6">
+                                        <p class="text-gray-700 mb-4"><?= htmlspecialchars($activity['description']) ?></p>
                                         <?php if ($activity['resource_file'] && file_exists($activity['resource_file'])): ?>
-                                            <a href="<?= htmlspecialchars($activity['resource_file']) ?>" target="_blank" class="btn btn-sm btn-outline-primary mb-3">View Resource File</a>
+                                            <a href="<?= htmlspecialchars($activity['resource_file']) ?>" target="_blank" class="inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mb-4 transition">
+                                                <i class="fas fa-file-download mr-2"></i>View Resource File
+                                            </a>
                                         <?php elseif ($activity['resource_file']): ?>
-                                            <p class="text-danger">Resource file not found: <?= htmlspecialchars($activity['resource_file']) ?></p>
+                                            <p class="text-red-500 mb-4">Resource file not found: <?= htmlspecialchars($activity['resource_file']) ?></p>
                                         <?php endif; ?>
-                                        <form method="POST" enctype="multipart/form-data" class="row g-3 mt-3" id="activity_<?= $activity['activity_id'] ?>" style="display: none;">
+                                        
+                                        <!-- Edit Form -->
+                                        <form method="POST" enctype="multipart/form-data" class="mt-4 p-4 bg-gray-50 rounded-lg" id="activity_<?= $activity['activity_id'] ?>" style="display: none;">
                                             <input type="hidden" name="action" value="update_activity">
                                             <input type="hidden" name="activity_id" value="<?= $activity['activity_id'] ?>">
                                             <input type="hidden" name="batch_id" value="<?= $selected_course_id ?>">
-                                            <div class="col-md-6">
-                                                <label class="form-label">Title</label>
-                                                <input class="form-control" type="text" name="title" value="<?= htmlspecialchars($activity['title']) ?>" required>
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                <div>
+                                                    <label class="block text-gray-700 font-semibold mb-2">Title</label>
+                                                    <input class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-600" type="text" name="title" value="<?= htmlspecialchars($activity['title']) ?>" required>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-gray-700 font-semibold mb-2">Due Date</label>
+                                                    <input class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-600" type="date" name="due_date" value="<?= htmlspecialchars($activity['due_date']) ?>" required>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-gray-700 font-semibold mb-2">Status</label>
+                                                    <select class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-600" name="status" required>
+                                                        <option value="active" <?= $activity['status'] === 'active' ? 'selected' : '' ?>>Active</option>
+                                                        <option value="inactive" <?= $activity['status'] === 'inactive' ? 'selected' : '' ?>>Inactive</option>
+                                                    </select>
+                                                </div>
                                             </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">Due Date</label>
-                                                <input class="form-control" type="date" name="due_date" value="<?= htmlspecialchars($activity['due_date']) ?>" required>
+                                            <div class="mb-4">
+                                                <label class="block text-gray-700 font-semibold mb-2">Description</label>
+                                                <textarea class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-600" name="description" rows="3" required><?= htmlspecialchars($activity['description']) ?></textarea>
                                             </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">Status</label>
-                                                <select class="form-select" name="status" required>
-                                                    <option value="active" <?= $activity['status'] === 'active' ? 'selected' : '' ?>>Active</option>
-                                                    <option value="inactive" <?= $activity['status'] === 'inactive' ? 'selected' : '' ?>>Inactive</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label">Description</label>
-                                                <textarea class="form-control" name="description" rows="3" required><?= htmlspecialchars($activity['description']) ?></textarea>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label">Resource File (PDF, JPG, PNG, max 200MB)</label>
-                                                <input class="form-control" type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png">
+                                            <div class="mb-4">
+                                                <label class="block text-gray-700 font-semibold mb-2">Resource File (PDF, JPG, PNG, max 200MB)</label>
+                                                <input class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-600" type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png">
                                                 <?php if ($activity['resource_file']): ?>
-                                                    <p>Current file: <a href="<?= htmlspecialchars($activity['resource_file']) ?>" target="_blank">View Current File</a></p>
+                                                    <p class="text-sm text-gray-600 mt-2">Current file: <a href="<?= htmlspecialchars($activity['resource_file']) ?>" target="_blank" class="text-blue-600 hover:underline">View Current File</a></p>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="col-12 mt-3">
-                                                <button class="btn btn-warning" type="submit">Update Activity</button>
-                                            </div>
+                                            <button class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded transition" type="submit">
+                                                <i class="fas fa-save mr-2"></i>Update Activity
+                                            </button>
                                         </form>
-                                        <h6>Submissions</h6>
-                                        <div class="table-responsive">
-                                            <table class="table table-striped table-bordered mb-0">
-                                                <thead class="table-dark">
-                                                    <tr><th>Student</th><th>Status</th><th>Submitted At</th><th>Details</th></tr>
+                                        
+                                        <h6 class="text-lg font-semibold text-gray-800 mt-6 mb-4">Student Submissions</h6>
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full bg-white rounded-lg overflow-hidden">
+                                                <thead class="bg-gray-800 text-white">
+                                                    <tr>
+                                                        <th class="py-3 px-4 text-left">Student</th>
+                                                        <th class="py-3 px-4 text-left">Status</th>
+                                                        <th class="py-3 px-4 text-left">Submitted At</th>
+                                                        <th class="py-3 px-4 text-left">Details</th>
+                                                    </tr>
                                                 </thead>
-                                                <tbody>
+                                                <tbody class="divide-y divide-gray-200">
                                                     <?php
                                                     $activity_subs = $submissionsByActivity[$activity['activity_id']] ?? [];
                                                     $today = date('Y-m-d');
@@ -438,41 +543,47 @@ if ($selected_course_id) {
                                                             }
                                                         }
                                                         $status_text = 'Pending';
-                                                        $badge_class = 'bg-secondary';
+                                                        $badge_class = 'bg-gray-500';
                                                         if ($submission) {
                                                             if ($submission['submitted_at'] > $activity['due_date'] . ' 23:59:59') {
                                                                 $status_text = 'Late';
-                                                                $badge_class = 'bg-danger';
+                                                                $badge_class = 'bg-red-500';
                                                             } else {
                                                                 $status_text = 'Submitted';
-                                                                $badge_class = 'bg-success';
+                                                                $badge_class = 'bg-green-500';
                                                             }
                                                         } else {
                                                             if ($today > $activity['due_date']) {
                                                                 $status_text = 'Not Submitted';
-                                                                $badge_class = 'bg-danger';
+                                                                $badge_class = 'bg-red-500';
                                                             } else {
                                                                 $status_text = 'Pending';
-                                                                $badge_class = 'bg-warning text-dark';
+                                                                $badge_class = 'bg-yellow-500';
                                                             }
                                                         }
                                                     ?>
-                                                        <tr>
-                                                            <td><?= htmlspecialchars($student['firstName'] . ' ' . $student['lastName']) ?></td>
-                                                            <td><span class="badge <?= $badge_class ?>"><?= $status_text ?></span></td>
-                                                            <td><?= $submission ? htmlspecialchars($submission['submitted_at']) : '-' ?></td>
-                                                            <td>
+                                                        <tr class="hover:bg-gray-50 transition-colors">
+                                                            <td class="py-3 px-4 font-medium text-gray-800"><?= htmlspecialchars($student['firstName'] . ' ' . $student['lastName']) ?></td>
+                                                            <td class="py-3 px-4">
+                                                                <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold text-white <?= $badge_class ?>">
+                                                                    <?= $status_text ?>
+                                                                </span>
+                                                            </td>
+                                                            <td class="py-3 px-4 text-gray-600"><?= $submission ? htmlspecialchars($submission['submitted_at']) : '-' ?></td>
+                                                            <td class="py-3 px-4">
                                                                 <?php if ($submission): ?>
                                                                     <?php if ($submission['submission_text']): ?>
-                                                                        <p><?= htmlspecialchars($submission['submission_text']) ?></p>
+                                                                        <p class="text-gray-700 mb-2"><?= htmlspecialchars($submission['submission_text']) ?></p>
                                                                     <?php endif; ?>
                                                                     <?php if ($submission['submission_file'] && file_exists($submission['submission_file'])): ?>
-                                                                        <a href="<?= htmlspecialchars($submission['submission_file']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">View File</a>
+                                                                        <a href="<?= htmlspecialchars($submission['submission_file']) ?>" target="_blank" class="inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-3 rounded text-sm transition">
+                                                                            <i class="fas fa-file mr-1"></i>View File
+                                                                        </a>
                                                                     <?php elseif ($submission['submission_file']): ?>
-                                                                        <p class="text-danger">Submission file not found: <?= htmlspecialchars($submission['submission_file']) ?></p>
+                                                                        <p class="text-red-500 text-sm">Submission file not found</p>
                                                                     <?php endif; ?>
                                                                 <?php else: ?>
-                                                                    <p>No submission</p>
+                                                                    <p class="text-gray-500 italic">No submission</p>
                                                                 <?php endif; ?>
                                                             </td>
                                                         </tr>
@@ -484,25 +595,52 @@ if ($selected_course_id) {
                                 </div>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <div class="alert alert-info">No activities assigned for this batch.</div>
+                            <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded">
+                                <i class="fas fa-info-circle mr-2"></i>No activities assigned for this batch.
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
             <?php else: ?>
-                <div class="alert alert-info">Please select a valid course to view activities.</div>
+                <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded">
+                    <i class="fas fa-info-circle mr-2"></i>Please select a valid course to view activities.
+                </div>
             <?php endif; ?>
         </main>
     </div>
 
-    <footer class="bg-dark text-white text-center py-3 mt-4">
-        &copy; <?= date('Y') ?> Girls Coding Academy
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            
+            sidebar.classList.toggle('mobile-open');
+            
+            // Close sidebar when clicking outside on mobile
+            if (sidebar.classList.contains('mobile-open')) {
+                document.addEventListener('click', closeSidebarOnClickOutside);
+            } else {
+                document.removeEventListener('click', closeSidebarOnClickOutside);
+            }
+        }
+
+        function closeSidebarOnClickOutside(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = event.target.closest('.mobile-toggle');
+            
+            if (!sidebar.contains(event.target) && !toggleBtn) {
+                sidebar.classList.remove('mobile-open');
+                document.removeEventListener('click', closeSidebarOnClickOutside);
+            }
+        }
+
         function toggleEditForm(id) {
             var form = document.getElementById(id);
-            form.style.display = (form.style.display === 'none' || form.style.display === '') ? 'block' : 'none';
+            if (form.style.display === 'none' || form.style.display === '') {
+                form.style.display = 'block';
+            } else {
+                form.style.display = 'none';
+            }
         }
     </script>
 </body>

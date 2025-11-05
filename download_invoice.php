@@ -45,15 +45,6 @@ $school_name = "Girls Coding Academy";
 $school_address = "Maseru, Lesotho";
 $school_phone = "+266 000 0000";
 $school_email = "info@girlscodingacademy.org";
-$school_logo = "uploads/logo.png";
-
-// Convert logo to base64 for embedding
-$logo_base64 = '';
-if (file_exists($school_logo)) {
-    $logo_type = pathinfo($school_logo, PATHINFO_EXTENSION);
-    $logo_data = file_get_contents($school_logo);
-    $logo_base64 = 'data:image/' . $logo_type . ';base64,' . base64_encode($logo_data);
-}
 
 // Status styling
 $status = strtoupper($invoice['status']);
@@ -110,11 +101,6 @@ $invoice_html = '
         width: 40%;
         vertical-align: top;
         text-align: right;
-    }
-    .logo {
-        max-height: 80px;
-        max-width: 120px;
-        margin-bottom: 10px;
     }
     .school-name {
         font-size: 20pt;
@@ -255,6 +241,11 @@ $invoice_html = '
         color: #64748b;
         font-style: italic;
     }
+    @media print {
+        body { margin: 0; padding: 0; }
+        .container { padding: 0; }
+        .no-print { display: none; }
+    }
 </style>
 </head>
 <body>
@@ -262,7 +253,6 @@ $invoice_html = '
     <!-- Header -->
     <div class="header">
         <div class="header-left">
-            ' . ($logo_base64 ? '<img src="' . $logo_base64 . '" class="logo" alt="Logo">' : '') . '
             <div class="school-name">' . htmlspecialchars($school_name) . '</div>
             <div class="school-info">
                 ' . htmlspecialchars($school_address) . '<br>
@@ -345,123 +335,78 @@ $invoice_html = '
 </html>
 ';
 
-// Try different PDF libraries in order of preference
-$pdf_generated = false;
-
-// Option 1: Try Dompdf (if installed via composer)
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require_once __DIR__ . '/vendor/autoload.php';
-    
-    try {
-        // Use full namespace
-        $options = new \Dompdf\Options();
-        $options->set('isRemoteEnabled', true);
-        $options->set('defaultFont', 'Helvetica');
-        $options->set('dpi', 150);
-        $options->set('isHtml5ParserEnabled', true);
-        
-        $dompdf = new \Dompdf\Dompdf($options);
-        $dompdf->loadHtml($invoice_html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-        
-        $filename = 'Invoice_' . preg_replace('/[^a-z0-9_-]+/i', '_', $invoice['invoice_number']) . '.pdf';
-        $dompdf->stream($filename, array("Attachment" => 1));
-        $pdf_generated = true;
-        exit(); // Make sure we exit after successful PDF generation
-    } catch (Exception $e) {
-        // Log error for debugging
-        error_log("Dompdf Error: " . $e->getMessage());
-        // Continue to next option
-    }
+// Check if download is requested
+if (isset($_GET['format']) && $_GET['format'] === 'pdf') {
+    // Send as HTML file that browser can print to PDF
+    $filename = 'Invoice_' . preg_replace('/[^a-z0-9_-]+/i', '_', $invoice['invoice_number']) . '.html';
+    header('Content-Type: text/html; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    echo $invoice_html;
+    exit();
 }
 
-// Option 2: Try TCPDF (if installed manually)
-if (!$pdf_generated && file_exists(__DIR__ . '/tcpdf/tcpdf.php')) {
-    require_once(__DIR__ . '/tcpdf/tcpdf.php');
-    
-    try {
-        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
-        $pdf->SetCreator('Girls Coding Academy');
-        $pdf->SetAuthor($school_name);
-        $pdf->SetTitle('Invoice ' . $invoice['invoice_number']);
-        $pdf->setPrintHeader(false);
-        $pdf->setPrintFooter(false);
-        $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(TRUE, 15);
-        $pdf->AddPage();
-        $pdf->writeHTML($invoice_html, true, false, true, false, '');
-        
-        $filename = 'Invoice_' . preg_replace('/[^a-z0-9_-]+/i', '_', $invoice['invoice_number']) . '.pdf';
-        $pdf->Output($filename, 'D');
-        $pdf_generated = true;
-    } catch (Exception $e) {
-        // Continue to next option
-    }
-}
-
-// Option 3: If no PDF library available, provide HTML download or instructions
-if (!$pdf_generated) {
-    ?>
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>PDF Library Not Found</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    </head>
-    <body class="bg-light">
-        <div class="container py-5">
-            <div class="card shadow">
-                <div class="card-header bg-warning text-dark">
-                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> PDF Library Not Installed</h4>
-                </div>
-                <div class="card-body">
-                    <p class="lead">To download invoices as PDF, you need to install a PDF library.</p>
-                    
-                    <h5 class="mt-4">Option 1: Install Dompdf (Recommended)</h5>
-                    <p>Open command prompt in your project folder and run:</p>
-                    <div class="bg-dark text-light p-3 rounded">
-                        <code>composer require dompdf/dompdf</code>
+// Default: Show interactive view
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice <?= htmlspecialchars($invoice['invoice_number']) ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #f3f4f6; }
+        .invoice-container { background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .invoice-actions { padding: 1.5rem; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+        .invoice-content { padding: 2rem; }
+        .status-badge { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-paid { background: #d1fae5; color: #065f46; }
+        .status-overdue { background: #fee2e2; color: #991b1b; }
+        @media print { 
+            .invoice-actions { display: none; }
+            body { background: white; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-lg py-4">
+        <div class="invoice-container">
+            <!-- Invoice Actions -->
+            <div class="invoice-actions">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h3 class="mb-0">Invoice <?= htmlspecialchars($invoice['invoice_number']) ?></h3>
+                        <small class="text-muted">
+                            <span class="status-badge status-<?= $invoice['status'] ?>">
+                                <?= ucfirst($invoice['status']) ?>
+                            </span>
+                        </small>
                     </div>
-                    
-                    <h5 class="mt-4">Option 2: Download TCPDF Manually</h5>
-                    <ol>
-                        <li>Download TCPDF from: <a href="https://github.com/tecnickcom/TCPDF/releases" target="_blank">https://github.com/tecnickcom/TCPDF</a></li>
-                        <li>Extract the zip file to your project folder as "tcpdf"</li>
-                        <li>Your folder structure should be: <code>C:\xampp\htdocs\GirlsCodingAcademy\tcpdf\</code></li>
-                    </ol>
-                    
-                    <h5 class="mt-4">Option 3: View/Print Invoice as HTML</h5>
-                    <p>You can still view and print the invoice:</p>
-                    <div class="d-grid gap-2 d-md-flex">
-                        <button onclick="showInvoice()" class="btn btn-primary">View Invoice HTML</button>
-                        <a href="parent_invoices.php" class="btn btn-secondary">Back to Invoices</a>
-                    </div>
-                    
-                    <div id="invoiceDisplay" style="display:none;" class="mt-4">
-                        <hr>
-                        <div class="text-end mb-2">
-                            <button onclick="window.print()" class="btn btn-success">Print Invoice</button>
-                        </div>
-                        <?php echo $invoice_html; ?>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+                            <i class="bi bi-printer"></i> Print
+                        </button>
+                        <a href="?invoice_id=<?= $invoice_id ?>&format=pdf" class="btn btn-outline-danger">
+                            <i class="bi bi-file-pdf"></i> Download PDF
+                        </a>
+                        <a href="parent_invoices.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
                     </div>
                 </div>
             </div>
+
+            <!-- Invoice Content -->
+            <div class="invoice-content">
+                <?php echo $invoice_html; ?>
+            </div>
         </div>
-        
-        <script>
-        function showInvoice() {
-            document.getElementById('invoiceDisplay').style.display = 'block';
-            setTimeout(() => {
-                document.getElementById('invoiceDisplay').scrollIntoView({ behavior: 'smooth' });
-            }, 100);
-        }
-        </script>
-    </body>
-    </html>
-    <?php
-    exit();
-}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+<?php
 ?>

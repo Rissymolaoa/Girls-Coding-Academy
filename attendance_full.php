@@ -18,11 +18,15 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 
-// Get student_id
-$res = $conn->query("SELECT student_id FROM students WHERE user_id = $user_id");
+// Get student info
+$user_res = $conn->query("SELECT * FROM users WHERE user_id = $user_id");
+$user_data = $user_res->fetch_assoc();
+
+$res = $conn->query("SELECT student_id, photo FROM students WHERE user_id = $user_id");
 if ($res->num_rows > 0) {
     $student = $res->fetch_assoc();
     $student_id = $student['student_id'];
+    $student_photo = $student['photo'] ?? 'default.jpg';
 } else {
     die("Error: Student not found.");
 }
@@ -39,7 +43,7 @@ if ($prevMonth < 1) { $prevMonth = 12; $prevYear--; }
 $nextMonth = $month + 1; $nextYear = $year;
 if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
 
-// Fetch one (latest) attendance record per day for selected month
+// Fetch attendance records
 $attendanceQuery = $conn->query("
     SELECT d.day, a.status, a.marked_at
     FROM (
@@ -74,7 +78,7 @@ $sickCount    = (int)$conn->query("SELECT COUNT(*) as cnt FROM attendance WHERE 
 $firstDayOfMonth = mktime(0,0,0,$month,1,$year);
 $daysInMonth     = date("t",$firstDayOfMonth);
 $monthName       = date("F Y",$firstDayOfMonth);
-$startDayOfWeek  = date("w",$firstDayOfMonth); // 0 = Sunday
+$startDayOfWeek  = date("w",$firstDayOfMonth);
 $today           = date("Y-m-d");
 ?>
 <!DOCTYPE html>
@@ -82,71 +86,493 @@ $today           = date("Y-m-d");
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Full Attendance - Calendar</title>
+<title>My Attendance - Girls Coding Academy</title>
 
-<!-- Bootstrap CSS + Icons -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-  body { background:#f6f5f8; font-family: Arial, sans-serif; }
-  header { background:#343a40; color:#fff; padding:18px; text-align:center; }
-  .d-flex { display:flex; min-height:100vh; }
-  .sidebar { width:250px; background:#495057; padding:20px; color:#fff; }
-  .sidebar a { display:flex; align-items:center; gap:10px; color:#fff; text-decoration:none; padding:10px; margin:5px 0; border-radius:6px; }
-  .sidebar a.active, .sidebar a:hover { background:#6c757d; }
-  .admin-pic { width:90px; height:90px; border-radius:50%; display:block; margin:auto; margin-bottom:15px; border:2px solid #1abc9c; object-fit:cover; }
-  .content { flex:1; padding:30px; }
-  .table thead { background:#7b2cbf; color:white; }
-  .summary-card { text-align:center; padding:20px; color:white; border-radius:12px; }
-  .calendar .day-number { font-weight:600; display:block; text-align:left; padding-left:8px; }
-  .status-symbol { font-size:20px; display:block; margin:8px auto 0; }
-  .today-cell { background:#fff3cd !important; border:2px solid #ffc107 !important; }
-  .nav-buttons .btn { padding:.25rem .5rem; font-size:.85rem; line-height:1; }
-  .calendar td { vertical-align: top; height:110px; }
+  :root {
+    --primary: #667eea;
+    --primary-dark: #764ba2;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --info: #3b82f6;
+    --light-bg: #f9fafb;
+    --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+
+  * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+  body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+
+  /* Top Navigation */
+  .top-nav {
+    background: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .top-nav .logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .top-nav .user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary);
+  }
+
+  /* Main Container */
+  .main-container {
+    display: flex;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* Sidebar Navigation */
+  .sidebar {
+    width: 280px;
+    background: white;
+    padding: 2rem 0;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    overflow-y: auto;
+  }
+
+  .sidebar-header {
+    padding: 0 1.5rem 2rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .sidebar-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--primary);
+  }
+
+  .sidebar-name {
+    text-align: center;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .sidebar-nav a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    color: #6b7280;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .sidebar-nav a:hover {
+    color: var(--primary);
+    background: #f0f4ff;
+  }
+
+  .sidebar-nav a.active {
+    color: var(--primary);
+    background: #f0f4ff;
+    border-left: 4px solid var(--primary);
+    padding-left: calc(1.5rem - 4px);
+    font-weight: 600;
+  }
+
+  .sidebar-nav a i {
+    font-size: 1.25rem;
+  }
+
+  /* Content Area */
+  .content-area {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+  }
+
+  /* Page Header */
+  .page-header {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+  }
+
+  .page-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+  }
+
+  .page-header p {
+    color: #6b7280;
+    margin: 0;
+  }
+
+  /* Summary Cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .summary-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    border-top: 4px solid;
+  }
+
+  .summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+
+  .summary-card.present { border-top-color: var(--success); }
+  .summary-card.absent { border-top-color: var(--danger); }
+  .summary-card.late { border-top-color: var(--warning); }
+  .summary-card.sick { border-top-color: var(--info); }
+
+  .card-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+
+  .summary-card.present .card-number { color: var(--success); }
+  .summary-card.absent .card-number { color: var(--danger); }
+  .summary-card.late .card-number { color: var(--warning); }
+  .summary-card.sick .card-number { color: var(--info); }
+
+  .card-label {
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.95rem;
+  }
+
+  /* Calendar */
+  .calendar-container {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+  }
+
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .calendar-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+  }
+
+  .month-nav {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .month-nav .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: none;
+    background: #f3f4f6;
+    color: #1f2937;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .month-nav .btn:hover {
+    background: var(--primary);
+    color: white;
+  }
+
+  .month-nav .current-month {
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    min-width: 150px;
+    text-align: center;
+  }
+
+  .calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+  }
+
+  .calendar-table th {
+    background: #f9fafb;
+    padding: 1rem;
+    text-align: center;
+    font-weight: 700;
+    color: #1f2937;
+    border-bottom: 2px solid #e5e7eb;
+  }
+
+  .calendar-table td {
+    height: 120px;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    vertical-align: top;
+    position: relative;
+    background: white;
+    transition: all 0.3s ease;
+  }
+
+  .calendar-table td:hover {
+    background: #f9fafb;
+  }
+
+  .calendar-table td.today {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border: 2px solid var(--primary);
+  }
+
+  .day-number {
+    display: block;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+  }
+
+  .status-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    margin: 0.5rem 0;
+    cursor: pointer;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .status-present { color: var(--success); }
+  .status-absent { color: var(--danger); }
+  .status-late { color: var(--warning); }
+  .status-sick { color: var(--info); }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border-radius: 12px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #6b7280;
+  }
+
+  .legend-icon {
+    font-size: 1.5rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .main-container {
+      flex-direction: column;
+    }
+
+    .sidebar {
+      width: 100%;
+      padding: 1rem 0;
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .calendar-table td {
+      height: 100px;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .day-number {
+      font-size: 0.9rem;
+    }
+
+    .status-icon {
+      font-size: 1.4rem;
+    }
+
+    .legend {
+      gap: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .content-area {
+      padding: 1rem;
+    }
+
+    .page-header {
+      padding: 1rem;
+    }
+
+    .page-header h1 {
+      font-size: 1.5rem;
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .summary-card {
+      padding: 1rem;
+    }
+
+    .card-number {
+      font-size: 2rem;
+    }
+
+    .calendar-table td {
+      height: 80px;
+      padding: 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    .day-number {
+      font-size: 0.8rem;
+    }
+
+    .status-icon {
+      font-size: 1.2rem;
+    }
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>Girls Coding Academy - My Attendance</h1>
-</header>
-
-<div class="d-flex">
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <img src="admin.png" alt="Student Picture" class="admin-pic">
-    <h3 style="text-align:center;margin-bottom:10px;">Navigation</h3>
-    <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
-     <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
-    <a href="student_courses.php"><i class="bi bi-journal-bookmark"></i> My Courses</a>
-     <a href="#"><i class="bi bi-megaphone"></i> Announcements</a>
-     <a href="#"><i class="bi bi-calendar-event"></i> My Calendar</a>
-    <a href="attendance.php" class="active"><i class="bi bi-card-checklist"></i> My Schedule</a>
-    <a href="student_marks.php"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a> 
-    <a href="student_gradebook.php"><i class="bi bi-graph-up"></i> My Performance</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
+<!-- Top Navigation -->
+<div class="top-nav">
+  <div class="logo"><i class="bi bi-code-slash"></i> Girls Coding Academy</div>
+  <div class="user-info">
+    <span><?= htmlspecialchars($user_data['firstName'] . ' ' . $user_data['lastName']) ?></span>
+    <img src="<?= htmlspecialchars($student_photo) ?>" alt="Profile" class="user-avatar">
   </div>
+</div>
 
-  <!-- Content -->
-  <div class="content">
-    <h2>My Attendance Records - <?php echo htmlspecialchars($monthName); ?></h2>
+<div class="main-container">
+  <!-- Sidebar Navigation -->
+<?php include 'student_navigation.php'; ?>
 
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-      <div class="col-md-3"><div class="summary-card bg-success"><h3><?php echo $presentCount; ?></h3><p>Present</p></div></div>
-      <div class="col-md-3"><div class="summary-card bg-danger"><h3><?php echo $absentCount; ?></h3><p>Absent</p></div></div>
-      <div class="col-md-3"><div class="summary-card bg-warning"><h3><?php echo $lateCount; ?></h3><p>Late</p></div></div>
-      <div class="col-md-3"><div class="summary-card bg-info"><h3><?php echo $sickCount; ?></h3><p>Sick</p></div></div>
+
+
+  <!-- Content Area -->
+  <div class="content-area">
+    <div class="page-header">
+      <h1><i class="bi bi-card-checklist"></i> My Attendance Records</h1>
+      <p>Track your attendance history and attendance status</p>
     </div>
 
-    <!-- Calendar (where attendance table normally sits) -->
-    <div class="table-responsive mb-2">
-      <table class="calendar table table-bordered table-hover text-center">
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+      <div class="summary-card present">
+        <div class="card-number"><?= $presentCount ?></div>
+        <div class="card-label">Present</div>
+      </div>
+      <div class="summary-card absent">
+        <div class="card-number"><?= $absentCount ?></div>
+        <div class="card-label">Absent</div>
+      </div>
+      <div class="summary-card late">
+        <div class="card-number"><?= $lateCount ?></div>
+        <div class="card-label">Late</div>
+      </div>
+      <div class="summary-card sick">
+        <div class="card-number"><?= $sickCount ?></div>
+        <div class="card-label">Sick Leave</div>
+      </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="calendar-container">
+      <div class="calendar-header">
+        <h2>Attendance Calendar</h2>
+        <div class="month-nav">
+          <a href="?month=<?= $prevMonth ?>&year=<?= $prevYear ?>" class="btn">
+            <i class="bi bi-chevron-left"></i> Prev
+          </a>
+          <div class="current-month"><?= $monthName ?></div>
+          <a href="?month=<?= $nextMonth ?>&year=<?= $nextYear ?>" class="btn">
+            Next <i class="bi bi-chevron-right"></i>
+          </a>
+        </div>
+      </div>
+
+      <table class="calendar-table">
         <thead>
           <tr>
-            <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th>
-            <th>Thu</th><th>Fri</th><th>Sat</th>
+            <th>Sun</th>
+            <th>Mon</th>
+            <th>Tue</th>
+            <th>Wed</th>
+            <th>Thu</th>
+            <th>Fri</th>
+            <th>Sat</th>
           </tr>
         </thead>
         <tbody>
@@ -155,32 +581,32 @@ $today           = date("Y-m-d");
             $currentWeekDay = 0;
             echo "<tr>";
 
-            for ($i=0; $i<$startDayOfWeek; $i++) {
+            for ($i = 0; $i < $startDayOfWeek; $i++) {
                 echo "<td></td>";
                 $currentWeekDay++;
             }
 
             while ($day <= $daysInMonth) {
-                $date = $year . '-' . str_pad($month,2,'0',STR_PAD_LEFT) . '-' . str_pad($day,2,'0',STR_PAD_LEFT);
+                $date = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-' . str_pad($day, 2, '0', STR_PAD_LEFT);
                 $isToday = ($date === $today);
-                $cellClass = $isToday ? 'today-cell' : '';
+                $cellClass = $isToday ? 'today' : '';
 
                 echo "<td class='{$cellClass}'>";
                 echo "<span class='day-number'>{$day}</span>";
 
                 if (isset($attendanceData[$date])) {
                     $status = $attendanceData[$date]['status'];
-                    $time   = $attendanceData[$date]['time'];
+                    $time = $attendanceData[$date]['time'];
                     $tooltip = htmlspecialchars($status . " on " . date('d M Y, H:i', strtotime($time)), ENT_QUOTES);
 
                     if ($status === 'Present') {
-                        echo "<span class='status-symbol text-success' data-bs-toggle='tooltip' title=\"{$tooltip}\">✔</span>";
+                        echo "<div class='status-icon text-success' data-bs-toggle='tooltip' title=\"{$tooltip}\"><i class='bi bi-check-circle-fill'></i></div>";
                     } elseif ($status === 'Absent') {
-                        echo "<span class='status-symbol text-danger' data-bs-toggle='tooltip' title=\"{$tooltip}\">✖</span>";
+                        echo "<div class='status-icon text-danger' data-bs-toggle='tooltip' title=\"{$tooltip}\"><i class='bi bi-x-circle-fill'></i></div>";
                     } elseif ($status === 'Late') {
-                        echo "<span class='status-symbol text-warning' data-bs-toggle='tooltip' title=\"{$tooltip}\">⏰</span>";
+                        echo "<div class='status-icon text-warning' data-bs-toggle='tooltip' title=\"{$tooltip}\"><i class='bi bi-clock-fill'></i></div>";
                     } elseif ($status === 'Sick') {
-                        echo "<span class='status-symbol text-info' data-bs-toggle='tooltip' title=\"{$tooltip}\">🤒</span>";
+                        echo "<div class='status-icon text-info' data-bs-toggle='tooltip' title=\"{$tooltip}\"><i class='bi bi-heartpulse-fill'></i></div>";
                     }
                 }
 
@@ -203,46 +629,39 @@ $today           = date("Y-m-d");
           ?>
         </tbody>
       </table>
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="legend-item">
+          <span class="legend-icon text-success"><i class="bi bi-check-circle-fill"></i></span>
+          <span>Present</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-icon text-danger"><i class="bi bi-x-circle-fill"></i></span>
+          <span>Absent</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-icon text-warning"><i class="bi bi-clock-fill"></i></span>
+          <span>Late</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-icon text-info"><i class="bi bi-heartpulse-fill"></i></span>
+          <span>Sick Leave</span>
+        </div>
+      </div>
     </div>
-
-    <!-- Month Navigation moved BELOW the table -->
-    <!-- Month Navigation replaced with Pagination -->
-    <nav aria-label="Attendance month navigation">
-      <ul class="pagination justify-content-center mt-3">
-        <li class="page-item">
-          <a class="page-link" href="?month=<?php echo $prevMonth; ?>&year=<?php echo $prevYear; ?>">&laquo; Prev</a>
-        </li>
-        <li class="page-item disabled">
-          <span class="page-link"><?php echo $monthName; ?></span>
-        </li>
-        <li class="page-item">
-          <a class="page-link" href="?month=<?php echo $nextMonth; ?>&year=<?php echo $nextYear; ?>">Next &raquo;</a>
-        </li>
-      </ul>
-    </nav>
-
-
-    <!-- Legend -->
-    <div class="legend text-center mt-2">
-      <span class="text-success me-3">✔ Present</span>
-      <span class="text-danger me-3">✖ Absent</span>
-      <span class="text-warning me-3">⏰ Late</span>
-      <span class="text-info me-3">🤒 Sick</span>
-    </div>
-
   </div>
 </div>
-
-<footer class="text-center text-white mt-4 p-3" style="background:#495057;">
-  &copy; <?php echo date("Y"); ?> Girls Coding Academy. All rights reserved.
-</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (el) { return new bootstrap.Tooltip(el); });
+    tooltipTriggerList.map(function (el) { 
+      return new bootstrap.Tooltip(el); 
+    });
   });
 </script>
+
 </body>
 </html>

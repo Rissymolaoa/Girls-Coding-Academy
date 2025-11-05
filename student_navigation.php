@@ -44,6 +44,7 @@ if (!isset($currentPage)) {
     <a href="student_announcements.php" class="<?= ($currentPage == 'student_announcements.php') ? 'active' : '' ?>"><i class="bi bi-megaphone"></i> Announcements</a>
     <a href="student_calendar.php" class="<?= ($currentPage == 'student_calendar.php') ? 'active' : '' ?>"><i class="bi bi-calendar-event"></i> My Calendar</a>
     <a href="attendance.php" class="<?= ($currentPage == 'attendance.php') ? 'active' : '' ?>"><i class="bi bi-card-checklist"></i> My Attendance</a>
+    <a href="student_scheduled_classes.php" class="<?= ($currentPage == 'student_scheduled_classes.php') ? 'active' : '' ?>"><i class="bi bi-card-checklist"></i> My Schedule</a>
     <a href="student_marks.php" class="<?= ($currentPage == 'student_marks.php') ? 'active' : '' ?>"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a>
     <a href="student_gradebook.php" class="<?= ($currentPage == 'student_gradebook.php') ? 'active' : '' ?>"><i class="bi bi-graph-up"></i> My Performance</a>
     <a href="make_payment.php" class="<?= ($currentPage == 'make_payment.php') ? 'active' : '' ?>"><i class="bi bi-credit-card"></i> View & Pay Invoices</a>

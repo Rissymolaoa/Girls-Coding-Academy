@@ -83,3 +83,20 @@ Array
     [custom_str1] => 469
     [signature] => 6643d187e965f4de2514b25db66aef4c
 )
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Karabo
+    [name_last] => Setumo
+    [email_address] => setumo@gmail.com
+    [cell_number] => 0737357841
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for student access to courses and resources
+    [custom_str1] => 474
+    [signature] => cd51948848a749313bd30474b5a8753d
+)

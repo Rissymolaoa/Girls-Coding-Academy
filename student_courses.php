@@ -238,7 +238,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
 <div class="container-flex">
     <!-- Include the consistent navigation -->
-    <?php include("student_navigation.php"); ?>
+  <!--  <?php include("student_navigation.php"); ?> -->
+  
 
     <main class="content" role="main">
         <h2><i class="bi bi-journal-bookmark"></i> My Courses</h2>

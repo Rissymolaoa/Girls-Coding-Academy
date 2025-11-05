@@ -49,11 +49,11 @@ $totalBatchesResult = $totalBatchesQuery->get_result()->fetch_assoc();
 $total_batches = $totalBatchesResult['total_batches'];
 $totalBatchesQuery->close();
 
-$totalLearnersQuery = $conn->prepare("SELECT COUNT(*) AS total_learners FROM course_enrollments ce INNER JOIN course_assignments ca ON ce.batch_id = ca.batch_id WHERE ca.teacher_id = ? AND ce.status = 'active'");
+$totalLearnersQuery = $conn->prepare("SELECT COUNT(*) AS assigned_enrollments FROM course_enrollments ce INNER JOIN course_assignments ca ON ce.batch_id = ca.batch_id WHERE ca.teacher_id = ? AND ce.status = 'active'");
 $totalLearnersQuery->bind_param("i", $teacher_id);
 $totalLearnersQuery->execute();
 $totalLearnersResult = $totalLearnersQuery->get_result()->fetch_assoc();
-$total_learners = $totalLearnersResult['total_learners'];
+$total_learners = $totalLearnersResult['assigned_enrollments'];
 $totalLearnersQuery->close();
 
 $totalActivitiesQuery = $conn->prepare("SELECT COUNT(*) AS total_activities FROM activities WHERE teacher_id = ?");
@@ -280,6 +280,10 @@ $topStudents = array_slice($allStudents, 0, 3);
                     <i class="fas fa-chalkboard-teacher mr-3"></i>
                     Manage Courses
                 </a>
+                                <a href="schedule_class.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-calendar-alt mr-3"></i>
+                    Schedule Class
+                </a>
                 <a href="upload_materials.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
                     <i class="fas fa-book mr-3"></i>
                     Upload Materials
@@ -332,7 +336,7 @@ $topStudents = array_slice($allStudents, 0, 3);
                 </div>
                 <div class="card bg-white rounded-lg shadow-lg p-6">
                     <i class="fas fa-users text-3xl text-purple-600 mb-2"></i>
-                    <h3 class="text-lg font-semibold text-gray-700">Total Learners</h3>
+                    <h3 class="text-lg font-semibold text-gray-700">Active Enrollments</h3>
                     <p class="text-3xl font-bold text-gray-900"><?= $total_learners ?></p>
                 </div>
                 <div class="card bg-white rounded-lg shadow-lg p-6">
