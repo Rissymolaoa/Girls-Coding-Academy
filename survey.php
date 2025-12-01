@@ -51,7 +51,7 @@ if ($target_group !== 'all' && $user_role !== $target_group) {
 
 // Handle form submission
 if (isset($_POST['submit_response'])) {
-    $answers = $_POST['answers'] ?? []; // Array of answers keyed by question index
+    $answers = $_POST['answers'] ?? []; 
     $respondent_id = $_SESSION['user_id'];
 
     $stmt = $pdo->prepare("INSERT INTO marketing_feedback_responses (survey_id, respondent_id, answers) VALUES (?, ?, ?)");
@@ -61,7 +61,7 @@ if (isset($_POST['submit_response'])) {
     $updateStmt = $pdo->prepare("UPDATE marketing_feedback_surveys SET responses_count = responses_count + 1 WHERE survey_id = ?");
     $updateStmt->execute([$survey_id]);
 
-    // Redirect to thank you
+ 
     header('Location: survey.php?thankyou=1&survey_id=' . $survey_id);
     exit();
 }

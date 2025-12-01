@@ -19,6 +19,10 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
                 <i class="fas fa-home mr-2 text-sm"></i>
                 <span class="text-sm whitespace-nowrap">Dashboard</span>
             </a>
+            <a href="course_enquiries.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'course_enquiries.php') ? 'active' : '' ?>">
+                <i class="fas fa-home mr-2 text-sm"></i>
+                <span class="text-sm whitespace-nowrap">Enquiries</span>
+            </a>
 
             <div class="sidebar-divider my-2"></div>
 
@@ -34,20 +38,13 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
 
             <a href="inactivation_requests.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'inactivation_requets.php') ? 'active' : '' ?>">
                 <i class="fas fa-user-check mr-2 text-sm"></i>
-                <span class="text-sm whitespace-nowrap">Inactivation Requests</span>
+                <span class="text-sm whitespace-nowrap">Disciplinary Requests</span>
             </a>
             <a href="manage_students.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'manage_students.php') ? 'active' : '' ?>">
                 <i class="fas fa-user-graduate mr-2 text-sm"></i>
                 <span class="text-sm whitespace-nowrap">Students</span>
             </a>
-             <a href="tirha_mudyondzi.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'tirha_mudyondzi.php') ? 'active' : '' ?>">
-                <i class="fas fa-user-graduate mr-2 text-sm"></i>
-                <span class="text-sm whitespace-nowrap">Vadyonzi</span>
-            </a>
-            <a href="mudyondzi.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'mudyondzi.php') ? 'active' : '' ?>">
-                <i class="fas fa-user-graduate mr-2 text-sm"></i>
-                <span class="text-sm whitespace-nowrap">Madyonzi</span>
-            </a>
+        
              <a href="academics.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'academics.php') ? 'active' : '' ?>">
                 <i class="fas fa-user-graduate mr-2 text-sm"></i>
                 <span class="text-sm whitespace-nowrap">Academics</span>

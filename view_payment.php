@@ -1,52 +1,67 @@
 <?php
 session_start();
 require_once 'db.php';
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') { header("Location: login.php"); exit(); }
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') { 
+    header("Location: login.php"); 
+    exit(); 
+}
 
 $student_id = (int)($_GET['student_id'] ?? 0);
 
-$sql = "
-    SELECT 
-        u.firstName, u.lastName, c.courseName, b.batch_code,
-        i.invoice_id, i.invoice_number, i.amount, i.status, i.due_date,
-        COALESCE(SUM(p.amount), 0) as paid_amount
+// First query: Get student info and active enrollment
+$student_sql = "
+    SELECT u.firstName, u.lastName, c.courseName, b.batch_code
     FROM students s
     JOIN users u ON s.user_id = u.user_id
     LEFT JOIN course_enrollments ce ON s.student_id = ce.student_id AND ce.status = 'active'
     LEFT JOIN batches b ON ce.batch_id = b.batch_id
     LEFT JOIN courses c ON b.course_id = c.course_id
-    LEFT JOIN invoices i ON ce.enrollment_id = i.enrollment_id
-    LEFT JOIN payments p ON i.invoice_id = p.invoice_id AND p.status = 'paid'
     WHERE s.student_id = ?
-    GROUP BY i.invoice_id
-    ORDER BY i.due_date
+    LIMIT 1
 ";
 
-$stmt = $conn->prepare($sql);
+$stmt = $conn->prepare($student_sql);
 $stmt->bind_param("i", $student_id);
 $stmt->execute();
-$result = $stmt->get_result();
+$student_result = $stmt->get_result();
+$student = $student_result->fetch_assoc();
 
-$student = null;
-$invoices = [];
-$total_due = $total_paid = 0;
-
-while ($row = $result->fetch_assoc()) {
-    if (!$student) {
-        $student = [
-            'firstName' => $row['firstName'],
-            'lastName' => $row['lastName'],
-            'courseName' => $row['courseName'] ?? '—',
-            'batch_code' => $row['batch_code'] ?? '—'
-        ];
-    }
-    if ($row['invoice_id']) {
-        $invoices[] = $row;
-        $total_due += $row['amount'];
-        $total_paid += $row['paid_amount'];
-    }
-}
 if (!$student) die("Student not found");
+
+// Second query: Get invoices with their individual payments
+$invoices_sql = "
+    SELECT 
+        i.invoice_id, 
+        i.invoice_number, 
+        i.amount, 
+        i.status, 
+        i.due_date,
+        COALESCE(SUM(p.amount), 0) as paid_amount
+    FROM students s
+    LEFT JOIN course_enrollments ce ON s.student_id = ce.student_id
+    LEFT JOIN invoices i ON ce.enrollment_id = i.enrollment_id
+    LEFT JOIN payments p ON i.invoice_id = p.invoice_id AND p.status = 'completed'
+    WHERE s.student_id = ? AND i.invoice_id IS NOT NULL
+    GROUP BY i.invoice_id
+    ORDER BY i.due_date DESC
+";
+
+$stmt = $conn->prepare($invoices_sql);
+$stmt->bind_param("i", $student_id);
+$stmt->execute();
+$invoices_result = $stmt->get_result();
+
+$invoices = [];
+$total_due = 0;
+$total_paid = 0;
+
+while ($row = $invoices_result->fetch_assoc()) {
+    $invoices[] = $row;
+    $total_due += $row['amount'];
+    $total_paid += $row['paid_amount'];
+}
+
+$outstanding = $total_due - $total_paid;
 ?>
 
 <!DOCTYPE html>
@@ -69,7 +84,7 @@ if (!$student) die("Student not found");
             <h1 class="text-3xl font-bold">Payment History</h1>
             <p class="text-indigo-100 text-lg mt-2">
                 <?= htmlspecialchars($student['firstName'] . ' ' . $student['lastName']) ?>
-                • <?= htmlspecialchars($student['courseName'] . ' • ' . $student['batch_code']) ?>
+                • <?= htmlspecialchars(($student['courseName'] ?? '—') . ' • ' . ($student['batch_code'] ?? '—')) ?>
             </p>
         </div>
 
@@ -81,13 +96,12 @@ if (!$student) die("Student not found");
                 </div>
                 <div class="bg-gray-50 border border-gray-300 rounded-lg p-6 text-center">
                     <p class="text-gray-700 font-medium">Total Due</p>
-                    <p class="text-3xl font-bold text-gray-700 mt-2">M <?= number_format($total_due, 2) ?></p>
+                    <p class="text-3xl font-bold text-gray-700 mt-2">M <?= number_format($outstanding, 2) ?></p>
                 </div>
-                <div class="rounded-lg p-6 text-center border
-                    <?= $total_due > $total_paid ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200' ?>">
-                    <p class="<?= $total_due > $total_paid ? 'text-red-700' : 'text-green-700' ?> font-medium">Outstanding</p>
-                    <p class="text-3xl font-bold <?= $total_due > $total_paid ? 'text-red-700' : 'text-green-700' ?> mt-2">
-                        M <?= number_format($total_due - $total_paid, 2) ?>
+                <div class="rounded-lg p-6 text-center border <?= $outstanding > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200' ?>">
+                    <p class="<?= $outstanding > 0 ? 'text-red-700' : 'text-green-700' ?> font-medium">Outstanding</p>
+                    <p class="text-3xl font-bold <?= $outstanding > 0 ? 'text-red-700' : 'text-green-700' ?> mt-2">
+                        M <?= number_format($outstanding, 2) ?>
                     </p>
                 </div>
             </div>
@@ -110,7 +124,10 @@ if (!$student) die("Student not found");
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($invoices as $inv): ?>
+                        <?php foreach ($invoices as $inv): 
+                            $paid = $inv['paid_amount'];
+                            $outstanding_inv = $inv['amount'] - $paid;
+                        ?>
                         <tr class="border-b hover:bg-gray-50">
                             <td class="px-6 py-4"><?= htmlspecialchars($inv['invoice_number'] ?? '—') ?></td>
                             <td class="px-6 py-4">M <?= number_format($inv['amount'], 2) ?></td>
@@ -122,8 +139,13 @@ if (!$student) die("Student not found");
                                     <?= ucfirst($inv['status'] ?? 'pending') ?>
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-right font-medium text-green-700">
-                                M <?= number_format($inv['paid_amount'], 2) ?>
+                            <td class="px-6 py-4 text-right">
+                                <div class="text-sm">
+                                    <span class="font-medium text-green-700">M <?= number_format($paid, 2) ?></span>
+                                    <?php if ($outstanding_inv > 0): ?>
+                                        <span class="text-red-600"> (-M <?= number_format($outstanding_inv, 2) ?>)</span>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                         <?php endforeach; ?>

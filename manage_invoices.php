@@ -526,7 +526,7 @@ $stats = $conn->query($stats_sql)->fetch_assoc();
                                 <td><strong><?= htmlspecialchars($invoice['invoice_number']) ?></strong></td>
                                 <td><?= htmlspecialchars($invoice['firstName'] . ' ' . $invoice['lastName']) ?></td>
                                 <td><?= htmlspecialchars($invoice['courseName']) ?><br><small class="text-muted"><?= htmlspecialchars($invoice['batch_code']) ?></small></td>
-                                <td><strong>$<?= number_format($invoice['amount'], 2) ?></strong></td>
+                                <td><strong>M<?= number_format($invoice['amount'], 2) ?></strong></td>
                                 <td><?= date("M d, Y", strtotime($invoice['due_date'])) ?></td>
                                 <td>
                                     <span class="badge-<?= strtolower($invoice['status']) ?>">

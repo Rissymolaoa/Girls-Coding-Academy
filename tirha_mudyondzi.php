@@ -1,9 +1,16 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.html"); exit();
+    header("Location: login.html"); 
+    exit();
 }
 require_once 'db.php';
+
+// Check if this is the first page load for admin in this session
+$isFirstLogin = !isset($_SESSION['dashboard_viewed']);
+if ($isFirstLogin) {
+    $_SESSION['dashboard_viewed'] = true;
+}
 
 function safeCount($conn, $sql) {
     $result = $conn->query($sql);
@@ -75,187 +82,318 @@ $announcements_result = $conn->query("
 ?>
 
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard • Girls Coding Academy</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #7c3aed; --primary-light: #a78bfa; --primary-dark: #6d28d9;
-            --secondary: #1e293b; --accent: #f472b6; --success: #10b981; --warning: #f59e0b;
+        * { font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7ff 0%, #e8f2ff 100%); }
+        .card-summary {
+            background: white;
+            border-left: 5px solid #3b82f6;
+            transition: all 0.3s ease;
         }
-        .dark { background: #0f172a; color: #e2e8f0; }
-        .dark .bg-white { background: #1e293b; }
-        .dark .text-gray-800 { color: #e2e8f0; }
-        .dark .bg-gray-50 { background: #1e293b; }
-        .dark .border-gray-200 { border-color: #334155; }
-        .card-hover { transition: all 0.3s ease; }
-        .card-hover:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(124,58,237,0.2); }
-        .glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); }
-        .sidebar-link { transition: all 0.3s; }
-        .sidebar-link:hover { background: rgba(255,255,255,0.1); padding-left: 1.5rem; }
-        .sidebar-link.active { background: rgba(124,58,237,0.3); border-left: 4px solid white; }
+        .card-summary:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.15);
+        }
+        .btn-action {
+            background: #3b82f6;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .btn-action:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
+        .quick-link {
+            background: white;
+            border: 1px solid #e5e7eb;
+            color: #1f2937;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .quick-link:hover {
+            transform: translateX(4px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.1);
+        }
+        .quick-link:hover {
+            border-color: currentColor;
+        }
+        .quick-link:hover i {
+            transform: scale(1.1);
+        }
+        .quick-link i {
+            transition: transform 0.3s ease;
+        }
+        .stats-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        .stats-card:hover {
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.1);
+        }
+        .table-row:hover {
+            background: #f0f7ff;
+        }
+        .modal-backdrop { background: rgba(0, 0, 0, 0.5); }
     </style>
 </head>
-<body class="h-full bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-100 dark:from-gray-900 dark:to-purple-900 transition-all duration-500">
+<body>
 
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
-<div class="ml-64 mt-16 min-h-screen p-6">
+<div class="ml-64 mt-16 min-h-screen p-8">
     <div class="max-w-7xl mx-auto">
 
-        <!-- Dark Mode Toggle -->
-        <div class="fixed top-24 right-8 z-50">
-            <button onclick="document.documentElement.classList.toggle('dark')" class="bg-white dark:bg-gray-800 p-4 rounded-full shadow-2xl hover:scale-110 transition">
-                <i class="fas fa-moon text-2xl text-purple-600 dark:text-yellow-400"></i>
-            </button>
+        <!-- Header Section -->
+        <div class="mb-12">
+            <h1 class="text-4xl font-bold text-gray-900">Dashboard</h1>
+            <p class="text-gray-600 mt-2"><?= date('l, F j, Y') ?></p>
         </div>
 
-        <!-- Welcome Header -->
-        <div class="glass rounded-3xl p-10 mb-10 border border-white/20 shadow-2xl">
-            <div class="flex flex-col lg:flex-row justify-between items-center gap-8">
-                <div>
-                    <h1 class="text-5xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                        Welcome back, Admin!
-                    </h1>
-                    <p class="text-2xl text-gray-700 dark:text-gray-300 mt-4"><?= date('l, F j, Y') ?></p>
+        <!-- Top Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div class="card-summary rounded-lg p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Total Students</p>
+                        <p class="text-3xl font-bold text-gray-900 mt-2"><?= $total_students ?></p>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <i class="fas fa-users text-2xl text-blue-600"></i>
+                    </div>
                 </div>
-                <div class="grid grid-cols-3 gap-8">
-                    <div class="bg-gradient-to-br from-purple-600 to-purple-800 text-white p-8 rounded-3xl card-hover text-center">
-                        <i class="fas fa-users text-5xl mb-4 opacity-90"></i>
-                        <p class="text-5xl font-bold"><?= $total_students ?></p>
-                        <p class="text-purple-200 text-lg">Students</p>
+            </div>
+
+            <div class="card-summary rounded-lg p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Active Enrollments</p>
+                        <p class="text-3xl font-bold text-gray-900 mt-2"><?= $active_enrollments ?></p>
                     </div>
-                    <div class="bg-gradient-to-br from-pink-500 to-rose-600 text-white p-8 rounded-3xl card-hover text-center">
-                        <i class="fas fa-receipt text-5xl mb-4 opacity-90"></i>
-                        <p class="text-5xl font-bold"><?= $pending_invoices ?></p>
-                        <p class="text-pink-200 text-lg">Pending Invoices</p>
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <i class="fas fa-clipboard-list text-2xl text-blue-600"></i>
                     </div>
-                    <div class="bg-gradient-to-br from-indigo-600 to-blue-700 text-white p-8 rounded-3xl card-hover text-center">
-                        <i class="fas fa-calendar-check text-5xl mb-4 opacity-90"></i>
-                        <p class="text-5xl font-bold"><?= $active_enrollments ?></p>
-                        <p class="text-indigo-200 text-lg">Active Enrollments</p>
+                </div>
+            </div>
+
+            <div class="card-summary rounded-lg p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Pending Invoices</p>
+                        <p class="text-3xl font-bold text-gray-900 mt-2"><?= $pending_invoices ?></p>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <i class="fas fa-file-invoice-dollar text-2xl text-blue-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-summary rounded-lg p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Active Batches</p>
+                        <p class="text-3xl font-bold text-gray-900 mt-2"><?= $active_batches ?></p>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <i class="fas fa-layer-group text-2xl text-blue-600"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="glass rounded-3xl p-10 mb-10 border border-white/20">
-            <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">Quick Actions</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6">
-                <a href="manage_students.php" class="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-2xl card-hover shadow-lg">
-                    <i class="fas fa-user-graduate text-5xl text-purple-600 mb-3"></i>
-                    <p class="font-bold text-gray-800 dark:text-white">Students</p>
-                </a>
-                <a href="manage_teachers.php" class="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-2xl card-hover shadow-lg">
-                    <i class="fas fa-chalkboard-teacher text-5xl text-indigo-600 mb-3"></i>
-                    <p class="font-bold text-gray-800 dark:text-white">Teachers</p>
-                </a>
-                <a href="manage_parents.php" class="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-2xl card-hover shadow-lg">
-                    <i class="fas fa-user-tie text-5xl text-pink-600 mb-3"></i>
-                    <p class="font-bold text-gray-800 dark:text-white">Parents</p>
-                </a>
-                <a href="manage_courses.php" class="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-2xl card-hover shadow-lg">
-                    <i class="fas fa-book-open text-5xl text-green-600 mb-3"></i>
-                    <p class="font-bold text-gray-800 dark:text-white">Courses</p>
-                </a>
-                <a href="manage_batches.php" class="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-2xl card-hover shadow-lg">
-                    <i class="fas fa-calendar-week text-5xl text-blue-600 mb-3"></i>
-                    <p class="font-bold text-gray-800 dark:text-white">Batches</p>
-                </a>
-                <a href="invoices.php" class="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-2xl card-hover shadow-lg">
-                    <i class="fas fa-file-invoice-dollar text-5xl text-yellow-600 mb-3"></i>
-                    <p class="font-bold text-gray-800 dark:text-white">Invoices</p>
-                </a>
-                <a href="attendance_report.php" class="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-2xl card-hover shadow-lg">
-                    <i class="fas fa-clipboard-list text-5xl text-teal-600 mb-3"></i>
-                    <p class="font-bold text-gray-800 dark:text-white">Attendance</p>
-                </a>
-                <a href="admin_announcements.php" class="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-2xl card-hover shadow-lg">
-                    <i class="fas fa-bullhorn text-5xl text-red-600 mb-3"></i>
-                    <p class="font-bold text-gray-800 dark:text-white">Announce</p>
-                </a>
+        <!-- Quick Actions - Categorized -->
+        <div class="mb-10">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <!-- People Management -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-gray-200">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-users text-blue-600"></i>
+                            People Management
+                        </h3>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        <a href="manage_students.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-blue-50 border border-blue-100">
+                            <i class="fas fa-user-graduate text-2xl text-blue-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Students</span>
+                                <p class="text-xs text-gray-600">Manage student records</p>
+                            </div>
+                        </a>
+                        <a href="manage_teachers.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-cyan-50 border border-cyan-100">
+                            <i class="fas fa-chalkboard-teacher text-2xl text-cyan-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Teachers</span>
+                                <p class="text-xs text-gray-600">Manage teacher profiles</p>
+                            </div>
+                        </a>
+                        <a href="manage_parents.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-indigo-50 border border-indigo-100">
+                            <i class="fas fa-user-tie text-2xl text-indigo-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Parents</span>
+                                <p class="text-xs text-gray-600">Manage parent accounts</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Academic Management -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gradient-to-r from-green-50 to-green-100 border-b border-gray-200">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-book text-green-600"></i>
+                            Academic Management
+                        </h3>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        <a href="manage_courses.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-green-50 border border-green-100">
+                            <i class="fas fa-book-open text-2xl text-green-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Courses</span>
+                                <p class="text-xs text-gray-600">Create & manage courses</p>
+                            </div>
+                        </a>
+                        <a href="manage_batches.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-emerald-50 border border-emerald-100">
+                            <i class="fas fa-calendar-week text-2xl text-emerald-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Batches</span>
+                                <p class="text-xs text-gray-600">Manage course batches</p>
+                            </div>
+                        </a>
+                        <a href="attendance_report.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-teal-50 border border-teal-100">
+                            <i class="fas fa-clipboard-list text-2xl text-teal-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Attendance</span>
+                                <p class="text-xs text-gray-600">Track attendance records</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Finance & Communication -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="px-6 py-4 bg-gradient-to-r from-amber-50 to-amber-100 border-b border-gray-200">
+                        <h3 class="font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-cog text-amber-600"></i>
+                            Finance & Communication
+                        </h3>
+                    </div>
+                    <div class="p-6 space-y-3">
+                        <a href="manage_invoices.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-amber-50 border border-amber-100">
+                            <i class="fas fa-receipt text-2xl text-amber-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Invoices</span>
+                                <p class="text-xs text-gray-600">View & manage invoices</p>
+                            </div>
+                        </a>
+                        <a href="admin_announcements.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-rose-50 border border-rose-100">
+                            <i class="fas fa-bullhorn text-2xl text-rose-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Announcements</span>
+                                <p class="text-xs text-gray-600">Send announcements</p>
+                            </div>
+                        </a>
+                        <a href="events.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-orange-50 border border-orange-100">
+                            <i class="fas fa-calendar-check text-2xl text-orange-600 flex-shrink-0"></i>
+                            <div>
+                                <span class="font-semibold text-sm text-gray-900">Events</span>
+                                <p class="text-xs text-gray-600">Manage events</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
             </div>
         </div>
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6 mb-10">
-            <div class="glass rounded-3xl p-8 text-center card-hover border border-white/30">
-                <i class="fas fa-users text-5xl text-purple-600 mb-4"></i>
-                <p class="text-5xl font-bold text-gray-800 dark:text-white"><?= $total_students ?></p>
-                <p class="text-gray-600 dark:text-gray-300">Students</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div class="stats-card rounded-lg p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Teachers</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1"><?= $total_teachers ?></p>
+                    </div>
+                    <i class="fas fa-chalkboard-teacher text-3xl text-blue-200"></i>
+                </div>
             </div>
-            <div class="glass rounded-3xl p-8 text-center card-hover border border-white/30">
-                <i class="fas fa-chalkboard-teacher text-5xl text-indigo-600 mb-4"></i>
-                <p class="text-5xl font-bold text-gray-800 dark:text-white"><?= $total_teachers ?></p>
-                <p class="text-gray-600 dark:text-gray-300">Teachers</p>
+
+            <div class="stats-card rounded-lg p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Parents</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1"><?= $total_parents ?></p>
+                    </div>
+                    <i class="fas fa-user-tie text-3xl text-blue-200"></i>
+                </div>
             </div>
-            <div class="glass rounded-3xl p-8 text-center card-hover border border-white/30">
-                <i class="fas fa-user-tie text-5xl text-pink-600 mb-4"></i>
-                <p class="text-5xl font-bold text-gray-800 dark:text-white"><?= $total_parents ?></p>
-                <p class="text-gray-600 dark:text-gray-300">Parents</p>
+
+            <div class="stats-card rounded-lg p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Courses</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1"><?= $total_courses ?></p>
+                    </div>
+                    <i class="fas fa-book text-3xl text-blue-200"></i>
+                </div>
             </div>
-            <div class="glass rounded-3xl p-8 text-center card-hover border border-white/30">
-                <i class="fas fa-book-open text-5xl text-green-600 mb-4"></i>
-                <p class="text-5xl font-bold text-gray-800 dark:text-white"><?= $total_courses ?></p>
-                <p class="text-gray-600 dark:text-gray-300">Courses</p>
-            </div>
-            <div class="glass rounded-3xl p-8 text-center card-hover border border-white/30">
-                <i class="fas fa-layer-group text-5xl text-blue-600 mb-4"></i>
-                <p class="text-5xl font-bold text-gray-800 dark:text-white"><?= $active_batches ?></p>
-                <p class="text-gray-600 dark:text-gray-300">Active Batches</p>
-            </div>
-            <div class="glass rounded-3xl p-8 text-center card-hover border border-white/30">
-                <i class="fas fa-receipt text-5xl text-yellow-600 mb-4"></i>
-                <p class="text-5xl font-bold text-gray-800 dark:text-white"><?= $pending_invoices ?></p>
-                <p class="text-gray-600 dark:text-gray-300">Pending Invoices</p>
-            </div>
-            <div class="glass rounded-3xl p-8 text-center card-hover border border-white/30">
-                <i class="fas fa-calendar-event text-5xl text-red-600 mb-4"></i>
-                <p class="text-5xl font-bold text-gray-800 dark:text-white"><?= $upcoming_events ?></p>
-                <p class="text-gray-600 dark:text-gray-300">Upcoming Events</p>
-            </div>
-            <div class="glass rounded-3xl p-8 text-center card-hover border border-white/30">
-                <i class="fas fa-chart-line text-5xl text-teal-600 mb-4"></i>
-                <p class="text-5xl font-bold text-gray-800 dark:text-white"><?= $avg_attendance ?>%</p>
-                <p class="text-gray-600 dark:text-gray-300">Avg Attendance</p>
+
+            <div class="stats-card rounded-lg p-6 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Avg Attendance</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1"><?= $avg_attendance ?>%</p>
+                    </div>
+                    <i class="fas fa-chart-line text-3xl text-blue-200"></i>
+                </div>
             </div>
         </div>
 
-        <!-- Recent Activity -->
+        <!-- Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Recent Enrollments -->
             <div class="lg:col-span-2">
-                <div class="glass rounded-3xl p-8 border border-white/20">
-                    <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-6">Recent Enrollments</h2>
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-8 py-6 border-b border-gray-200">
+                        <h3 class="text-xl font-bold text-gray-900">Recent Enrollments</h3>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full">
-                            <thead class="bg-gradient-to-r from-purple-600 to-indigo-700 text-white">
-                                <tr>
-                                    <th class="px-6 py-4 text-left rounded-tl-xl">Student</th>
-                                    <th class="px-6 py-4 text-left">Course / Batch</th>
-                                    <th class="px-6 py-4 text-left rounded-tr-xl">Date</th>
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="px-8 py-4 text-left text-sm font-semibold text-gray-700">Student Name</th>
+                                    <th class="px-8 py-4 text-left text-sm font-semibold text-gray-700">Course / Batch</th>
+                                    <th class="px-8 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if ($recent_enrollments && $recent_enrollments->num_rows > 0): ?>
                                     <?php while ($e = $recent_enrollments->fetch_assoc()): ?>
-                                        <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition">
-                                            <td class="px-6 py-5 font-medium"><?= htmlspecialchars($e['firstName'] . ' ' . $e['lastName']) ?></td>
-                                            <td class="px-6 py-5">
-                                                <div class="font-semibold"><?= htmlspecialchars($e['courseName']) ?></div>
-                                                <div class="text-sm text-gray-500"><?= htmlspecialchars($e['batch_code']) ?></div>
+                                        <tr class="table-row border-b border-gray-200 hover:bg-blue-50">
+                                            <td class="px-8 py-5 text-gray-900 font-medium"><?= htmlspecialchars($e['firstName'] . ' ' . $e['lastName']) ?></td>
+                                            <td class="px-8 py-5">
+                                                <div class="text-gray-900 font-medium text-sm"><?= htmlspecialchars($e['courseName']) ?></div>
+                                                <div class="text-gray-500 text-xs"><?= htmlspecialchars($e['batch_code']) ?></div>
                                             </td>
-                                            <td class="px-6 py-5 text-gray-600 dark:text-gray-400"><?= date("M d, Y", strtotime($e['enrolled_at'])) ?></td>
+                                            <td class="px-8 py-5 text-gray-600 text-sm"><?= date("M d, Y", strtotime($e['enrolled_at'])) ?></td>
                                         </tr>
                                     <?php endwhile; ?>
                                 <?php else: ?>
-                                    <tr><td colspan="3" class="text-center py-12 text-gray-500">No recent enrollments</td></tr>
+                                    <tr>
+                                        <td colspan="3" class="text-center py-8 text-gray-500">No recent enrollments</td>
+                                    </tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -263,110 +401,158 @@ $announcements_result = $conn->query("
                 </div>
             </div>
 
-            <div>
-                <div class="glass rounded-3xl p-8 mb-8 border border-white/20">
-                    <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-6">Upcoming Events</h2>
-                    <?php if ($events_result && $events_result->num_rows > 0): ?>
-                        <?php while ($ev = $events_result->fetch_assoc()): ?>
-                            <div class="mb-6 p-6 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/50 dark:to-pink-900/50 rounded-2xl">
-                                <div class="flex items-start gap-4">
-                                    <div class="bg-gradient-to-br from-purple-600 to-pink-600 text-white rounded-2xl p-4 text-center font-bold">
-                                        <div class="text-2xl"><?= date('d', strtotime($ev['event_date'])) ?></div>
-                                        <div class="text-sm"><?= date('M', strtotime($ev['event_date'])) ?></div>
+            <!-- Sidebar: Events & Announcements -->
+            <div class="space-y-8">
+                <!-- Upcoming Events -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-8 py-6 border-b border-gray-200">
+                        <h3 class="text-xl font-bold text-gray-900">Upcoming Events</h3>
+                    </div>
+                    <div class="p-6">
+                        <?php if ($events_result && $events_result->num_rows > 0): ?>
+                            <div class="space-y-4">
+                                <?php while ($ev = $events_result->fetch_assoc()): ?>
+                                    <div class="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                                        <div class="flex gap-4">
+                                            <div class="bg-blue-600 text-white rounded-lg p-3 text-center min-w-fit">
+                                                <div class="text-lg font-bold"><?= date('d', strtotime($ev['event_date'])) ?></div>
+                                                <div class="text-xs"><?= date('M', strtotime($ev['event_date'])) ?></div>
+                                            </div>
+                                            <div class="flex-1">
+                                                <h4 class="font-bold text-gray-900 text-sm"><?= htmlspecialchars($ev['title']) ?></h4>
+                                                <p class="text-gray-600 text-xs mt-1"><?= htmlspecialchars(substr($ev['description'], 0, 80)) ?><?= strlen($ev['description']) > 80 ? '...' : '' ?></p>
+                                                <p class="text-gray-500 text-xs mt-2">
+                                                    <i class="fas fa-clock"></i> <?= date('h:i A', strtotime($ev['event_time_start'])) ?>
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="flex-1">
-                                        <h4 class="font-bold text-lg text-gray-800 dark:text-white"><?= htmlspecialchars($ev['title']) ?></h4>
-                                        <p class="text-gray-700 dark:text-gray-300 text-sm mt-1"><?= htmlspecialchars($ev['description']) ?></p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                                            <i class="fas fa-clock"></i> <?= date('h:i A', strtotime($ev['event_time_start'])) ?>
-                                            • <?= htmlspecialchars($ev['location']) ?>
-                                        </p>
-                                    </div>
-                                </div>
+                                <?php endwhile; ?>
                             </div>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <p class="text-center text-gray-500 py-12">No upcoming events</p>
-                    <?php endif; ?>
+                        <?php else: ?>
+                            <p class="text-center text-gray-500 py-8">No upcoming events</p>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
-                <div class="glass rounded-3xl p-8 border border-white/20">
-                    <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-6">Recent Announcements</h2>
-                    <?php if ($announcements_result && $announcements_result->num_rows > 0): ?>
-                        <?php while ($a = $announcements_result->fetch_assoc()): ?>
-                            <div class="mb-5 p-5 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                                <p class="text-gray-700 dark:text-gray-300"><?= nl2br(htmlspecialchars(substr($a['message'], 0, 120))) ?><?= strlen($a['message']) > 120 ? '...' : '' ?></p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                                    <i class="fas fa-clock"></i> <?= date("M d, Y", strtotime($a['created_at'])) ?>
-                                    • To <?= ucfirst($a['recipients']) ?>
-                                </p>
+                <!-- Recent Announcements -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div class="px-8 py-6 border-b border-gray-200">
+                        <h3 class="text-xl font-bold text-gray-900">Recent Announcements</h3>
+                    </div>
+                    <div class="p-6">
+                        <?php if ($announcements_result && $announcements_result->num_rows > 0): ?>
+                            <div class="space-y-4">
+                                <?php while ($a = $announcements_result->fetch_assoc()): ?>
+                                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                        <p class="text-gray-700 text-sm"><?= nl2br(htmlspecialchars(substr($a['message'], 0, 100))) ?><?= strlen($a['message']) > 100 ? '...' : '' ?></p>
+                                        <p class="text-gray-500 text-xs mt-3">
+                                            <i class="fas fa-calendar"></i> <?= date("M d, Y", strtotime($a['created_at'])) ?>
+                                            • To <strong><?= ucfirst($a['recipients']) ?></strong>
+                                        </p>
+                                    </div>
+                                <?php endwhile; ?>
                             </div>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <p class="text-center text-gray-500 py-12">No recent announcements</p>
-                    <?php endif; ?>
+                        <?php else: ?>
+                            <p class="text-center text-gray-500 py-8">No recent announcements</p>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Payment Alert Modal -->
-<?php if (!empty($recent_payments)): ?>
-<div class="modal fade" id="paymentAlert" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 rounded-3xl shadow-2xl overflow-hidden">
-            <div class="modal-header bg-gradient-to-r from-green-500 to-emerald-600 text-white p-8">
-                <h5 class="modal-title text-3xl font-bold">
-                    <i class="fas fa-bell mr-4"></i> New Payments Received!
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900">
-                <p class="text-xl text-gray-800 dark:text-gray-200 mb-8 text-center">
-                    <strong>Congratulations!</strong> You have received new payments in the last 24 hours:
-                </p>
-                <div class="space-y-6">
-                    <?php foreach ($recent_payments as $p): ?>
-                        <div class="flex items-center justify-between p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-green-200 dark:border-green-800">
-                            <div class="flex items-center gap-6">
-                                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                                    M
-                                </div>
-                                <div>
-                                    <p class="text-2xl font-bold text-gray-800 dark:text-white">
-                                        <?= htmlspecialchars($p['firstName'] . ' ' . $p['lastName']) ?>
-                                    </p>
-                                    <p class="text-gray-600 dark:text-gray-400"><?= htmlspecialchars($p['courseName']) ?></p>
-                                </div>
+<!-- Payment Modal - Shows only on first login -->
+<?php if (!empty($recent_payments) && $isFirstLogin): ?>
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 animate-fade-in">
+        <!-- Modal Header -->
+        <div class="px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
+            <h2 class="text-2xl font-bold flex items-center gap-3">
+                <i class="fas fa-check-circle"></i>
+                New Payments Received!
+            </h2>
+            <p class="text-blue-100 mt-1">You have received payments in the last 24 hours</p>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-8 max-h-96 overflow-y-auto">
+            <div class="space-y-4">
+                <?php foreach ($recent_payments as $p): ?>
+                    <div class="flex items-center justify-between p-5 bg-blue-50 rounded-lg border border-blue-200">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                                M
                             </div>
-                            <div class="text-right">
-                                <p class="text-4xl font-bold text-green-600 dark:text-green-400">M<?= number_format($p['amount'], 2) ?></p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400"><?= date("h:i A", strtotime($p['payment_date'])) ?></p>
+                            <div>
+                                <p class="font-semibold text-gray-900"><?= htmlspecialchars($p['firstName'] . ' ' . $p['lastName']) ?></p>
+                                <p class="text-gray-600 text-sm"><?= htmlspecialchars($p['courseName']) ?></p>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                </div>
+                        <div class="text-right">
+                            <p class="text-2xl font-bold text-blue-600">M<?= number_format($p['amount'], 2) ?></p>
+                            <p class="text-gray-500 text-xs"><?= date("h:i A", strtotime($p['payment_date'])) ?></p>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
             </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-8 py-4 border-t border-gray-200 text-right bg-gray-50 rounded-b-lg">
+            <button onclick="closePaymentModal()" class="btn-action rounded-lg px-8 py-3 font-medium">
+                Got it!
+            </button>
         </div>
     </div>
 </div>
 <?php endif; ?>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    <?php if (!empty($recent_payments)): ?>
-    const today = new Date().toISOString().slice(0, 10);
-    if (!sessionStorage.getItem('paymentAlert_' + today)) {
-        setTimeout(() => {
-            const modal = new bootstrap.Modal(document.getElementById('paymentAlert'));
-            modal.show();
-            sessionStorage.setItem('paymentAlert_' + today, 'shown');
-        }, 2000);
+    function closePaymentModal() {
+        const modal = document.getElementById('paymentModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
     }
-    <?php endif; ?>
-});
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('paymentModal');
+        if (modal) {
+            setTimeout(() => {
+                modal.classList.remove('hidden');
+            }, 500);
+        }
+    });
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('paymentModal');
+        if (modal && e.target === modal) {
+            closePaymentModal();
+        }
+    });
 </script>
+
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+    #paymentModal:not(.hidden) {
+        display: flex;
+    }
+</style>
+
 </body>
 </html>
