@@ -158,11 +158,14 @@ if (isset($_GET['delete'])) {
     }
     $stmt->close();
 
-    $conn->query("DELETE FROM courses WHERE course_id=$course_id");
+   // $conn->query("DELETE FROM courses WHERE course_id=$course_id");
+    // NEW (soft delete - moves to recycle bin)
+    $conn->query("UPDATE courses SET deleted_at = NOW() and status = 'deleted' WHERE course_id = $course_id");
+
     $course_deleted = true;
 }
 
-$limit = 5;
+$limit = 10;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($page < 1) $page = 1;
 $offset = ($page - 1) * $limit;
@@ -182,512 +185,327 @@ $total_enrollments = $conn->query("SELECT COUNT(*) as total FROM course_enrollme
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Courses | Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        :root {
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-            --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-            --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-            --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
-            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
-        }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            padding-top: 56px;
+            font-family: 'Inter', sans-serif;
         }
-
-        .content {
-            min-height: calc(100vh - 56px);
+        .course-card {
             transition: all 0.3s ease;
         }
-
-        .main {
-            padding: 2rem 2rem 2rem 1rem;
+        .course-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
         }
-
-        .section-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: var(--shadow-md);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        .course-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
         }
-
-        .section-card h2 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 1.5rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .main-content {
+            margin-left: 220px;
+            transition: margin-left 0.3s ease;
         }
-
-        .top-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .search-form {
-            display: flex;
-            gap: 1rem;
-            max-width: 400px;
-        }
-
-        .search-form .form-control {
-            flex: 1;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .form-row .form-control {
-            padding: 0.75rem;
-            border: 1px solid rgba(0,0,0,0.1);
-            border-radius: 8px;
-        }
-
-        .form-row textarea {
-            grid-column: span 2;
-            min-height: 100px;
-        }
-
-        .form-row img {
-            max-width: 100px;
-            border-radius: 8px;
-            margin-top: 0.5rem;
-        }
-
-        .btn-primary {
-            background: var(--primary-gradient);
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .table {
-            margin-bottom: 0;
-        }
-
-        .table th {
-            background: var(--primary-gradient);
-            color: white;
-            border: none;
-            font-weight: 600;
-            padding: 1rem;
-        }
-
-        .table td {
-            padding: 1rem;
-            vertical-align: middle;
-            border-color: rgba(0,0,0,0.05);
-        }
-
-        .table-hover tbody tr:hover {
-            background-color: rgba(102, 126, 234, 0.05);
-        }
-
-        .table img {
-            max-width: 50px;
-            border-radius: 4px;
-        }
-
-        .btn-edit {
-            background: var(--info-gradient);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            margin-right: 0.5rem;
-            font-size: 0.875rem;
-        }
-
-        .btn-edit:hover {
-            transform: translateY(-1px);
-        }
-
-        .btn-delete {
-            background: var(--danger-gradient);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
-        }
-
-        .btn-delete:hover {
-            transform: translateY(-1px);
-        }
-
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-top: 2rem;
-        }
-
-        .pagination a, .pagination span {
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            text-decoration: none;
-            background: rgba(255,255,255,0.8);
-            color: #1f2937;
-            font-weight: 500;
-        }
-
-        .pagination .disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .stats-section {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: var(--shadow-md);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .stats-section h3 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 1.5rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 200px;
-            margin-bottom: 1rem;
-        }
-
-        footer {
-            background: rgba(31, 41, 55, 0.8);
-            color: #fff;
-            text-align: center;
-            padding: 1.5rem;
-            margin-top: 2rem;
-            border-radius: 16px 16px 0 0;
-        }
-
-        .sidebar {
-            width: 280px;
-            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-            color: #fff;
-            position: fixed;
-            top: 56px;
-            height: calc(100vh - 56px);
-            left: 0;
-            overflow-y: auto;
-            transition: all 0.3s ease;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.2);
-            z-index: 1030;
-        }
-
-        @media (min-width: 992px) {
-            .main {
-                padding-left: 1rem;
-                padding-right: 2rem;
-            }
-            .content {
-                margin-left: 280px;
-            }
-        }
-
-        @media (max-width: 991px) {
-            .sidebar {
-                top: 0;
-                height: 100vh;
-                left: -280px;
-            }
-            .sidebar.show {
-                left: 0;
-            }
-            .main {
-                padding: 1rem;
-            }
-        }
-
         @media (max-width: 768px) {
-            .top-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .search-form {
-                max-width: none;
-            }
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            .form-row textarea {
-                grid-column: span 1;
+            .main-content {
+                margin-left: 0;
             }
         }
     </style>
 </head>
-<body>
-<?php include 'top_navigation.php'; ?>
-<?php include 'admin_navigation.php'; ?>
+<body class="bg-gray-100">
+    <?php include 'top_navigation.php'; ?>
+    <?php include 'admin_navigation.php'; ?>
 
-<div class="content">
-    <main class="main">
-        <div class="top-row">
-            <h2>Manage Courses</h2>
-        </div>
+    <div class="main-content">
+        <main class="p-6" style="padding-top: 80px;">
+            <!-- Page Header -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-gray-800">Manage Courses</h2>
+                <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition">
+                    <i class="fas fa-plus mr-2"></i>Add New Course
+                </button>
+            </div>
 
-        <div class="row">
-            <div class="col-lg-8">
-                <div class="section-card">
-                    <h3>Add New Course</h3>
-                    <form method="POST" class="form-row" enctype="multipart/form-data">
-                        <input type="text" name="title" placeholder="Title" class="form-control" required>
-                        <input type="text" name="courseName" placeholder="Course Name" class="form-control" required>
-                        <textarea name="description" placeholder="Description" class="form-control" required></textarea>
-                        <input type="text" name="category" placeholder="Category (e.g., Construction Coding)" class="form-control" required>
-                        <input type="text" name="level" placeholder="Level (e.g., Beginner)" class="form-control" required>
-                        <input type="date" name="start_date" class="form-control" required>
-                        <input type="date" name="end_date" class="form-control" required>
-                        <input type="number" step="0.01" name="price" placeholder="Price" class="form-control" required>
-                        <select name="status" class="form-control" required>
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">Active Courses</p>
+                            <p class="text-3xl font-bold mt-2"><?= $active_courses ?></p>
+                        </div>
+                        <i class="fas fa-check-circle text-5xl opacity-30"></i>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">Inactive Courses</p>
+                            <p class="text-3xl font-bold mt-2"><?= $inactive_courses ?></p>
+                        </div>
+                        <i class="fas fa-times-circle text-5xl opacity-30"></i>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">Total Enrollments</p>
+                            <p class="text-3xl font-bold mt-2"><?= $total_enrollments ?></p>
+                        </div>
+                        <i class="fas fa-users text-5xl opacity-30"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="Search courses by name, category, or level..." 
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+            </div>
+
+            <!-- Courses Grid -->
+            <div id="coursesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <?php while ($row = $result->fetch_assoc()) { ?>
+                <div class="course-card bg-white rounded-lg shadow-md overflow-hidden">
+                    <img src="<?= htmlspecialchars($row['image_path']) ?>" alt="Course Image" class="course-image">
+                    <div class="p-5">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="text-xl font-bold text-gray-800 line-clamp-2"><?= htmlspecialchars($row['courseName']) ?></h3>
+                            <span class="<?= $row['status'] === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' ?> text-xs font-semibold px-3 py-1 rounded-full">
+                                <?= ucfirst($row['status']) ?>
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2"><i class="fas fa-bookmark mr-2 text-blue-500"></i><?= htmlspecialchars($row['category']) ?></p>
+                        <p class="text-sm text-gray-600 mb-2"><i class="fas fa-signal mr-2 text-purple-500"></i><?= htmlspecialchars($row['level']) ?></p>
+                        <p class="text-gray-700 text-sm mb-3 line-clamp-2"><?= htmlspecialchars($row['description']) ?></p>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-sm text-gray-600"><i class="fas fa-calendar mr-1"></i><?= date('M d, Y', strtotime($row['start_date'])) ?></span>
+                            <span class="text-lg font-bold text-blue-600">M<?= $row['price'] ?></span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick='openEditModal(<?= json_encode($row) ?>)' class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </button>
+                            <button onclick="confirmDelete(<?= $row['course_id'] ?>)" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                <i class="fas fa-trash mr-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php } ?>
+            </div>
+
+            <!-- Pagination -->
+            <div class="flex justify-center items-center gap-4 mt-8">
+                <?php if ($page > 1): ?>
+                    <a href="?page=<?= $page - 1 ?>" class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-6 rounded-lg shadow transition">
+                        <i class="fas fa-chevron-left mr-2"></i>Previous
+                    </a>
+                <?php else: ?>
+                    <span class="bg-gray-200 text-gray-500 font-semibold py-2 px-6 rounded-lg cursor-not-allowed">
+                        <i class="fas fa-chevron-left mr-2"></i>Previous
+                    </span>
+                <?php endif; ?>
+
+                <span class="text-gray-700 font-medium">Page <?= $page ?> of <?= $total_pages ?></span>
+
+                <?php if ($page < $total_pages): ?>
+                    <a href="?page=<?= $page + 1 ?>" class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-6 rounded-lg shadow transition">
+                        Next<i class="fas fa-chevron-right ml-2"></i>
+                    </a>
+                <?php else: ?>
+                    <span class="bg-gray-200 text-gray-500 font-semibold py-2 px-6 rounded-lg cursor-not-allowed">
+                        Next<i class="fas fa-chevron-right ml-2"></i>
+                    </span>
+                <?php endif; ?>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="courseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" style="display: none;">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center rounded-t-lg">
+                <h3 id="modalTitle" class="text-xl font-bold">Add New Course</h3>
+                <button onclick="closeModal()" class="text-white hover:text-gray-200">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <form method="POST" enctype="multipart/form-data" class="p-6">
+                <input type="hidden" name="course_id" id="course_id">
+                <input type="hidden" name="existing_image_path" id="existing_image_path">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Title</label>
+                        <input type="text" name="title" id="title" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Course Name</label>
+                        <input type="text" name="courseName" id="courseName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2">Description</label>
+                    <textarea name="description" id="description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Category</label>
+                        <input type="text" name="category" id="category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Level</label>
+                        <select name="level" id="level" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="Beginner">Beginner</option>
+                            <option value="Intermediate">Intermediate</option>
+                            <option value="Advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Status</label>
+                        <select name="status" id="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                         </select>
-                        <div>
-                            <label for="course_image">Course Image (JPG/PNG, max 5MB)</label>
-                            <input type="file" name="course_image" id="course_image" class="form-control" accept="image/jpeg,image/png">
-                        </div>
-                        <button type="submit" name="add_course" class="btn btn-primary">Add Course</button>
-                    </form>
-                </div>
-
-                <div class="section-card">
-                    <input type="text" id="searchInput" placeholder="Search courses..." class="form-control mb-3">
-                    <h3>Existing Courses</h3>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle" id="coursesTable">
-                            <thead>
-                                <tr><th>ID</th><th>Image</th><th>Title</th><th>Course Name</th><th>Category</th><th>Level</th><th>Start</th><th>End</th><th>Price</th><th>Status</th><th>Actions</th></tr>
-                            </thead>
-                            <tbody>
-                                <?php while ($row = $result->fetch_assoc()) { ?>
-                                <tr>
-                                    <td><?= $row['course_id'] ?></td>
-                                    <td><img src="<?= htmlspecialchars($row['image_path']) ?>" alt="Course Image"></td>
-                                    <td><?= htmlspecialchars($row['title']) ?></td>
-                                    <td><?= htmlspecialchars($row['courseName']) ?></td>
-                                    <td><?= htmlspecialchars($row['category']) ?></td>
-                                    <td><?= htmlspecialchars($row['level']) ?></td>
-                                    <td><?= $row['start_date'] ?></td>
-                                    <td><?= $row['end_date'] ?></td>
-                                    <td>$<?= $row['price'] ?></td>
-                                    <td><?= ucfirst($row['status']) ?></td>
-                                    <td>
-                                        <button class="btn btn-edit" onclick='openEditModal(<?= json_encode($row) ?>)'>✏</button>
-                                        <button class="btn btn-delete" onclick="confirmDelete(<?= $row['course_id'] ?>)">🗑</button>
-                                    </td>
-                                </tr>
-                                <?php } ?>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="pagination">
-                        <?php if ($page > 1): ?>
-                            <a href="?page=<?= $page - 1 ?>">&laquo; Prev</a>
-                        <?php else: ?>
-                            <span class="disabled">&laquo; Prev</span>
-                        <?php endif; ?>
-
-                        <?php if ($page < $total_pages): ?>
-                            <a href="?page=<?= $page + 1 ?>">Next &raquo;</a>
-                        <?php else: ?>
-                            <span class="disabled">Next &raquo;</span>
-                        <?php endif; ?>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-lg-4">
-                <div class="stats-section">
-                    <h3>Course Statistics</h3>
-                    <div class="chart-container">
-                        <canvas id="barChart"></canvas>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Start Date</label>
+                        <input type="date" name="start_date" id="start_date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                     </div>
-                    <div class="chart-container">
-                        <canvas id="pieChart"></canvas>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">End Date</label>
+                        <input type="date" name="end_date" id="end_date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Price (M)</label>
+                        <input type="number" step="0.01" name="price" id="price" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                     </div>
                 </div>
-            </div>
-        </div>
-    </main>
-</div>
 
-<!-- Edit Modal -->
-<div id="editModal" class="modal fade" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header" style="background: var(--primary-gradient); color: white;">
-                <h5 class="modal-title">Edit Course</h5>
-                <button type="button" class="btn-close btn-close-white" onclick="closeEditModal()"></button>
-            </div>
-            <form method="POST" class="modal-body form-row" enctype="multipart/form-data">
-                <input type="hidden" name="course_id" id="edit_course_id">
-                <input type="hidden" name="existing_image_path" id="edit_image_path">
-                <input type="text" name="title" id="edit_title" placeholder="Title" class="form-control" required>
-                <input type="text" name="courseName" id="edit_courseName" placeholder="Course Name" class="form-control" required>
-                <textarea name="description" id="edit_description" placeholder="Description" class="form-control" required></textarea>
-                <input type="text" name="category" id="edit_category" placeholder="Category" class="form-control" required>
-                <input type="text" name="level" id="edit_level" placeholder="Level" class="form-control" required>
-                <input type="date" name="start_date" id="edit_start_date" class="form-control" required>
-                <input type="date" name="end_date" id="edit_end_date" class="form-control" required>
-                <input type="number" step="0.01" name="price" id="edit_price" placeholder="Price" class="form-control" required>
-                <select name="status" id="edit_status" class="form-control" required>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-                <div>
-                    <label for="edit_course_image">Course Image (JPG/PNG, max 5MB)</label>
-                    <img id="edit_image_preview" src="" alt="Current Image" style="display: none;">
-                    <input type="file" name="course_image" id="edit_course_image" class="form-control" accept="image/jpeg,image/png">
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2">Course Image (JPG/PNG, max 5MB)</label>
+                    <input type="file" name="course_image" id="course_image" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" accept="image/jpeg,image/png">
+                    <img id="image_preview" src="" alt="Preview" class="mt-3 max-w-xs rounded-lg" style="display: none;">
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-                    <button type="submit" name="update_course" class="btn btn-primary">Update</button>
+
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeModal()" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button type="submit" name="add_course" id="submitBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>Save Course
+                    </button>
                 </div>
             </form>
         </div>
     </div>
-</div>
 
-<footer class="text-center py-3">
-    <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
-</footer>
+    <script>
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            const filter = this.value.toLowerCase();
+            const cards = document.querySelectorAll('.course-card');
+            
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(filter) ? '' : 'none';
+            });
+        });
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// Search courses
-document.getElementById('searchInput').addEventListener('keyup', function() {
-    const filter = this.value.toLowerCase();
-    document.querySelectorAll('#coursesTable tbody tr').forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(filter) ? '' : 'none';
-    });
-});
-
-// SweetAlert delete confirmation
-function confirmDelete(id) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "This will delete the course permanently!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#e74c3c',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = '?delete=' + id;
+        // Modal functions
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Add New Course';
+            document.getElementById('course_id').value = '';
+            document.getElementById('submitBtn').name = 'add_course';
+            document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save mr-2"></i>Save Course';
+            document.querySelector('form').reset();
+            document.getElementById('image_preview').style.display = 'none';
+            document.getElementById('courseModal').style.display = 'flex';
         }
-    });
-}
 
-function openEditModal(course) {
-    document.getElementById('edit_course_id').value = course.course_id;
-    document.getElementById('edit_title').value = course.title;
-    document.getElementById('edit_courseName').value = course.courseName;
-    document.getElementById('edit_description').value = course.description;
-    document.getElementById('edit_category').value = course.category;
-    document.getElementById('edit_level').value = course.level;
-    document.getElementById('edit_start_date').value = course.start_date;
-    document.getElementById('edit_end_date').value = course.end_date;
-    document.getElementById('edit_price').value = course.price;
-    document.getElementById('edit_status').value = course.status;
-    document.getElementById('edit_image_path').value = course.image_path;
-    document.getElementById('edit_image_preview').src = course.image_path;
-    document.getElementById('edit_image_preview').style.display = 'block';
-    new bootstrap.Modal(document.getElementById('editModal')).show();
-}
+        function openEditModal(course) {
+            document.getElementById('modalTitle').textContent = 'Edit Course';
+            document.getElementById('course_id').value = course.course_id;
+            document.getElementById('title').value = course.title;
+            document.getElementById('courseName').value = course.courseName;
+            document.getElementById('description').value = course.description;
+            document.getElementById('category').value = course.category;
+            document.getElementById('level').value = course.level;
+            document.getElementById('start_date').value = course.start_date;
+            document.getElementById('end_date').value = course.end_date;
+            document.getElementById('price').value = course.price;
+            document.getElementById('status').value = course.status;
+            document.getElementById('existing_image_path').value = course.image_path;
+            document.getElementById('image_preview').src = course.image_path;
+            document.getElementById('image_preview').style.display = 'block';
+            document.getElementById('submitBtn').name = 'update_course';
+            document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save mr-2"></i>Update Course';
+            document.getElementById('courseModal').style.display = 'flex';
+        }
 
-function closeEditModal() {
-    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
-}
+        function closeModal() {
+            document.getElementById('courseModal').style.display = 'none';
+        }
 
-// Charts
-const ctxBar = document.getElementById('barChart').getContext('2d');
-const barChart = new Chart(ctxBar, {
-    type: 'bar',
-    data: {
-        labels: ['Active Courses', 'Inactive Courses', 'Enrollments'],
-        datasets: [{
-            label: 'Courses Stats',
-            data: [<?= $active_courses ?>, <?= $inactive_courses ?>, <?= $total_enrollments ?: 0 ?>],
-            backgroundColor: ['#27ae60','#e74c3c','#3498db']
-        }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-});
+        // Image preview
+        document.getElementById('course_image').addEventListener('change', function() {
+            const preview = document.getElementById('image_preview');
+            if (this.files && this.files[0]) {
+                preview.src = URL.createObjectURL(this.files[0]);
+                preview.style.display = 'block';
+            }
+        });
 
-const ctxPie = document.getElementById('pieChart').getContext('2d');
-const pieChart = new Chart(ctxPie, {
-    type: 'pie',
-    data: {
-        labels: ['Active Courses', 'Inactive Courses'],
-        datasets: [{
-            data: [<?= $active_courses ?>, <?= $inactive_courses ?>],
-            backgroundColor: ['#27ae60','#e74c3c']
-        }]
-    },
-    options: { responsive: true }
-});
-</script>
+        // Delete confirmation
+        function confirmDelete(id) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "This will delete the course permanently!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e74c3c',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '?delete=' + id;
+                }
+            });
+        }
+    </script>
 
-<?php if ($course_added): ?>
-<script>Swal.fire('Success','Course added successfully!','success');</script>
-<?php endif; ?>
-<?php if ($course_updated): ?>
-<script>Swal.fire('Updated','Course updated successfully!','success');</script>
-<?php endif; ?>
-<?php if ($update_error): ?>
-<script>Swal.fire('Error','Course title, name, or image upload failed!','error');</script>
-<?php endif; ?>
-<?php if ($course_deleted): ?>
-<script>Swal.fire('Deleted','Course deleted successfully!','success');</script>
-<?php endif; ?>
-<?php if ($image_error): ?>
-<script>Swal.fire('Error','Invalid image file or size exceeds 5MB!','error');</script>
-<?php endif; ?>
+    <?php if ($course_added): ?>
+    <script>Swal.fire('Success','Course added successfully!','success');</script>
+    <?php endif; ?>
+    <?php if ($course_updated): ?>
+    <script>Swal.fire('Updated','Course updated successfully!','success');</script>
+    <?php endif; ?>
+    <?php if ($update_error): ?>
+    <script>Swal.fire('Error','Course title, name, or image upload failed!','error');</script>
+    <?php endif; ?>
+    <?php if ($course_deleted): ?>
+    <script>Swal.fire('Deleted','Course deleted successfully!','success');</script>
+    <?php endif; ?>
+    <?php if ($image_error): ?>
+    <script>Swal.fire('Error','Invalid image file or size exceeds 5MB!','error');</script>
+    <?php endif; ?>
 </body>
 </html>

@@ -276,6 +276,10 @@ $topStudents = array_slice($allStudents, 0, 3);
                     <i class="fas fa-home mr-3"></i>
                     Dashboard
                 </a>
+                  <a href="teacher_timetable.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-home mr-3"></i>
+                    Timetable
+                </a>
                 <a href="manage_teacher_courses.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
                     <i class="fas fa-chalkboard-teacher mr-3"></i>
                     Manage Courses

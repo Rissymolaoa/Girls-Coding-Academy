@@ -1,11 +1,9 @@
 <?php
 session_start();
-
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.html");
     exit();
 }
-
 include("db.php");
 
 // Upload directories
@@ -17,10 +15,9 @@ function post($key) {
     return isset($_POST[$key]) ? trim($_POST[$key]) : null;
 }
 
-// Handle delete request
+// Handle delete
 if (isset($_GET['delete'])) {
     $del_id = intval($_GET['delete']);
-
     $res = $conn->prepare("SELECT address_id FROM users WHERE user_id = ?");
     $res->bind_param("i", $del_id);
     $res->execute();
@@ -28,69 +25,61 @@ if (isset($_GET['delete'])) {
     $address_id = $r['address_id'] ?? null;
     $res->close();
 
-    $stmt = $conn->prepare("DELETE FROM teachers WHERE user_id = ?");
-    $stmt->bind_param("i", $del_id);
-    $stmt->execute();
-    $stmt->close();
-
-    $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ? AND role = 'teacher'");
-    $stmt->bind_param("i", $del_id);
-    $stmt->execute();
-    $stmt->close();
-
+    $tables = ['teachers', 'users'];
+    foreach ($tables as $table) {
+        $stmt = $conn->prepare("DELETE FROM $table WHERE user_id = ? " . ($table === 'users' ? "AND role='teacher'" : ""));
+        $stmt->bind_param("i", $del_id);
+        $stmt->execute();
+        $stmt->close();
+    }
     if ($address_id) {
         $stmt = $conn->prepare("DELETE FROM addresses WHERE address_id = ?");
         $stmt->bind_param("i", $address_id);
         $stmt->execute();
         $stmt->close();
     }
-
     header("Location: manage_teachers.php");
     exit();
 }
 
-// Handle POST requests for add/edit
+// Handle add/edit
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    $user_id    = post('user_id') ? intval(post('user_id')) : null;
-    $username   = post('username');
-    $firstName  = post('firstName');
-    $lastName   = post('lastName');
-    $gender     = post('gender');
-    $dob        = post('dob');
-    $IDNumber   = post('IDNumber');
-    $phone      = post('phone');
-    $email      = post('email');
-    $password   = post('password');
-    $status     = post('status') ?: 'active';
-    $address1   = post('address1');
+    $user_id = post('user_id') ? intval(post('user_id')) : null;
+    $username = post('username');
+    $firstName = post('firstName');
+    $lastName = post('lastName');
+    $gender = post('gender');
+    $dob = post('dob');
+    $IDNumber = post('IDNumber');
+    $phone = post('phone');
+    $email = post('email');
+    $password = post('password');
+    $status = post('status') ?: 'active';
+    $address1 = post('address1');
     $streetName = post('streetName');
     $postalCode = post('postalCode');
-    $district   = post('district');
-    $country    = post('country');
+    $district = post('district');
+    $country = post('country');
 
-    // Handle photo upload
     $photoPath = null;
-    if (isset($_FILES['photo']) && is_uploaded_file($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
         $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-        $allowedImg = ['jpg','jpeg','png','gif','webp'];
-        if (in_array($ext, $allowedImg)) {
-            $newName = time() . '_' . uniqid('img_') . '.' . $ext;
-            $absImg = $imageDir . $newName;
-            if (move_uploaded_file($_FILES['photo']['tmp_name'], $absImg)) {
+        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        if (in_array($ext, $allowed)) {
+            $newName = time() . '_' . uniqid() . '.' . $ext;
+            if (move_uploaded_file($_FILES['photo']['tmp_name'], $imageDir . $newName)) {
                 $photoPath = $imageWebPath . $newName;
             }
         }
     }
 
     if ($user_id) {
-        // EDIT flow
+        // EDIT
         $stmt = $conn->prepare("SELECT address_id FROM users WHERE user_id = ?");
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
-        $res = $stmt->get_result();
-        $row = $res->fetch_assoc();
-        $address_id = $row['address_id'] ?? null;
+        $res = $stmt->get_result()->fetch_assoc();
+        $address_id = $res['address_id'] ?? null;
         $stmt->close();
 
         if ($photoPath) {
@@ -101,17 +90,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($address_id) {
-            $stmt = $conn->prepare("UPDATE addresses SET address1 = ?, streetName = ?, postalCode = ?, district = ?, country = ?, updated_at = NOW() WHERE address_id = ?");
+            $stmt = $conn->prepare("UPDATE addresses SET address1=?, streetName=?, postalCode=?, district=?, country=?, updated_at=NOW() WHERE address_id=?");
             $stmt->bind_param("sssssi", $address1, $streetName, $postalCode, $district, $country, $address_id);
             $stmt->execute();
             $stmt->close();
         } else {
-            $stmt = $conn->prepare("INSERT INTO addresses (address1, streetName, postalCode, district, country, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
+            $stmt = $conn->prepare("INSERT INTO addresses (address1, streetName, postalCode, district, country) VALUES (?, ?, ?, ?, ?)");
             $stmt->bind_param("sssss", $address1, $streetName, $postalCode, $district, $country);
             $stmt->execute();
             $address_id = $conn->insert_id;
             $stmt->close();
-
             $stmt = $conn->prepare("UPDATE users SET address_id = ? WHERE user_id = ?");
             $stmt->bind_param("ii", $address_id, $user_id);
             $stmt->execute();
@@ -119,29 +107,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!empty($password)) {
-            $hash = password_hash($password, PASSWORD_BCRYPT);
+            $hash = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $conn->prepare("UPDATE users SET username=?, firstName=?, lastName=?, gender=?, dob=?, IDNumber=?, phone=?, email=?, password=?, status=? WHERE user_id=? AND role='teacher'");
             $stmt->bind_param("ssssssssssi", $username, $firstName, $lastName, $gender, $dob, $IDNumber, $phone, $email, $hash, $status, $user_id);
-            $stmt->execute();
-            $stmt->close();
         } else {
             $stmt = $conn->prepare("UPDATE users SET username=?, firstName=?, lastName=?, gender=?, dob=?, IDNumber=?, phone=?, email=?, status=? WHERE user_id=? AND role='teacher'");
             $stmt->bind_param("sssssssssi", $username, $firstName, $lastName, $gender, $dob, $IDNumber, $phone, $email, $status, $user_id);
-            $stmt->execute();
-            $stmt->close();
         }
+        $stmt->execute();
+        $stmt->close();
     } else {
-        // ADD flow
-        $stmt = $conn->prepare("INSERT INTO addresses (address1, streetName, postalCode, district, country, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
+        // ADD NEW
+        $stmt = $conn->prepare("INSERT INTO addresses (address1, streetName, postalCode, district, country) VALUES (?, ?, ?, ?, ?)");
         $stmt->bind_param("sssss", $address1, $streetName, $postalCode, $district, $country);
         $stmt->execute();
         $address_id = $conn->insert_id;
         $stmt->close();
 
-        $hash = password_hash($password ?: uniqid(), PASSWORD_BCRYPT);
+        $hash = password_hash($password ?: 'teacher123', PASSWORD_DEFAULT);
         $role = 'teacher';
-        $stmt = $conn->prepare("INSERT INTO users (username, firstName, lastName, gender, dob, IDNumber, phone, email, password, status, role, address_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
-        $stmt->bind_param("sssssssssss", $username, $firstName, $lastName, $gender, $dob, $IDNumber, $phone, $email, $hash, $status, $role, $address_id);
+        $stmt = $conn->prepare("INSERT INTO users (username, firstName, lastName, gender, dob, IDNumber, phone, email, password, status, role, address_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssssssssssi", $username, $firstName, $lastName, $gender, $dob, $IDNumber, $phone, $email, $hash, $status, $role, $address_id);
         $stmt->execute();
         $new_user_id = $conn->insert_id;
         $stmt->close();
@@ -151,518 +137,245 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $stmt->close();
     }
-
-    header("Location: manage_teachers.php");
+    header("Location: manage_teachers.php?success=1");
     exit();
 }
 
-// Pagination and fetch teachers
+// Pagination & Search
 $limit = 10;
-$page = isset($_GET['page']) ? max(1,intval($_GET['page'])) : 1;
-$offset = ($page-1)*$limit;
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$page = max(1, intval($_GET['page'] ?? 1));
+$offset = ($page - 1) * $limit;
+$search = trim($_GET['search'] ?? '');
 
 if ($search) {
     $like = "%$search%";
-    $stmt = $conn->prepare("
-        SELECT u.*, t.teacher_id, t.photo, a.address1, a.streetName, a.postalCode, a.district, a.country
-        FROM users u
-        JOIN teachers t ON t.user_id = u.user_id
-        LEFT JOIN addresses a ON u.address_id = a.address_id
-        WHERE u.role='teacher' AND (u.username LIKE ? OR u.firstName LIKE ? OR u.lastName LIKE ?)
-        ORDER BY u.created_at DESC
-        LIMIT ? OFFSET ?
-    ");
-    $stmt->bind_param("sssii",$like,$like,$like,$limit,$offset);
-    $stmt->execute();
-    $teachers = $stmt->get_result();
-    $stmt->close();
-
-    $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM users WHERE role='teacher' AND (username LIKE ? OR firstName LIKE ? OR lastName LIKE ?)");
-    $stmt->bind_param("sss",$like,$like,$like);
-    $stmt->execute();
-    $total_row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $stmt = $conn->prepare("SELECT SQL_CALC_FOUND_ROWS u.*, t.photo, a.* FROM users u JOIN teachers t ON u.user_id=t.user_id LEFT JOIN addresses a ON u.address_id=a.address_id WHERE u.role='teacher' AND (u.username LIKE ? OR u.firstName LIKE ? OR u.lastName LIKE ?) ORDER BY u.created_at DESC LIMIT ? OFFSET ?");
+    $stmt->bind_param("sssii", $like, $like, $like, $limit, $offset);
 } else {
-    $teachers_q = "
-        SELECT u.*, t.teacher_id, t.photo, a.address1, a.streetName, a.postalCode, a.district, a.country
-        FROM users u
-        JOIN teachers t ON t.user_id = u.user_id
-        LEFT JOIN addresses a ON u.address_id = a.address_id
-        WHERE u.role='teacher'
-        ORDER BY u.created_at DESC
-        LIMIT $limit OFFSET $offset
-    ";
-    $teachers = $conn->query($teachers_q);
-
-    $total_result = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role='teacher'");
-    $total_row = $total_result->fetch_assoc();
+    $stmt = $conn->prepare("SELECT SQL_CALC_FOUND_ROWS u.*, t.photo, a.* FROM users u JOIN teachers t ON u.user_id=t.user_id LEFT JOIN addresses a ON u.address_id=a.address_id WHERE u.role='teacher' ORDER BY u.created_at DESC LIMIT ? OFFSET ?");
+    $stmt->bind_param("ii", $limit, $offset);
 }
+$stmt->execute();
+$teachers = $stmt->get_result();
+$stmt->close();
+
+$total_result = $conn->query("SELECT FOUND_ROWS() as total");
+$total_row = $total_result->fetch_assoc();
 $total_pages = ceil($total_row['total'] / $limit);
 ?>
 
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="h-full">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Manage Teachers - Admin</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
-
-<style>
-  :root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-    --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
-    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
-  }
-
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
-    padding-top: 56px;
-  }
-
-  .content {
-    min-height: calc(100vh - 56px);
-    transition: all 0.3s ease;
-  }
-
-  .main {
-    padding: 2rem 2rem 2rem 1rem;
-  }
-
-  .section-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: var(--shadow-md);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .section-card h2 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 1.5rem;
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .top-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-
-  .search-form {
-    display: flex;
-    gap: 1rem;
-    max-width: 400px;
-  }
-
-  .search-form .form-control {
-    flex: 1;
-  }
-
-  .table {
-    margin-bottom: 0;
-  }
-
-  .table th {
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    font-weight: 600;
-    padding: 1rem;
-  }
-
-  .table td {
-    padding: 1rem;
-    vertical-align: middle;
-    border-color: rgba(0,0,0,0.05);
-  }
-
-  .table-hover tbody tr:hover {
-    background-color: rgba(102, 126, 234, 0.05);
-  }
-
-  .placeholder-photo {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.05);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6b7280;
-    border: 2px dashed rgba(0,0,0,0.1);
-    font-size: 0.875rem;
-  }
-
-  .action-icons a {
-    margin: 0 0.5rem;
-    font-size: 1.25rem;
-    color: #6b7280;
-    transition: all 0.3s ease;
-    border-radius: 50%;
-    padding: 0.5rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-  }
-
-  .action-icons a:hover {
-    color: #1f2937;
-    background: rgba(102, 126, 234, 0.1);
-    transform: translateY(-2px);
-  }
-
-  .pagination {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 2rem;
-  }
-
-  .pagination .btn {
-    border-radius: 8px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 500;
-  }
-
-  .modal-img-preview {
-    width: 140px;
-    height: 140px;
-    border-radius: 12px;
-    object-fit: cover;
-    border: 2px solid rgba(0,0,0,0.1);
-    display: block;
-    margin: 1rem auto;
-  }
-
-  .modal-form .form-label {
-    font-weight: 600;
-    color: #1f2937;
-  }
-
-  .modal-form .row {
-    gap: 1.5rem;
-  }
-
-  footer {
-    background: rgba(31, 41, 55, 0.8);
-    color: #fff;
-    text-align: center;
-    padding: 1.5rem;
-    margin-top: 2rem;
-    border-radius: 16px 16px 0 0;
-  }
-
-  /* Enhanced Sidebar Styles - Adjusted for Dashboard */
-  .sidebar {
-    width: 280px;
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    color: #fff;
-    position: fixed;
-    top: 56px;
-    height: calc(100vh - 56px);
-    left: 0;
-    overflow-y: auto;
-    transition: all 0.3s ease;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
-    z-index: 1030;
-  }
-
-  @media (min-width: 992px) {
-    .main {
-      padding-left: 1rem;
-      padding-right: 2rem;
-    }
-    .content {
-      margin-left: 280px;
-    }
-  }
-
-  @media (max-width: 991px) {
-    .sidebar {
-      top: 0;
-      height: 100vh;
-      left: -280px;
-    }
-    .sidebar.show {
-      left: 0;
-    }
-    .main {
-      padding: 1rem;
-    }
-  }
-
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .top-row {
-      flex-direction: column;
-      align-items: stretch;
-    }
-    .search-form {
-      max-width: none;
-    }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Teachers - Girls Coding Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root { --primary: #4f46e5; --primary-light: #6366f1; --primary-dark: #4338ca; }
+        .bg-primary { background-color: var(--primary); }
+        .text-primary { color: var(--primary); }
+        .hover\:bg-primary-dark:hover { background-color: var(--primary-dark); }
+        .card-hover:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+    </style>
 </head>
-<body>
+<body class="h-full bg-gray-50">
+
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
-<div class="content">
-  <main class="main">
-    <div class="top-row">
-      <h2>Manage Teachers</h2>
-      <button class="btn" style="background: var(--primary-gradient); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 500;" onclick="openModal();">
-        <i class="bi bi-plus-lg me-2"></i>Add Teacher
-      </button>
-    </div>
+<div class="ml-64 mt-16 p-8 min-h-screen">
+    <div class="max-w-7xl mx-auto">
 
-    <form method="get" class="search-form mb-4">
-      <input type="text" name="search" placeholder="Search teachers..." value="<?= htmlspecialchars($search) ?>" class="form-control" />
-      <button type="submit" class="btn btn-outline-secondary">Search</button>
-    </form>
-
-    <div class="section-card">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Photo</th><th>Username</th><th>First Name</th><th>Last Name</th><th>Gender</th><th>DOB</th><th>Email</th><th>Phone</th><th>ID No</th><th>Address</th><th>Status</th><th class="text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-<?php while ($t = $teachers->fetch_assoc()):
-    $json = json_encode($t, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);
-?>
-            <tr>
-              <td style="text-align:center; width: 100px;">
-                <?php if (!empty($t['photo']) && file_exists($t['photo'])): ?>
-                  <img src="<?= htmlspecialchars($t['photo']) ?>" alt="Photo" style="width:60px;height:60px;object-fit:cover;border-radius:50%;" />
-                <?php else: ?>
-                  <div class="placeholder-photo">No Photo</div>
-                <?php endif; ?>
-              </td>
-              <td><?= htmlspecialchars($t['username']) ?></td>
-              <td><?= htmlspecialchars($t['firstName']) ?></td>
-              <td><?= htmlspecialchars($t['lastName']) ?></td>
-              <td><?= htmlspecialchars($t['gender']) ?></td>
-              <td><?= htmlspecialchars($t['dob']) ?></td>
-              <td><?= htmlspecialchars($t['email']) ?></td>
-              <td><?= htmlspecialchars($t['phone']) ?></td>
-              <td><?= htmlspecialchars($t['IDNumber']) ?></td>
-              <td><?= htmlspecialchars(trim(($t['address1']??'').' '.($t['streetName']??'').' '.($t['district']??'').' '.($t['postalCode']??'').' '.($t['country']??''))) ?></td>
-              <td><span class="badge <?= $t['status']=='active' ? 'bg-success' : 'bg-secondary' ?>"><?= htmlspecialchars($t['status']) ?></span></td>
-              <td class="text-center">
-                <a href="#" class="action-icons" title="Edit" onclick='editTeacher(<?= $json ?>); return false;'>
-                  <i class="bi bi-pencil-square"></i>
-                </a>
-                <a href="?delete=<?= intval($t['user_id']) ?>" class="action-icons" title="Delete" onclick="return confirm('Delete this teacher?')">
-                  <i class="bi bi-trash"></i>
-                </a>
-              </td>
-            </tr>
-<?php endwhile; ?>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="pagination">
-<?php
-$qs = $search ? "&search=".urlencode($search) : "";
-if ($page > 1):
-?>
-        <a class="btn btn-outline-secondary" href="?page=<?= $page - 1 . $qs ?>">&laquo; Prev</a>
-<?php else: ?>
-        <span class="btn btn-outline-secondary disabled">&laquo; Prev</span>
-<?php endif; ?>
-
-        <span class="align-self-center">Page <?= $page ?> of <?= $total_pages ?></span>
-
-<?php if ($page < $total_pages): ?>
-        <a class="btn btn-outline-secondary" href="?page=<?= $page + 1 . $qs ?>">Next &raquo;</a>
-<?php else: ?>
-        <span class="btn btn-outline-secondary disabled">Next &raquo;</span>
-<?php endif; ?>
-      </div>
-    </div>
-  </main>
-</div>
-
-<!-- Teacher Modal -->
-<div id="teacherModal" class="modal fade" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <form method="post" enctype="multipart/form-data" id="teacherForm" class="modal-form p-4">
-        <input type="hidden" id="user_id" name="user_id" />
-
-        <div class="text-center">
-          <img id="photoPreview" src="default.png" alt="Photo preview" class="modal-img-preview" />
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-800">Manage Teachers</h1>
+                <p class="text-gray-600 mt-2">Add, edit, and manage teaching staff</p>
+            </div>
+            <button onclick="openModal()" class="bg-primary hover:bg-primary-dark text-white font-semibold py-4 px-8 rounded-xl shadow-lg transition flex items-center gap-3">
+                <i class="fas fa-user-plus"></i> Add New Teacher
+            </button>
         </div>
 
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">Username</label>
-            <input type="text" id="username" name="username" class="form-control" required />
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Password (leave blank to keep)</label>
-            <input type="password" id="password" name="password" class="form-control" />
-          </div>
+        <!-- Search -->
+        <form method="get" class="mb-8">
+            <div class="flex gap-4">
+                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search by name or username..." 
+                       class="flex-1 px-6 py-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200 focus:border-indigo-500 transition text-lg">
+                <button type="submit" class="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-xl font-semibold transition flex items-center gap-3">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </form>
 
-          <div class="col-md-6">
-            <label class="form-label">First Name</label>
-            <input type="text" id="firstName" name="firstName" class="form-control" required />
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Last Name</label>
-            <input type="text" id="lastName" name="lastName" class="form-control" required />
-          </div>
+        <!-- Teachers Grid -->
+        <?php if ($teachers->num_rows === 0): ?>
+            <div class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-200">
+                <i class="fas fa-chalkboard-teacher text-8xl text-gray-300 mb-6"></i>
+                <p class="text-2xl text-gray-600">No teachers found</p>
+            </div>
+        <?php else: ?>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <?php while ($t = $teachers->fetch_assoc()): 
+                    $address = trim(($t['address1']??'') . ' ' . ($t['streetName']??'') . ', ' . ($t['district']??'') . ' ' . ($t['country']??''));
+                ?>
+                    <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden card-hover transition-all duration-300">
+                        <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-6 text-center">
+                            <?php if (!empty($t['photo']) && file_exists($t['photo'])): ?>
+                                <img src="<?= htmlspecialchars($t['photo']) ?>" class="w-28 h-28 rounded-full mx-auto border-4 border-white shadow-xl object-cover">
+                            <?php else: ?>
+                                <div class="w-28 h-28 bg-white bg-opacity-20 rounded-full mx-auto flex items-center justify-center text-5xl font-bold">
+                                    <?= strtoupper(substr($t['firstName'],0,1).substr($t['lastName'],0,1)) ?>
+                                </div>
+                            <?php endif; ?>
+                            <h3 class="text-2xl font-bold mt-4"><?= htmlspecialchars($t['firstName'] . ' ' . $t['lastName']) ?></h3>
+                            <p class="text-indigo-100">@<?= htmlspecialchars($t['username']) ?></p>
+                        </div>
 
-          <div class="col-md-6">
-            <label class="form-label">Gender</label>
-            <select id="gender" name="gender" class="form-select">
-              <option value="">Select</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Others">Others</option>
-            </select>
-          </div>
+                        <div class="p-6 space-y-4">
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div><span class="text-gray-600">Email:</span><br><strong><?= htmlspecialchars($t['email']) ?></strong></div>
+                                <div><span class="text-gray-600">Phone:</span><br><strong><?= htmlspecialchars($t['phone'] ?? '—') ?></strong></div>
+                                <div><span class="text-gray-600">Gender:</span><br><strong><?= ucfirst($t['gender'] ?? '—') ?></strong></div>
+                                <div><span class="text-gray-600">Status:</span><br>
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold <?= $t['status']=='active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' ?>">
+                                        <?= ucfirst($t['status']) ?>
+                                    </span>
+                                </div>
+                            </div>
+                            <?php if ($address): ?>
+                                <div class="text-sm text-gray-600 border-t pt-4">
+                                    <i class="fas fa-map-marker-alt text-primary mr-2"></i>
+                                    <?= htmlspecialchars($address) ?>
+                                </div>
+                            <?php endif; ?>
 
-          <div class="col-md-6">
-            <label class="form-label">Date of Birth</label>
-            <input type="date" id="dob" name="dob" class="form-control" />
-          </div>
+                            <div class="flex gap-3 pt-4 border-t">
+                                <button onclick='editTeacher(<?= json_encode($t) ?>)' 
+                                        class="flex-1 bg-white border border-indigo-600 text-indigo-600 py-3 rounded-xl font-semibold hover:bg-indigo-50 transition">
+                                    <i class="fas fa-edit mr-2"></i> Edit
+                                </button>
+                                <a href="?delete=<?= $t['user_id'] ?>" onclick="return confirm('Delete this teacher permanently?')"
+                                   class="flex-1 bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition text-center">
+                                    <i class="fas fa-trash mr-2"></i> Delete
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <?php endwhile; ?>
+            </div>
 
-          <div class="col-md-6">
-            <label class="form-label">Email</label>
-            <input type="email" id="email" name="email" class="form-control" required />
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Phone</label>
-            <input type="text" id="phone" name="phone" class="form-control" />
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label">ID Number</label>
-            <input type="text" id="IDNumber" name="IDNumber" class="form-control" />
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label">Status</label>
-            <select id="status" name="status" class="form-select">
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="pending">Pending</option>
-            </select>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label">Address 1</label>
-            <input type="text" id="address1" name="address1" class="form-control" />
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Street Name</label>
-            <input type="text" id="streetName" name="streetName" class="form-control" />
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Postal Code</label>
-            <input type="text" id="postalCode" name="postalCode" class="form-control" />
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">District</label>
-            <input type="text" id="district" name="district" class="form-control" />
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Country</label>
-            <input type="text" id="country" name="country" class="form-control" />
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label">Upload Photo</label>
-            <input type="file" id="photo" name="photo" accept="image/*" class="form-control" />
-          </div>
-
-          <div class="col-12 text-end">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
-          </div>
-        </div>
-      </form>
+            <!-- Pagination -->
+            <?php if ($total_pages > 1): ?>
+                <div class="flex justify-center gap-3 mt-12">
+                    <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                        <a href="?page=<?= $i ?><?= $search ? '&search='.urlencode($search) : '' ?>"
+                           class="px-5 py-3 rounded-lg font-medium <?= $i === $page ? 'bg-primary text-white' : 'bg-white border border-gray-300 hover:bg-gray-50' ?>">
+                            <?= $i ?>
+                        </a>
+                    <?php endfor; ?>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
     </div>
-  </div>
 </div>
 
-<footer class="text-center py-3">
-  <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
-</footer>
+<!-- Modal -->
+<div id="teacherModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this) closeModal()">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-screen overflow-y-auto">
+        <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-8 rounded-t-2xl">
+            <h2 class="text-3xl font-bold" id="modalTitle">Add New Teacher</h2>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="p-8 space-y-6">
+            <input type="hidden" name="user_id" id="user_id">
+            <div class="text-center">
+                <img id="photoPreview" src="imageuploads/default-avatar.png" class="w-32 h-32 rounded-full mx-auto border-4 border-indigo-200 object-cover">
+                <input type="file" name="photo" id="photo" accept="image/*" class="mt-4">
+            </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <input type="text" name="username" id="username" placeholder="Username" required class="px-5 py-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200">
+                <input type="password" name="password" id="password" placeholder="Password (leave blank to keep)" class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="text" name="firstName" id="firstName" placeholder="First Name" required class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="text" name="lastName" id="lastName" placeholder="Last Name" required class="px-5 py-4 border border-gray-300 rounded-xl">
+                <select name="gender" id="gender" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <option value="">Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="date" name="dob" id="dob" class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="email" name="email" id="email" placeholder="Email" required class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="text" name="phone" id="phone" placeholder="Phone" class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="text" name="IDNumber" id="IDNumber" placeholder="ID Number" class="px-5 py-4 border border-gray-300 rounded-xl">
+                <select name="status" id="status" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold text-gray-800">Address</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <input type="text" name="address1" id="address1" placeholder="Address Line 1" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <input type="text" name="streetName" id="streetName" placeholder="Street Name" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <input type="text" name="postalCode" id="postalCode" placeholder="Postal Code" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <input type="text" name="district" id="district" placeholder="District" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <input type="text" name="country" id="country" placeholder="Country" value="Lesotho" class="px-5 py-4 border border-gray-300 rounded-xl">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4 pt-6">
+                <button type="button" onclick="closeModal()" class="px-8 py-4 border border-gray-300 rounded-xl font-medium hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-8 py-4 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark transition">Save Teacher</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-const teacherModal = new bootstrap.Modal(document.getElementById('teacherModal'));
-
 function openModal() {
-  const fields = ['user_id','username','firstName','lastName','gender','dob','IDNumber','phone','email','password','status','address1','streetName','postalCode','district','country','photo'];
-  fields.forEach(id => { 
-    const el = document.getElementById(id);
-    if(el) el.value = '';
-    if(el && el.tagName === 'SELECT') el.selectedIndex = 0;
-  });
-  document.getElementById('photoPreview').src = 'default.png';
-  teacherModal.show();
+    document.getElementById('teacherModal').classList.remove('hidden');
+    document.getElementById('modalTitle').textContent = 'Add New Teacher';
+    document.querySelector('#teacherModal form').reset();
+    document.getElementById('photoPreview').src = 'imageuploads/default-avatar.png';
+    document.getElementById('user_id').value = '';
+}
+
+function closeModal() {
+    document.getElementById('teacherModal').classList.add('hidden');
 }
 
 function editTeacher(data) {
-  document.getElementById('user_id').value = data.user_id || '';
-  document.getElementById('username').value = data.username || '';
-  document.getElementById('firstName').value = data.firstName || '';
-  document.getElementById('lastName').value = data.lastName || '';
-  document.getElementById('gender').value = data.gender || '';
-  document.getElementById('dob').value = data.dob || '';
-  document.getElementById('IDNumber').value = data.IDNumber || '';
-  document.getElementById('phone').value = data.phone || '';
-  document.getElementById('email').value = data.email || '';
-  document.getElementById('password').value = '';
-  document.getElementById('status').value = data.status || 'active';
-  document.getElementById('address1').value = data.address1 || '';
-  document.getElementById('streetName').value = data.streetName || '';
-  document.getElementById('postalCode').value = data.postalCode || '';
-  document.getElementById('district').value = data.district || '';
-  document.getElementById('country').value = data.country || '';
-  document.getElementById('photo').value = '';
-  document.getElementById('photoPreview').src = data.photo || 'default.png';
-  teacherModal.show();
+    document.getElementById('modalTitle').textContent = 'Edit Teacher';
+    document.getElementById('user_id').value = data.user_id;
+    document.getElementById('username').value = data.username || '';
+    document.getElementById('firstName').value = data.firstName || '';
+    document.getElementById('lastName').value = data.lastName || '';
+    document.getElementById('gender').value = data.gender || '';
+    document.getElementById('dob').value = data.dob || '';
+    document.getElementById('email').value = data.email || '';
+    document.getElementById('phone').value = data.phone || '';
+    document.getElementById('IDNumber').value = data.IDNumber || '';
+    document.getElementById('status').value = data.status || 'active';
+    document.getElementById('address1').value = data.address1 || '';
+    document.getElementById('streetName').value = data.streetName || '';
+    document.getElementById('postalCode').value = data.postalCode || '';
+    document.getElementById('district').value = data.district || '';
+    document.getElementById('country').value = data.country || '';
+    document.getElementById('photoPreview').src = data.photo || 'imageuploads/default-avatar.png';
+    document.getElementById('teacherModal').classList.remove('hidden');
 }
 
 document.getElementById('photo').addEventListener('change', function(e) {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(evt) {
-    document.getElementById('photoPreview').src = evt.target.result;
-  };
-  reader.readAsDataURL(file);
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = e => document.getElementById('photoPreview').src = e.target.result;
+        reader.readAsDataURL(file);
+    }
 });
 </script>
 </body>

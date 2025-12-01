@@ -13,6 +13,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
 include("db.php");
 
 $user_id = $_SESSION['user_id'];
+$currentPage = basename($_SERVER['PHP_SELF']);
 
 // Fetch student info for photo and username in sidebar
 $stmt_student = $conn->prepare("
@@ -87,11 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $check_sub->execute();
     $check_res = $check_sub->get_result();
     if ($check_res->num_rows > 0) {
-        $msg = "<div class='alert alert-warning'>You have already submitted this test.</div>";
+        $msg = "<div class='alert alert-warning alert-dismissible fade show' role='alert'><i class='bi bi-exclamation-triangle'></i> You have already submitted this test.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
     } else {
         $today = date('Y-m-d');
         if ($today > $test['due_date']) {
-            $msg = "<div class='alert alert-danger'>Submission period for this test has closed.</div>";
+            $msg = "<div class='alert alert-danger alert-dismissible fade show' role='alert'><i class='bi bi-exclamation-circle'></i> Submission period for this test has closed.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
         } else {
             if (isset($_FILES['submission_file']) && $_FILES['submission_file']['error'] === UPLOAD_ERR_OK) {
                 $upload_dir = 'Uploads/';
@@ -100,16 +101,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
                 $file = $_FILES['submission_file'];
                 if (!in_array($file['type'], $allowed_types)) {
-                    $msg = "<div class='alert alert-danger'>Allowed file types: PDF, JPG, PNG.</div>";
+                    $msg = "<div class='alert alert-danger alert-dismissible fade show' role='alert'><i class='bi bi-exclamation-circle'></i> Allowed file types: PDF, JPG, PNG.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
                 } elseif ($file['size'] > 200 * 1024 * 1024) {
-                    $msg = "<div class='alert alert-danger'>File size exceeds 200MB.</div>";
+                    $msg = "<div class='alert alert-danger alert-dismissible fade show' role='alert'><i class='bi bi-exclamation-circle'></i> File size exceeds 200MB.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
                 } else {
                     $original_name = basename($file['name']);
                     $filepath = $upload_dir . time() . "_" . $original_name;
                     if (move_uploaded_file($file['tmp_name'], $filepath)) {
                         $submission_file = $filepath;
                     } else {
-                        $msg = "<div class='alert alert-danger'>Error uploading file.</div>";
+                        $msg = "<div class='alert alert-danger alert-dismissible fade show' role='alert'><i class='bi bi-exclamation-circle'></i> Error uploading file.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
                     }
                 }
             }
@@ -122,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $stmt_insert->execute();
                     $stmt_insert->close();
 
-                    $msg = "<div class='alert alert-success'>Test submitted successfully.</div>";
+                    $msg = "<div class='alert alert-success alert-dismissible fade show' role='alert'><i class='bi bi-check-circle'></i> Test submitted successfully!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
 
                     // Refresh test data
                     $stmt_test = $conn->prepare("
@@ -139,10 +140,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $stmt_test->close();
                 } catch (Exception $e) {
                     error_log("Error submitting test: " . $e->getMessage());
-                    $msg = "<div class='alert alert-danger'>Error submitting test. Please try again.</div>";
+                    $msg = "<div class='alert alert-danger alert-dismissible fade show' role='alert'><i class='bi bi-exclamation-circle'></i> Error submitting test. Please try again.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
                 }
             } else {
-                $msg = "<div class='alert alert-danger'>Please provide either a submission text or file.</div>";
+                $msg = "<div class='alert alert-danger alert-dismissible fade show' role='alert'><i class='bi bi-exclamation-circle'></i> Please provide either a submission text or file.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
             }
         }
     }
@@ -159,194 +160,535 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f8f9fa;
+* {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     height: 100vh;
     overflow: hidden;
+    color: #2c3e50;
 }
+
 .container-flex {
     display: flex;
     height: 100vh;
-}
-/* Sidebar */
-.sidebar {
-    width: 250px;
-    background-color: #343a40;
-    color: white;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    overflow-y: auto;
-}
-.sidebar img {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    margin-bottom: 15px;
-    object-fit: cover;
-    border: 2px solid #1abc9c;
-}
-.sidebar h3 {
-    margin-bottom: 30px;
-    font-weight: bold;
-    text-align: center;
-}
-.sidebar a {
-    width: 100%;
-    color: white;
-    padding: 12px 15px;
-    margin: 5px 0;
-    border-radius: 6px;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: background-color 0.3s ease;
-    font-weight: 500;
-}
-.sidebar a:hover,
-.sidebar a.active {
-    background-color: #495057;
-}
-
-.sidebar a.active::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    width: 4px;
-    background: white;
-    border-radius: 0 4px 4px 0;
 }
 
 /* Main content */
 .content {
     flex: 1;
-    padding: 30px 40px;
+    padding: 40px;
     margin-left: 250px;
     overflow-y: auto;
     height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
-h2 {
-    margin-bottom: 10px;
-    color: black;
+
+.content::-webkit-scrollbar {
+    width: 8px;
 }
-h5 {
-    margin-bottom: 25px;
-    color: #555;
+
+.content::-webkit-scrollbar-track {
+    background: transparent;
 }
-.test-details {
-    background: white;
+
+.content::-webkit-scrollbar-thumb {
+    background: #00d9ff;
+    border-radius: 4px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+    background: #0099cc;
+}
+
+.header {
+    margin-bottom: 35px;
+    padding-bottom: 25px;
+    border-bottom: 2px solid rgba(0, 217, 255, 0.3);
+}
+
+.header h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #1e293b 0%, #00d9ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+}
+
+.header p {
+    color: #64748b;
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.breadcrumb-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+.breadcrumb-item strong {
+    color: #1e293b;
+}
+
+/* Alert Styles */
+.alert {
+    border: none;
     border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    border: 1px solid #eee;
-    margin-bottom: 20px;
+    padding: 16px 20px;
+    margin-bottom: 25px;
+    backdrop-filter: blur(10px);
+    border-left: 4px solid;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
-.test-details h3 {
-    color: black;
+
+.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    border-left-color: #10b981;
+    color: #059669;
+}
+
+.alert-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border-left-color: #ef4444;
+    color: #dc2626;
+}
+
+.alert-warning {
+    background: rgba(245, 158, 11, 0.1);
+    border-left-color: #f59e0b;
+    color: #d97706;
+}
+
+.alert i {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+/* Card Sections */
+.card-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 217, 255, 0.2);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.card-section:hover {
+    box-shadow: 0 12px 40px rgba(0, 217, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.card-section h3 {
+    color: #1e293b;
+    margin-bottom: 25px;
+    font-weight: 700;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.card-section h3 i {
+    color: #00d9ff;
+    font-size: 1.6rem;
+}
+
+.test-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.detail-item {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 18px;
+    border-radius: 12px;
+    border-left: 4px solid #00d9ff;
+}
+
+.detail-item strong {
+    display: block;
+    color: #1e293b;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+}
+
+.detail-item span,
+.detail-item p {
+    color: #1e293b;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.detail-item a {
+    color: #00d9ff;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.detail-item a:hover {
+    color: #0099cc;
+    text-decoration: underline;
+}
+
+.badge {
+    font-size: 0.85rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge.bg-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+}
+
+.badge.bg-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+}
+
+.submission-text {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 16px;
+    border-radius: 10px;
+    border-left: 4px solid #00d9ff;
+    color: #1e293b;
+    line-height: 1.6;
+    max-height: 300px;
+    overflow-y: auto;
     margin-bottom: 15px;
 }
-.test-details p {
-    margin-bottom: 10px;
-}
+
 .no-submission {
-    color: #6c757d;
+    color: #94a3b8;
     font-style: italic;
+    padding: 16px;
+    background: rgba(148, 163, 184, 0.1);
+    border-radius: 10px;
+    border-left: 4px solid #94a3b8;
+}
+
+/* Form Styles */
+.form-section {
+    margin-top: 30px;
+}
+
+.form-label {
+    color: #1e293b;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-control {
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    color: #1e293b;
+}
+
+.form-control:focus {
+    border-color: #00d9ff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 217, 255, 0.25);
+    background-color: #ffffff;
+}
+
+.form-control::placeholder {
+    color: #94a3b8;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 120px;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 12px 24px;
+    transition: all 0.3s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0099cc 0%, #006699 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 217, 255, 0.3);
+    color: white;
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #475569 0%, #334155 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(100, 116, 139, 0.3);
+    color: white;
+}
+
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+.file-upload-info {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+@media (max-width: 768px) {
+    .content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    
+    .header h2 {
+        font-size: 1.5rem;
+    }
+    
+    .card-section {
+        padding: 20px;
+    }
+    
+    .test-details-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
 }
 </style>
 </head>
 <body>
 
 <div class="container-flex">
-    <!-- Sidebar -->
-    <nav class="sidebar">
-        <img src="<?= $photo ? htmlspecialchars($photo) : 'default_profile.png'; ?>" alt="Student Photo" />
-        <h3>Navigation</h3>
-        <a href="student.php"><i class="bi bi-house-door"></i> Home</a>
-        <a href="student_profile.php"><i class="bi bi-person-circle"></i> My Profile</a>
-        <a href="student_courses.php" class="active"><i class="bi bi-journal-bookmark"></i> My Courses</a>
-        <a href="student_announcements.php"><i class="bi bi-megaphone"></i> Announcements</a>
-        <a href="student_calendar.php"><i class="bi bi-calendar-event"></i> My Calendar</a>
-        <a href="attendance.php"><i class="bi bi-card-checklist"></i> My Attendance</a>
-        <a href="student_marks.php"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a>
-        <a href="student_gradebook.php"><i class="bi bi-graph-up"></i> My Performance</a>
-        <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </nav>
+    <!-- Include Navigation -->
+    <?php include("student_navigation.php"); ?>
 
     <!-- Main content -->
     <main class="content">
-        <h2><i class="bi bi-card-checklist"></i> Submit Test - <?= htmlspecialchars($test['title']) ?></h2>
-        <h5><?= htmlspecialchars($course_name) ?> (Batch: <?= htmlspecialchars($batch_code) ?>)</h5>
+        <div class="header">
+            <h2><i class="bi bi-pencil-square"></i> Submit Test</h2>
+            <div class="breadcrumb-info">
+                <div class="breadcrumb-item">
+                    <i class="bi bi-book"></i>
+                    <strong><?= htmlspecialchars($course_name) ?></strong>
+                </div>
+                <div class="breadcrumb-item">
+                    <i class="bi bi-tag"></i>
+                    Batch: <strong><?= htmlspecialchars($batch_code) ?></strong>
+                </div>
+            </div>
+        </div>
 
         <?= $msg ?>
 
-        <div class="test-details">
-            <h3>Test Details</h3>
-            <p><strong>Description:</strong> <?= htmlspecialchars($test['description']) ?></p>
-            <p><strong>Due Date:</strong> <?= htmlspecialchars($test['due_date']) ?></p>
-            <p><strong>Max Score:</strong> <?= htmlspecialchars($test['max_score']) ?></p>
-            <p><strong>Resource File:</strong>
-                <?php if ($test['resource_file'] && file_exists($test['resource_file'])): ?>
-                    <a href="<?= htmlspecialchars($test['resource_file']) ?>" target="_blank">Download</a>
-                <?php elseif ($test['resource_file']): ?>
-                    <span class="text-danger">File not found: <?= htmlspecialchars($test['resource_file']) ?></span>
-                <?php else: ?>
-                    <span>No file</span>
-                <?php endif; ?>
-            </p>
+        <!-- Test Details -->
+        <div class="card-section">
+            <h3><i class="bi bi-file-earmark-check"></i> Test Details</h3>
+            
+            <div class="test-details-grid">
+                <div class="detail-item">
+                    <strong><i class="bi bi-card-text"></i> Test Title</strong>
+                    <p><?= htmlspecialchars($test['title']) ?></p>
+                </div>
+                <div class="detail-item">
+                    <strong><i class="bi bi-calendar-event"></i> Due Date</strong>
+                    <p><?= htmlspecialchars($test['due_date']) ?></p>
+                </div>
+                <div class="detail-item">
+                    <strong><i class="bi bi-star-fill"></i> Max Score</strong>
+                    <p><?= htmlspecialchars($test['max_score']) ?> Points</p>
+                </div>
+            </div>
 
-            <?php if ($test['submission_id']):
-                $status = ($test['submitted_at'] > $test['due_date'] . ' 23:59:59') ? 'Late' : 'Submitted';
-                $badge_class = ($status === 'Late') ? 'bg-danger' : 'bg-success';
-            ?>
-                <h3>Your Submission</h3>
-                <p><strong>Submission Text:</strong> <?= $test['submission_text'] ? htmlspecialchars($test['submission_text']) : 'No text submitted' ?></p>
-                <p>
-                    <strong>Submission File:</strong>
-                    <?php if ($test['submission_file'] && file_exists($test['submission_file'])): ?>
-                        <a href="<?= htmlspecialchars($test['submission_file']) ?>" target="_blank">View Submission</a>
-                    <?php elseif ($test['submission_file']): ?>
-                        <span class="text-danger">File not found: <?= htmlspecialchars($test['submission_file']) ?></span>
-                    <?php else: ?>
-                        <span>No file</span>
-                    <?php endif; ?>
-                </p>
-                <p><strong>Status:</strong> <span class="badge <?= $badge_class ?>"><?= $status ?></span></p>
-                <p><strong>Submitted At:</strong> <?= htmlspecialchars($test['submitted_at']) ?></p>
-            <?php else:
-                $today = date('Y-m-d');
-                if ($today <= $test['due_date']):
-            ?>
-                <h3>Submit Test</h3>
-                <form method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="submit_test">
-                    <div class="mb-3">
-                        <label for="submission_text" class="form-label">Submission Text</label>
-                        <textarea name="submission_text" id="submission_text" class="form-control" rows="4" placeholder="Enter your submission text"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="submission_file" class="form-label">Upload File (PDF, JPG, PNG, max 200MB)</label>
-                        <input type="file" name="submission_file" id="submission_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
-                    </div>
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                </form>
-            <?php else: ?>
-                <p class="no-submission">Submission period closed. Status: <span class="badge bg-danger">Not Submitted</span></p>
-            <?php endif; endif; ?>
+            <div class="detail-item">
+                <strong><i class="bi bi-file-text"></i> Description</strong>
+                <p><?= htmlspecialchars($test['description']) ?></p>
+            </div>
+
+            <div class="detail-item" style="margin-top: 15px;">
+                <strong><i class="bi bi-download"></i> Resource File</strong>
+                <?php if ($test['resource_file'] && file_exists($test['resource_file'])): ?>
+                    <a href="<?= htmlspecialchars($test['resource_file']) ?>" target="_blank">
+                        <i class="bi bi-download"></i> Download Test File
+                    </a>
+                <?php elseif ($test['resource_file']): ?>
+                    <span class="text-danger"><i class="bi bi-exclamation-circle"></i> File not found</span>
+                <?php else: ?>
+                    <span class="text-muted"><i class="bi bi-file-slash"></i> No file provided</span>
+                <?php endif; ?>
+            </div>
         </div>
 
-        <a href="course_dashboard.php?course_id=<?= $course_id ?>&batch_id=<?= $batch_id ?>" class="btn btn-secondary mt-3">Back to Dashboard</a>
+        <!-- Submission Status or Form -->
+        <?php if ($test['submission_id']):
+            $status = ($test['submitted_at'] > $test['due_date'] . ' 23:59:59') ? 'Late' : 'Submitted';
+            $badge_class = ($status === 'Late') ? 'bg-danger' : 'bg-success';
+        ?>
+            <!-- Submission Viewed -->
+            <div class="card-section">
+                <h3><i class="bi bi-check-circle"></i> Your Submission</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <strong style="display: block; color: #64748b; font-size: 0.9rem; margin-bottom: 8px;">STATUS</strong>
+                    <span class="badge <?= $badge_class ?>">
+                        <i class="bi bi-<?= ($status === 'Late') ? 'exclamation-circle' : 'check-circle' ?>"></i>
+                        <?= $status ?>
+                    </span>
+                </div>
+
+                <?php if ($test['submission_text']): ?>
+                    <div style="margin-bottom: 20px;">
+                        <strong style="display: block; color: #64748b; font-size: 0.9rem; margin-bottom: 12px;">SUBMISSION TEXT</strong>
+                        <div class="submission-text">
+                            <?= nl2br(htmlspecialchars($test['submission_text'])) ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($test['submission_file']): ?>
+                    <div style="margin-bottom: 20px;">
+                        <strong style="display: block; color: #64748b; font-size: 0.9rem; margin-bottom: 12px;">SUBMITTED FILE</strong>
+                        <div class="detail-item">
+                            <?php if (file_exists($test['submission_file'])): ?>
+                                <a href="<?= htmlspecialchars($test['submission_file']) ?>" target="_blank">
+                                    <i class="bi bi-file-earmark"></i> View Submission File
+                                </a>
+                            <?php else: ?>
+                                <span class="text-danger"><i class="bi bi-exclamation-circle"></i> File not found</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                    <strong style="display: block; color: #64748b; font-size: 0.9rem; margin-bottom: 8px;">SUBMITTED AT</strong>
+                    <p><?= htmlspecialchars($test['submitted_at']) ?></p>
+                </div>
+            </div>
+        <?php else:
+            $today = date('Y-m-d');
+            if ($today <= $test['due_date']):
+        ?>
+            <!-- Submission Form -->
+            <div class="card-section">
+                <h3><i class="bi bi-pencil-fill"></i> Submit Your Test</h3>
+                
+                <form method="POST" enctype="multipart/form-data" class="form-section">
+                    <input type="hidden" name="action" value="submit_test">
+                    
+                    <div class="mb-3">
+                        <label for="submission_text" class="form-label">
+                            <i class="bi bi-type"></i> Submission Text
+                        </label>
+                        <textarea 
+                            name="submission_text" 
+                            id="submission_text" 
+                            class="form-control" 
+                            placeholder="Enter your test answers or response here..."
+                        ></textarea>
+                        <small class="file-upload-info">Optional: You can submit text, a file, or both</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="submission_file" class="form-label">
+                            <i class="bi bi-file-earmark-upload"></i> Upload File
+                        </label>
+                        <input 
+                            type="file" 
+                            name="submission_file" 
+                            id="submission_file" 
+                            class="form-control" 
+                            accept=".pdf,.jpg,.jpeg,.png" 
+                        />
+                        <small class="file-upload-info">
+                            <i class="bi bi-info-circle"></i> Supported: PDF, JPG, PNG (Max 200MB)
+                        </small>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Submit Test
+                        </button>
+                        <a href="course_dashboard.php?course_id=<?= $course_id ?>&batch_id=<?= $batch_id ?>" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </form>
+            </div>
+        <?php else: ?>
+            <!-- Submission Closed -->
+            <div class="card-section">
+                <div class="no-submission">
+                    <i class="bi bi-exclamation-circle"></i> 
+                    <strong>Submission Closed</strong> - The submission period for this test has ended. Status: <span class="badge bg-danger">Not Submitted</span>
+                </div>
+                <div style="margin-top: 25px;">
+                    <a href="course_dashboard.php?course_id=<?= $course_id ?>&batch_id=<?= $batch_id ?>" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        <?php endif; endif; ?>
     </main>
 </div>
 

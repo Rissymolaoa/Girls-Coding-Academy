@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Update existing
             $stmt_addr = $conn->prepare("UPDATE addresses SET address1=?, streetName=?, postalCode=?, district=?, country=?, updated_at=NOW() WHERE address_id=?");
-            $stmt_addr->bind_param("ssssi", $address1, $streetName, $postalCode, $district, $country, $student['address_id']);
+            $stmt_addr->bind_param("sssssi", $address1, $streetName, $postalCode, $district, $country, $student['address_id']);
             if (!$stmt_addr->execute()) {
                 $errors[] = "Failed to update address.";
             }
@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt_med->bind_param("ssssssi", $blood_type, $allergies, $chronic_conditions, $medications, $emergency_contact_name, $emergency_contact_phone, $student_id);
         } else {
             $stmt_med = $conn->prepare("INSERT INTO student_medical_info (student_id, blood_type, allergies, chronic_conditions, medications, emergency_contact_name, emergency_contact_phone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
-            $stmt_med->bind_param("issssssi", $student_id, $blood_type, $allergies, $chronic_conditions, $medications, $emergency_contact_name, $emergency_contact_phone);
+            $stmt_med->bind_param("isssssi", $student_id, $blood_type, $allergies, $chronic_conditions, $medications, $emergency_contact_name, $emergency_contact_phone);
         }
         if (!$stmt_med->execute()) {
             $errors[] = "Failed to update medical info.";

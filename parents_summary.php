@@ -4,387 +4,214 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.html");
     exit();
 }
-include("db.php");
+require_once 'db.php';
 
-// Get top 5 parents with their linked student name(s)
+// Summary stats
+$total_parents = $conn->query("SELECT COUNT(*) FROM users WHERE role='parent'")->fetch_row()[0];
+$total_relations = $conn->query("SELECT COUNT(*) FROM parent_students")->fetch_row()[0];
+$total_students = $conn->query("SELECT COUNT(DISTINCT student_id) FROM parent_students")->fetch_row()[0];
+
+// Recent parents with linked students
 $parents_sql = "
-    SELECT 
-        u.user_id, 
-        u.firstName, 
-        u.lastName, 
-        u.gender, 
-        u.phone, 
-        u.email, 
-        su.firstName AS studentFirstName,
-        su.lastName  AS studentLastName,
-        st.photo     AS studentPhoto
+    SELECT u.user_id, u.firstName, u.lastName, u.gender, u.phone, u.email,
+           su.firstName AS sFirst, su.lastName AS sLast, s.photo AS studentPhoto
     FROM users u
-    INNER JOIN parents p ON p.user_id = u.user_id
+    JOIN parents p ON p.user_id = u.user_id
     LEFT JOIN parent_students ps ON ps.parent_id = p.parent_id
-    LEFT JOIN students st ON ps.student_id = st.student_id
-    LEFT JOIN users su ON st.user_id = su.user_id
+    LEFT JOIN students s ON ps.student_id = s.student_id
+    LEFT JOIN users su ON s.user_id = su.user_id
     WHERE u.role = 'parent'
     ORDER BY u.created_at DESC
-    LIMIT 5
+    LIMIT 6
 ";
-
 $parents = $conn->query($parents_sql);
-
-// Collect parents_data and images
-$parents_data = [];
-$students_images = [];
-$i = 0;
-while ($row = $parents->fetch_assoc()) {
-    if ($i < 4 && !empty($row['studentPhoto'])) {
-        $students_images[] = $row['studentPhoto'];
-    }
-    $parents_data[] = $row;
-    $i++;
-}
-
-// Summary counts
-$total_parents = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role='parent'")->fetch_assoc()['total'];
-$total_relations = $conn->query("SELECT COUNT(*) AS total FROM parent_students")->fetch_assoc()['total'];
-$total_students = $conn->query("SELECT COUNT(DISTINCT student_id) AS total FROM parent_students")->fetch_assoc()['total'];
-
-$username = $_SESSION['username'] ?? "Admin";
+$parents_data = $parents->fetch_all(MYSQLI_ASSOC);
 ?>
-<!doctype html>
-<html lang="en">
+
+<!DOCTYPE html>
+<html lang="en" class="h-full">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Parents — Admin</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-
-<style>
-  :root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-    --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
-    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
-  }
-
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
-    padding-top: 56px;
-  }
-
-  .content {
-    min-height: calc(100vh - 56px);
-    transition: all 0.3s ease;
-  }
-
-  .main {
-    padding: 2rem 2rem 2rem 1rem;
-  }
-
-  .section-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: var(--shadow-md);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .section-card h2 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 1.5rem;
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .table {
-    margin-bottom: 0;
-  }
-
-  .table th {
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    font-weight: 600;
-    padding: 1rem;
-  }
-
-  .table td {
-    padding: 1rem;
-    vertical-align: middle;
-    border-color: rgba(0,0,0,0.05);
-  }
-
-  .table-hover tbody tr:hover {
-    background-color: rgba(102, 126, 234, 0.05);
-  }
-
-  .view-all {
-    text-align: right;
-    margin-bottom: 1rem;
-  }
-
-  .view-all a {
-    color: #1f2937;
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.3s ease;
-  }
-
-  .view-all a:hover {
-    color: #667eea;
-  }
-
-  .student-photos {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
-  }
-
-  .student-card {
-    text-align: center;
-    background: white;
-    border-radius: 12px;
-    padding: 1rem;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s ease;
-  }
-
-  .student-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .student-photo {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 50%;
-    border: 3px solid var(--primary-gradient);
-    display: block;
-    margin: 0 auto 0.5rem;
-  }
-
-  .summary-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-    margin-top: 2rem;
-  }
-
-  .summary-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    text-align: center;
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .summary-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .summary-card i {
-    font-size: 2rem;
-    color: white;
-    padding: 0.75rem;
-    border-radius: 50%;
-    margin-bottom: 0.5rem;
-    display: inline-block;
-  }
-
-  .summary-card .parents i {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-  }
-
-  .summary-card .relations i {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-  }
-
-  .summary-card .students i {
-    background: linear-gradient(135deg, #27ae60, #229954);
-  }
-
-  .summary-card h6 {
-    margin: 0;
-    font-size: 0.875rem;
-    color: #6b7280;
-    font-weight: 600;
-  }
-
-  .summary-card p {
-    margin: 0;
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #1f2937;
-  }
-
-  footer {
-    background: rgba(31, 41, 55, 0.8);
-    color: #fff;
-    text-align: center;
-    padding: 1.5rem;
-    margin-top: 2rem;
-    border-radius: 16px 16px 0 0;
-  }
-
-  /* Enhanced Sidebar Styles - Adjusted for Dashboard */
-  .sidebar {
-    width: 280px;
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    color: #fff;
-    position: fixed;
-    top: 56px;
-    height: calc(100vh - 56px);
-    left: 0;
-    overflow-y: auto;
-    transition: all 0.3s ease;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
-    z-index: 1030;
-  }
-
-  @media (min-width: 992px) {
-    .main {
-      padding-left: 1rem;
-      padding-right: 2rem;
-    }
-    .content {
-      margin-left: 280px;
-    }
-  }
-
-  @media (max-width: 991px) {
-    .sidebar {
-      top: 0;
-      height: 100vh;
-      left: -280px;
-    }
-    .sidebar.show {
-      left: 0;
-    }
-    .main {
-      padding: 1rem;
-    }
-  }
-
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .student-photos {
-      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    }
-    .summary-cards {
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parents Dashboard - Girls Coding Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root { --primary: #4f46e5; --primary-light: #6366f1; --primary-dark: #4338ca; }
+        .bg-primary { background-color: var(--primary); }
+        .text-primary { color: var(--primary); }
+        .hover\:bg-primary-dark:hover { background-color: var(--primary-dark); }
+        .card-hover:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .avatar { @apply w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg; }
+    </style>
 </head>
-<body>
+<body class="h-full bg-gray-50">
+
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
-<div class="content">
-  <main class="main">
-    <div class="row">
-      <div class="col-12 mb-3">
-        <div class="d-flex justify-content-between align-items-center">
-          <h2>Manage Parents</h2>
-          <div class="view-all"><a href="all_parents_summary.php">View All</a></div>
-        </div>
-      </div>
-    </div>
+<div class="ml-64 mt-16 min-h-screen">
+    <div class="p-8 max-w-7xl mx-auto">
 
-    <div class="row">
-      <div class="col-lg-8">
-        <div class="section-card">
-          <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle">
-              <thead>
-                <tr>
-                  <th>Firstname</th>
-                  <th>Lastname</th>
-                  <th>Gender</th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th>Student Name</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php foreach ($parents_data as $p): ?>
-                <tr>
-                  <td><?= htmlspecialchars($p['firstName']) ?></td>
-                  <td><?= htmlspecialchars($p['lastName']) ?></td>
-                  <td><?= htmlspecialchars($p['gender']) ?></td>
-                  <td><?= htmlspecialchars($p['phone']) ?></td>
-                  <td><?= htmlspecialchars($p['email']) ?></td>
-                  <td><?= htmlspecialchars(trim($p['studentFirstName'].' '.$p['studentLastName'])) ?></td>
-                </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
+        <!-- Header -->
+        <div class="mb-10">
+            <h1 class="text-4xl font-bold text-gray-800">Parents & Guardians</h1>
+            <p class="text-xl text-gray-600 mt-3">Overview of parent accounts and student relationships</p>
         </div>
-      </div>
 
-      <div class="col-lg-4">
-        <div class="section-card">
-          <h3>Students</h3>
-          <div class="student-photos">
-            <?php foreach ($parents_data as $p): ?>
-              <?php if (!empty($p['studentPhoto'])): ?>
-                <div class="student-card">
-                  <img src="<?= htmlspecialchars($p['studentPhoto']) ?>" alt="" class="student-photo">
-                  <div class="small fw-semibold"><?= htmlspecialchars(trim($p['studentFirstName'].' '.$p['studentLastName'])) ?></div>
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 card-hover transition-all">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Parents</p>
+                        <p class="text-5xl font-bold text-gray-800 mt-4"><?= $total_parents ?></p>
+                    </div>
+                    <div class="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                        <i class="fas fa-user-tie text-4xl text-white"></i>
+                    </div>
                 </div>
-              <?php endif; ?>
-            <?php endforeach; ?>
-          </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 card-hover transition-all">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Active Relations</p>
+                        <p class="text-5xl font-bold text-indigo-600 mt-4"><?= $total_relations ?></p>
+                    </div>
+                    <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center">
+                        <i class="fas fa-link text-4xl text-white"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 card-hover transition-all">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Linked Students</p>
+                        <p class="text-5xl font-bold text-green-600 mt-4"><?= $total_students ?></p>
+                    </div>
+                    <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+                        <i class="fas fa-user-graduate text-4xl text-white"></i>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="summary-cards">
-          <div class="summary-card parents">
-            <i class="bi bi-people-fill"></i>
-            <h6>Parents</h6>
-            <p><?= $total_parents ?></p>
-          </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Recent Parents Table -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                    <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-6">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-2xl font-bold">Recent Parents</h2>
+                            <a href="manage_parents.php" class="text-indigo-100 hover:text-white underline text-sm font-medium">
+                                View All Parents
+                            </a>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Parent</th>
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Gender</th>
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Contact</th>
+                                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Linked Student</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($parents_data as $p): ?>
+                                    <tr class="border-b hover:bg-gray-50 transition">
+                                        <td class="px-6 py-5">
+                                            <div class="font-medium text-gray-800">
+                                                <?= htmlspecialchars($p['firstName'] . ' ' . $p['lastName']) ?>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-5 text-gray-600">
+                                            <?= ucfirst($p['gender'] ?? '—') ?>
+                                        </td>
+                                        <td class="px-6 py-5">
+                                            <div class="text-sm">
+                                                <div class="text-gray-600"><?= htmlspecialchars($p['phone'] ?? '—') ?></div>
+                                                <div class="text-indigo-600"><?= htmlspecialchars($p['email']) ?></div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-5">
+                                            <?php if ($p['sFirst']): ?>
+                                                <span class="inline-flex items-center gap-2">
+                                                    <?php if ($p['studentPhoto'] && file_exists($p['studentPhoto'])): ?>
+                                                        <img src="<?= htmlspecialchars($p['studentPhoto']) ?>" class="w-10 h-10 rounded-full object-cover border-2 border-indigo-200">
+                                                    <?php else: ?>
+                                                        <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                                            <?= strtoupper(substr($p['sFirst'],0,1).substr($p['sLast'],0,1)) ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    <span class="font-medium text-gray-800">
+                                                        <?= htmlspecialchars($p['sFirst'] . ' ' . $p['sLast']) ?>
+                                                    </span>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-gray-400 italic">No student linked</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-          <div class="summary-card relations">
-            <i class="bi bi-link-45deg"></i>
-            <h6>Relations</h6>
-            <p><?= $total_relations ?></p>
-          </div>
-
-          <div class="summary-card students">
-            <i class="bi bi-mortarboard-fill"></i>
-            <h6>Students</h6>
-            <p><?= $total_students ?></p>
-          </div>
+            <!-- Student Photos Grid -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Recently Linked Students</h2>
+                    <div class="grid grid-cols-2 gap-6">
+                        <?php 
+                        $displayed = 0;
+                        foreach ($parents_data as $p): 
+                            if ($p['studentPhoto'] && file_exists($p['studentPhoto']) && $displayed < 6):
+                        ?>
+                            <div class="text-center card-hover transition-all">
+                                <img src="<?= htmlspecialchars($p['studentPhoto']) ?>" 
+                                     class="w-24 h-24 rounded-full mx-auto object-cover border-4 border-indigo-100 shadow-lg hover:border-indigo-400 transition">
+                                <p class="mt-3 font-medium text-gray-800 text-sm">
+                                    <?= htmlspecialchars($p['sFirst'] . ' ' . $p['sLast']) ?>
+                                </p>
+                            </div>
+                        <?php 
+                                $displayed++;
+                            endif;
+                        endforeach; 
+                        // Fill empty slots if needed
+                        while ($displayed < 6):
+                            $displayed++;
+                        ?>
+                            <div class="text-center opacity-50">
+                                <div class="w-24 h-24 bg-gray-100 rounded-full mx-auto border-4 border-dashed border-gray-300 flex items-center justify-center">
+                                    <i class="fas fa-user text-3xl text-gray-400"></i>
+                                </div>
+                                <p class="mt-3 text-sm text-gray-500">No photo</p>
+                            </div>
+                        <?php endwhile; ?>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
+
+        <!-- Quick Actions -->
+        <div class="mt-10 flex justify-center gap-6">
+            <a href="manage_parents.php" class="bg-white border-2 border-indigo-600 text-indigo-600 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-indigo-50 transition shadow-lg flex items-center gap-4">
+                <i class="fas fa-users-cog text-2xl"></i>
+                Manage All Parents
+            </a>
+            <a href="assign_parent_student.php" class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:shadow-2xl transition flex items-center gap-4">
+                <i class="fas fa-user-plus text-2xl"></i>
+                Assign Student to Parent
+            </a>
+        </div>
     </div>
-  </main>
 </div>
-
-<footer class="text-center py-3">
-  <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
-</footer>
-
-<!-- Bootstrap JS (optional for interactive components) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

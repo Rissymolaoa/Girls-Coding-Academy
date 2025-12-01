@@ -8,10 +8,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 include("db.php");
 
-// Include navigations
-include("top_navigation.php");
-include("admin_navigation.php");
-
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // Handle event edit POST from modal
@@ -98,6 +94,10 @@ while ($row = $slider_result->fetch_assoc()) {
 while(count($slider_events) < 3) {
   $slider_events[] = null;
 }
+
+// Include navigations AFTER all header() redirects
+include("top_navigation.php");
+include("admin_navigation.php");
 ?>
 
 <!DOCTYPE html>
@@ -256,7 +256,7 @@ while(count($slider_events) < 3) {
   }
   @media (min-width: 992px) {
       .main {
-          margin-left: 280px !important;
+          margin-left: 220px !important;
       }
   }
 </style>
@@ -372,7 +372,7 @@ while(count($slider_events) < 3) {
 
 </main>
 
-<!-- Edit Modal (same modal code as before) -->
+<!-- Edit Modal -->
 <div class="modal fade" id="editEventModal" tabindex="-1" aria-labelledby="editEventModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">

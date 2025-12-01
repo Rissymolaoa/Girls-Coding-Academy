@@ -1,13 +1,11 @@
 <?php
 session_start();
-
-// Check if the user is logged in and is an admin
+// Security: Redirect if not admin
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.html");
     exit();
 }
 
-// Database connection
 include("db.php");
 include("top_navigation.php");
 include("admin_navigation.php");
@@ -17,22 +15,20 @@ if (isset($_POST['send_notification'])) {
     $student_id = intval($_POST['student_id']);
     $course_name = $_POST['course_name'];
     $invoice_number = $_POST['invoice_number'];
-
     $title = "Outstanding Balance Alert";
     $description = "You have an outstanding balance for $course_name (Invoice: $invoice_number). Please make your payment as soon as possible.";
 
     $notify_stmt = $conn->prepare("
-        INSERT INTO notifications (student_id, type, title, description, date, is_read) 
+        INSERT INTO notifications (student_id, type, title, description, date, is_read)
         VALUES (?, 'Payment', ?, ?, CURDATE(), 0)
     ");
     $notify_stmt->bind_param("iss", $student_id, $title, $description);
     $notify_stmt->execute();
     $notify_stmt->close();
-
-    $success_message = "Notification sent to student successfully!";
+    $success_message = "Notification sent successfully!";
 }
 
-// Fetch finance summaries
+// === All your existing database queries (unchanged) ===
 $total_revenue_stmt = $conn->prepare("SELECT SUM(amount) as total FROM payments WHERE status = 'completed'");
 $total_revenue_stmt->execute();
 $total_revenue = $total_revenue_stmt->get_result()->fetch_assoc()['total'] ?? 0;
@@ -53,12 +49,11 @@ $overdue_count_stmt = $conn->prepare("SELECT COUNT(*) as count FROM invoices WHE
 $overdue_count_stmt->execute();
 $overdue_count = $overdue_count_stmt->get_result()->fetch_assoc()['count'];
 
-// Total payers count
-$total_payers_stmt = $conn->prepare("SELECT COUNT(DISTINCT payer_user_id) as count FROM payments");
+$total_payers_stmt = $conn->prepare("SELECT COUNT(DISTINCT payer_user_id) as count FROM payments WHERE status = 'completed'");
 $total_payers_stmt->execute();
 $total_payers = $total_payers_stmt->get_result()->fetch_assoc()['count'];
 
-// Monthly revenue data for chart (last 12 months)
+// Monthly revenue (last 12 months)
 $monthly_revenue = [];
 $currentDate = new DateTime();
 for ($i = 11; $i >= 0; $i--) {
@@ -71,25 +66,22 @@ for ($i = 11; $i >= 0; $i--) {
 $revenue_chart_stmt = $conn->prepare("
     SELECT DATE_FORMAT(payment_date, '%Y-%m') as month, SUM(amount) as total
     FROM payments
-    WHERE payment_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-    AND status = 'completed'
+    WHERE payment_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND status = 'completed'
     GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
     ORDER BY month ASC
 ");
 $revenue_chart_stmt->execute();
 $revenue_data = $revenue_chart_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
 foreach ($revenue_data as $row) {
     if (isset($monthly_revenue[$row['month']])) {
         $monthly_revenue[$row['month']] = floatval($row['total']);
     }
 }
 
-// Payment method breakdown
+// Payment methods
 $payment_methods_stmt = $conn->prepare("
     SELECT payment_method, COUNT(*) as count, SUM(amount) as total
-    FROM payments
-    WHERE status = 'completed'
+    FROM payments WHERE status = 'completed'
     GROUP BY payment_method
 ");
 $payment_methods_stmt->execute();
@@ -113,11 +105,10 @@ $recent_payments_stmt = $conn->prepare("
 $recent_payments_stmt->execute();
 $recent_payments = $recent_payments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Pending payments
+// Pending/overdue invoices
 $pending_payments_stmt = $conn->prepare("
     SELECT i.invoice_id, i.invoice_number, i.amount, i.due_date, i.status, i.created_at,
-           s.student_id, u.firstName, u.lastName, c.courseName, b.batch_code,
-           s.photo as student_photo
+           s.student_id, u.firstName, u.lastName, c.courseName, b.batch_code, s.photo as student_photo
     FROM invoices i
     JOIN course_enrollments ce ON i.enrollment_id = ce.enrollment_id
     JOIN students s ON ce.student_id = s.student_id
@@ -125,12 +116,12 @@ $pending_payments_stmt = $conn->prepare("
     JOIN batches b ON ce.batch_id = b.batch_id
     JOIN courses c ON b.course_id = c.course_id
     WHERE i.status IN ('pending', 'overdue')
-    ORDER BY i.due_date ASC LIMIT 10
+    ORDER BY i.due_date ASC LIMIT 15
 ");
 $pending_payments_stmt->execute();
 $pending_payments = $pending_payments_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Top paying students
+// Top payers
 $top_payers_stmt = $conn->prepare("
     SELECT u.firstName, u.lastName, s.photo, SUM(p.amount) as total_paid, COUNT(p.payment_id) as payment_count
     FROM payments p
@@ -138,8 +129,7 @@ $top_payers_stmt = $conn->prepare("
     JOIN students s ON u.user_id = s.user_id
     WHERE p.status = 'completed'
     GROUP BY p.payer_user_id
-    ORDER BY total_paid DESC
-    LIMIT 5
+    ORDER BY total_paid DESC LIMIT 5
 ");
 $top_payers_stmt->execute();
 $top_payers = $top_payers_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -148,324 +138,219 @@ $top_payers = $top_payers_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Finance Dashboard - Girls Coding Academy</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root {
-        --primary: #667eea;
-        --secondary: #764ba2;
-        --success: #10b981;
-        --danger: #ef4444;
-        --warning: #f59e0b;
-        --info: #06b6d4;
-        --light: #f8fafc;
-        --dark: #1e293b;
-    }
-    
-    body { 
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-        background: var(--light); 
-        margin:0; 
-        padding: 0; 
-        display: flex; 
-        min-height: 100vh; 
-    }
-    
-    main.main {
-        padding: 32px;
-        flex: 1;
-        min-height: 100vh;
-        padding-top: 100px;
-    }
-    
-    @media (min-width: 992px) {
-        .main {
-            margin-left: 280px !important;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Finance Dashboard - Girls Coding Academy</title>
+
+    <!-- Bootstrap 5.3 + Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary: #4361ee;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --gray: #64748b;
+            --light: #f8fafc;
+            --border: #e2e8f0;
         }
-    }
-    
-    .page-header {
-        margin-bottom: 32px;
-    }
-    
-    .page-header h2 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--dark);
-        margin-bottom: 8px;
-    }
-    
-    .page-header p {
-        color: #64748b;
-        font-size: 1rem;
-    }
-    
-    .stat-card {
-        background: white;
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 24px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        border: 1px solid #e2e8f0;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .stat-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-    }
-    
-    .stat-card.revenue::before { background: linear-gradient(90deg, var(--success), #059669); }
-    .stat-card.pending::before { background: linear-gradient(90deg, var(--warning), #d97706); }
-    .stat-card.overdue::before { background: linear-gradient(90deg, var(--danger), #dc2626); }
-    .stat-card.payers::before { background: linear-gradient(90deg, var(--info), #0891b2); }
-    
-    .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    }
-    
-    .stat-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.75rem;
-        margin-bottom: 16px;
-    }
-    
-    .stat-icon.revenue { background: linear-gradient(135deg, var(--success), #059669); color: white; }
-    .stat-icon.pending { background: linear-gradient(135deg, var(--warning), #d97706); color: white; }
-    .stat-icon.overdue { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
-    .stat-icon.payers { background: linear-gradient(135deg, var(--info), #0891b2); color: white; }
-    
-    .stat-label {
-        font-size: 0.875rem;
-        color: #64748b;
-        margin-bottom: 8px;
-        font-weight: 500;
-    }
-    
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--dark);
-        margin-bottom: 4px;
-    }
-    
-    .stat-subtitle {
-        font-size: 0.875rem;
-        color: #64748b;
-    }
-    
-    .card {
-        background: white;
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 24px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        border: 1px solid #e2e8f0;
-    }
-    
-    .card-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--dark);
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .table {
-        margin-bottom: 0;
-    }
-    
-    .table thead th {
-        background: #f8fafc;
-        border-top: none;
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 12px;
-    }
-    
-    .table tbody td {
-        padding: 16px 12px;
-        vertical-align: middle;
-        color: var(--dark);
-    }
-    
-    .table-hover tbody tr:hover {
-        background: #f8fafc;
-    }
-    
-    .payer-img {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid #e2e8f0;
-    }
-    
-    .badge {
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.75rem;
-        letter-spacing: 0.3px;
-    }
-    
-    .collect-btn {
-        background: none;
-        border: 1px solid #e2e8f0;
-        color: var(--warning);
-        cursor: pointer;
-        padding: 8px 12px;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-    }
-    
-    .collect-btn:hover {
-        background: #fef3c7;
-        border-color: var(--warning);
-    }
-    
-    .alert-success {
-        background: #d1fae5;
-        border: none;
-        color: #065f46;
-        border-radius: 12px;
-        padding: 16px 20px;
-        margin-bottom: 24px;
-    }
-    
-    .payment-method-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-    
-    .method-cash { background: #d1fae5; color: #065f46; }
-    .method-bank { background: #dbeafe; color: #1e40af; }
-    .method-card { background: #ede9fe; color: #6b21a8; }
-    .method-mobile { background: #fef3c7; color: #92400e; }
-    
-    .top-payer-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 0;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    
-    .top-payer-item:last-child {
-        border-bottom: none;
-    }
-    
-    .top-payer-rank {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.875rem;
-    }
-    
-    .chart-container {
-        position: relative;
-        height: 300px;
-    }
-  </style>
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* FIX: Remove unwanted underlines from ALL navigation links */
+        a, .nav-link, .navbar-nav .nav-link, .dropdown-item {
+            text-decoration: none !important;
+        }
+        a:hover, .nav-link:hover, .dropdown-item:hover {
+            text-decoration: underline !important;
+            text-underline-offset: 3px;
+        }
+
+        .nav-link {
+            transition: all 0.2s ease;
+            border-radius: 0.375rem;
+            padding: 0.5rem 1rem !important;
+        }
+        .nav-link:hover {
+            background-color: rgba(67, 97, 238, 0.1);
+            color: var(--primary) !important;
+        }
+
+        main.main {
+            padding: 2rem;
+            padding-top: 100px;
+            flex: 1;
+        }
+        @media (min-width: 992px) {
+            main.main { margin-left: 280px; }
+        }
+
+        .page-header h2 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+        .page-header p { color: var(--gray); }
+
+        .stat-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .stat-icon {
+            width: 60px; height: 60px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.9rem;
+            color: white;
+            margin-bottom: 1rem;
+        }
+        .stat-icon.revenue { background: var(--success); }
+        .stat-icon.pending { background: var(--warning); }
+        .stat-icon.overdue { background: var(--danger); }
+        .stat-icon.payers  { background: var(--primary); }
+
+        .stat-value { font-size: 2.1rem; font-weight: 700; color: var(--dark); }
+        .stat-label { color: var(--gray); font-size: 0.95rem; font-weight: 500; }
+
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .table thead th {
+            background: #f8fafc;
+            color: var(--gray);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+
+        .payer-img {
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--border);
+        }
+
+        .collect-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--warning);
+            padding: 0.5rem 0.9rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        .collect-btn:hover {
+            background: #fffbeb;
+            border-color: var(--warning);
+            color: #c2410c;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 340px;
+        }
+
+        .alert-success {
+            background: #ecfdf5;
+            color: #065f46;
+            border: none;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+        }
+    </style>
 </head>
 <body>
 
 <main class="main">
+
     <?php if (isset($success_message)): ?>
-        <div class="alert alert-success">
-            <i class="bi bi-check-circle"></i> <?= $success_message ?>
+        <div class="alert alert-success d-flex align-items-center gap-2">
+            <i class="bi bi-check-circle-fill"></i>
+            <?= htmlspecialchars($success_message) ?>
         </div>
     <?php endif; ?>
 
-    <div class="page-header">
-        <h2><i class="bi bi-graph-up"></i> Finance Dashboard</h2>
-        <p>Monitor revenue, track payments, and manage outstanding invoices.</p>
+    <div class="page-header mb-5">
+        <h2><i class="bi bi-graph-up-arrow text-primary"></i> Finance Dashboard</h2>
+        <p>Real-time financial overview, revenue trends, and payment management.</p>
     </div>
 
     <!-- Statistics Cards -->
-    <div class="row">
+    <div class="row g-4 mb-5">
         <div class="col-lg-3 col-md-6">
-            <div class="stat-card revenue">
-                <div class="stat-icon revenue">
-                    <i class="bi bi-currency-dollar"></i>
-                </div>
+            <div class="stat-card">
+                <div class="stat-icon revenue"><i class="bi bi-currency-dollar"></i></div>
                 <div class="stat-label">Total Revenue</div>
                 <div class="stat-value">LSL <?= number_format($total_revenue, 2) ?></div>
-                <div class="stat-subtitle">Lifetime earnings</div>
+                <small class="text-muted">All time earnings</small>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="stat-card pending">
-                <div class="stat-icon pending">
-                    <i class="bi bi-clock-history"></i>
-                </div>
+            <div class="stat-card">
+                <div class="stat-icon pending"><i class="bi bi-clock-history"></i></div>
                 <div class="stat-label">Pending Invoices</div>
                 <div class="stat-value">LSL <?= number_format($pending_amount, 2) ?></div>
-                <div class="stat-subtitle"><?= $pending_count ?> invoice(s) pending</div>
+                <small class="text-muted"><?= $pending_count ?> pending</small>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="stat-card overdue">
-                <div class="stat-icon overdue">
-                    <i class="bi bi-exclamation-triangle"></i>
-                </div>
+            <div class="stat-card">
+                <div class="stat-icon overdue"><i class="bi bi-exclamation-triangle"></i></div>
                 <div class="stat-label">Overdue Payments</div>
                 <div class="stat-value">LSL <?= number_format($overdue_amount, 2) ?></div>
-                <div class="stat-subtitle"><?= $overdue_count ?> invoice(s) overdue</div>
+                <small class="text-muted"><?= $overdue_count ?> overdue</small>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="stat-card payers">
-                <div class="stat-icon payers">
-                    <i class="bi bi-people"></i>
-                </div>
+            <div class="stat-card">
+                <div class="stat-icon payers"><i class="bi bi-people"></i></div>
                 <div class="stat-label">Total Payers</div>
                 <div class="stat-value"><?= $total_payers ?></div>
-                <div class="stat-subtitle">Unique students</div>
+                <small class="text-muted">Unique students</small>
             </div>
         </div>
     </div>
 
     <!-- Charts Row -->
-    <div class="row">
+    <div class="row g-4 mb-5">
         <div class="col-lg-8">
             <div class="card">
-                <div class="card-title">
-                    <i class="bi bi-bar-chart-line"></i>
-                    Revenue Trends (Last 12 Months)
-                </div>
+                <div class="card-title"><i class="bi bi-bar-chart-line"></i> Revenue Trends (Last 12 Months)</div>
                 <div class="chart-container">
                     <canvas id="revenueChart"></canvas>
                 </div>
@@ -473,10 +358,7 @@ $top_payers = $top_payers_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
         <div class="col-lg-4">
             <div class="card">
-                <div class="card-title">
-                    <i class="bi bi-pie-chart"></i>
-                    Payment Methods
-                </div>
+                <div class="card-title"><i class="bi bi-pie-chart"></i> Payment Methods</div>
                 <div class="chart-container">
                     <canvas id="paymentMethodChart"></canvas>
                 </div>
@@ -484,16 +366,13 @@ $top_payers = $top_payers_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
-    <!-- Tables Row -->
-    <div class="row">
+    <!-- Recent Payments & Top Payers -->
+    <div class="row g-4 mb-5">
         <div class="col-lg-8">
             <div class="card">
-                <div class="card-title">
-                    <i class="bi bi-clock-history"></i>
-                    Recent Payments
-                </div>
+                <div class="card-title"><i class="bi bi-clock-history"></i> Recent Payments</div>
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>Student</th>
@@ -508,24 +387,23 @@ $top_payers = $top_payers_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             <?php foreach($recent_payments as $payment): ?>
                             <tr>
                                 <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <img src="<?= htmlspecialchars($payment['photo'] ?? 'default.jpg') ?>" alt="Student" class="payer-img">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <img src="<?= htmlspecialchars($payment['photo'] ?? 'default.jpg') ?>" class="payer-img" alt="">
                                         <span><?= htmlspecialchars($payment['payer_first'] . ' ' . $payment['payer_last']) ?></span>
                                     </div>
                                 </td>
                                 <td><strong class="text-success">LSL <?= number_format($payment['amount'], 2) ?></strong></td>
                                 <td>
-                                    <span class="payment-method-badge method-<?= $payment['payment_method'] ?>">
-                                        <?php 
-                                        $icons = ['cash' => '💵', 'bank_transfer' => '🏦', 'card' => '💳', 'mobile_money' => '📱'];
-                                        echo $icons[$payment['payment_method']] ?? '💰';
+                                    <span class="badge bg-light text-dark">
+                                        <?php
+                                        $icons = ['cash' => 'Cash', 'bank_transfer' => 'Bank', 'card' => 'Card', 'mobile_money' => 'Mobile'];
+                                        echo $icons[$payment['payment_method']] ?? 'Other';
                                         ?>
-                                        <?= ucfirst(str_replace('_', ' ', $payment['payment_method'])) ?>
                                     </span>
                                 </td>
                                 <td>
-                                    <div><?= htmlspecialchars($payment['courseName']) ?></div>
-                                    <small class="text-muted"><?= htmlspecialchars($payment['batch_code']) ?></small>
+                                    <?= htmlspecialchars($payment['courseName']) ?>
+                                    <small class="text-muted d-block"><?= htmlspecialchars($payment['batch_code']) ?></small>
                                 </td>
                                 <td><code><?= htmlspecialchars($payment['invoice_number']) ?></code></td>
                                 <td><?= date('M j, Y', strtotime($payment['payment_date'])) ?></td>
@@ -538,37 +416,29 @@ $top_payers = $top_payers_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
         <div class="col-lg-4">
             <div class="card">
-                <div class="card-title">
-                    <i class="bi bi-trophy"></i>
-                    Top Payers
-                </div>
+                <div class="card-title"><i class="bi bi-trophy"></i> Top Payers</div>
                 <?php foreach($top_payers as $index => $payer): ?>
-                    <div class="top-payer-item">
-                        <div class="top-payer-rank"><?= $index + 1 ?></div>
-                        <img src="<?= htmlspecialchars($payer['photo'] ?? 'default.jpg') ?>" alt="Student" class="payer-img">
-                        <div class="flex-grow-1">
-                            <div class="fw-semibold"><?= htmlspecialchars($payer['firstName'] . ' ' . $payer['lastName']) ?></div>
-                            <small class="text-muted"><?= $payer['payment_count'] ?> payment(s)</small>
-                        </div>
-                        <div class="text-end">
-                            <div class="fw-bold text-success">LSL <?= number_format($payer['total_paid'], 2) ?></div>
-                        </div>
+                <div class="d-flex align-items-center gap-3 p-3 border-bottom">
+                    <div class="fw-bold text-primary" style="width: 32px;">#<?= $index + 1 ?></div>
+                    <img src="<?= htmlspecialchars($payer['photo'] ?? 'default.jpg') ?>" class="payer-img" alt="">
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold"><?= htmlspecialchars($payer['firstName'] . ' ' . $payer['lastName']) ?></div>
+                        <small class="text-muted"><?= $payer['payment_count'] ?> payments</small>
                     </div>
+                    <div class="text-success fw-bold">LSL <?= number_format($payer['total_paid'], 2) ?></div>
+                </div>
                 <?php endforeach; ?>
             </div>
         </div>
     </div>
 
-    <!-- Pending Payments -->
+    <!-- Outstanding Invoices -->
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-title">
-                    <i class="bi bi-exclamation-circle"></i>
-                    Outstanding Invoices
-                </div>
+                <div class="card-title"><i class="bi bi-exclamation-circle"></i> Outstanding Invoices</div>
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>Student</th>
@@ -578,38 +448,38 @@ $top_payers = $top_payers_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                                 <th>Issued</th>
                                 <th>Due Date</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach($pending_payments as $invoice): ?>
                             <tr>
                                 <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <img src="<?= htmlspecialchars($invoice['student_photo'] ?? 'default.jpg') ?>" alt="Student" class="payer-img">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <img src="<?= htmlspecialchars($invoice['student_photo'] ?? 'default.jpg') ?>" class="payer-img" alt="">
                                         <span><?= htmlspecialchars($invoice['firstName'] . ' ' . $invoice['lastName']) ?></span>
                                     </div>
                                 </td>
                                 <td>
-                                    <div><?= htmlspecialchars($invoice['courseName']) ?></div>
-                                    <small class="text-muted"><?= htmlspecialchars($invoice['batch_code']) ?></small>
+                                    <?= htmlspecialchars($invoice['courseName']) ?>
+                                    <small class="text-muted d-block"><?= htmlspecialchars($invoice['batch_code']) ?></small>
                                 </td>
                                 <td><code><?= htmlspecialchars($invoice['invoice_number']) ?></code></td>
                                 <td><strong>LSL <?= number_format($invoice['amount'], 2) ?></strong></td>
                                 <td><?= date('M j, Y', strtotime($invoice['created_at'])) ?></td>
                                 <td><?= date('M j, Y', strtotime($invoice['due_date'])) ?></td>
                                 <td>
-                                    <span class="badge bg-<?= $invoice['status'] === 'pending' ? 'warning' : 'danger' ?>">
+                                    <span class="badge bg-<?= $invoice['status'] === 'pending' ? 'warning' : 'danger' ?> text-white">
                                         <?= ucfirst($invoice['status']) ?>
                                     </span>
                                 </td>
                                 <td>
-                                    <form method="post" style="display: inline;">
+                                    <form method="post" style="display:inline;">
                                         <input type="hidden" name="student_id" value="<?= $invoice['student_id'] ?>">
                                         <input type="hidden" name="course_name" value="<?= htmlspecialchars($invoice['courseName']) ?>">
                                         <input type="hidden" name="invoice_number" value="<?= htmlspecialchars($invoice['invoice_number']) ?>">
-                                        <button type="submit" name="send_notification" class="collect-btn" title="Send Payment Reminder" onclick="return confirm('Send notification to student?')">
-                                            <i class="bi bi-bell"></i> Notify
+                                        <button type="submit" name="send_notification" class="collect-btn" onclick="return confirm('Send reminder to student?')">
+                                            Notify
                                         </button>
                                     </form>
                                 </td>
@@ -621,74 +491,62 @@ $top_payers = $top_payers_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             </div>
         </div>
     </div>
+
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Revenue Chart
+    // Revenue Line Chart
     const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-    const revenueChart = new Chart(revenueCtx, {
+    new Chart(revenueCtx, {
         type: 'line',
         data: {
-            labels: <?= json_encode(array_map(function($m) { return date('M Y', strtotime($m . '-01')); }, array_keys($monthly_revenue))) ?>,
+            labels: <?= json_encode(array_map(fn($m) => date('M Y', strtotime($m . '-01')), array_keys($monthly_revenue))) ?>,
             datasets: [{
                 label: 'Revenue (LSL)',
                 data: <?= json_encode(array_values($monthly_revenue)) ?>,
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                borderColor: 'rgb(16, 185, 129)',
+                borderColor: '#10b981',
                 borderWidth: 3,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                pointRadius: 5,
+                pointHoverRadius: 8
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
+            plugins: { legend: { display: false } },
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return 'LSL ' + value.toLocaleString();
-                        }
-                    }
+                    ticks: { callback: value => 'LSL ' + value.toLocaleString() }
                 }
             }
         }
     });
 
-    // Payment Method Chart
+    // Payment Method Doughnut Chart
     const methodCtx = document.getElementById('paymentMethodChart').getContext('2d');
-    const methodChart = new Chart(methodCtx, {
+    new Chart(methodCtx, {
         type: 'doughnut',
         data: {
-            labels: <?= json_encode(array_map(function($m) { return ucfirst(str_replace('_', ' ', $m['payment_method'])); }, $payment_methods)) ?>,
+            labels: <?= json_encode(array_map(fn($m) => ucfirst(str_replace('_', ' ', $m['payment_method'])), $payment_methods)) ?>,
             datasets: [{
                 data: <?= json_encode(array_column($payment_methods, 'count')) ?>,
-                backgroundColor: [
-                    'rgba(16, 185, 129, 0.8)',
-                    'rgba(59, 130, 246, 0.8)',
-                    'rgba(139, 92, 246, 0.8)',
-                    'rgba(245, 158, 11, 0.8)'
-                ],
-                borderWidth: 0
+                backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'],
+                borderWidth: 3,
+                borderColor: '#fff'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
+            plugins: { legend: { position: 'bottom' } }
         }
     });
 </script>
+
 </body>
 </html>

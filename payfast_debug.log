@@ -100,3 +100,54 @@ Array
     [custom_str1] => 474
     [signature] => cd51948848a749313bd30474b5a8753d
 )
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Twin
+    [name_last] => Keketsi
+    [email_address] => keketsi@gmail.com
+    [cell_number] => 58375090
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for marketing access to courses and resources
+    [custom_str1] => 483
+    [signature] => 27994f0b05b1c730e26fbc039a37702e
+)
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Palesa
+    [name_last] => Mosiwa
+    [email_address] => palesa@gmail.com
+    [cell_number] => 58375096
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for accounts access to courses and resources
+    [custom_str1] => 484
+    [signature] => 40966a2d885c6e9ba69f760207943126
+)
+Array
+(
+    [merchant_id] => 10042885
+    [merchant_key] => hmvdh7zqseco8
+    [return_url] => http://localhost/GirlsCodingAcademy/registration.php?return=1
+    [cancel_url] => http://localhost/GirlsCodingAcademy/registration.php?cancel=1
+    [notify_url] => http://localhost/GirlsCodingAcademy/notify.php
+    [name_first] => Siyabonga
+    [name_last] => Cele
+    [email_address] => siyabonga@gmail.com
+    [cell_number] => +26658465932
+    [amount] => 250.00
+    [item_name] => Girls Coding Academy Registration Fee
+    [item_description] => One-time fee for student access to courses and resources
+    [custom_str1] => 491
+    [signature] => 3791d81f17d7db26c004fdde53e72eac
+)

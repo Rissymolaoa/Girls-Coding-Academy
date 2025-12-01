@@ -277,25 +277,32 @@ if ($student_id) {
         </div>
         <ul class="nav flex-column p-0 m-0">
             <li class="nav-item">
-                <a href="parents_dashboard.php" class="nav-link"><i class="bi bi-house-door"></i> Dashboard</a>
+                <a href="parents_dashboard.php" class="nav-link" onclick="showSection('dashboard')"><i class="bi bi-house-door"></i> Dashboard</a>
             </li>
             <li class="nav-item">
-                <a href="children.php" class="nav-link"><i class="bi bi-people"></i> My Children</a>
+                <a href="children.php" class="nav-link" onclick="showSection('children')"><i class="bi bi-people"></i> My Children</a>
             </li>
             <li class="nav-item">
-                <a href="parent_view_attendance.php" class="nav-link"><i class="bi bi-card-checklist"></i> Attendance</a>
+                <a href="parent_view_attendance.php" class="nav-link" target="_blank"><i class="bi bi-card-checklist"></i> Attendance</a>
             </li>
             <li class="nav-item">
-                <a href="parent_view_performance.php" class="nav-link"><i class="bi bi-graph-up"></i> Performance</a>
+                <a href="parent_view_performance.php" class="nav-link" target="_blank"><i class="bi bi-graph-up"></i> Performance</a>
             </li>
             <li class="nav-item">
-                <a href="parent_view_materials.php" class="nav-link active"><i class="bi bi-folder"></i> Materials</a>
+                <a href="parent_view_materials.php" class="nav-link active" target="_blank"><i class="bi bi-folder"></i> Materials</a>
             </li>
             <li class="nav-item">
-                <a href="parent_messages.php" class="nav-link"><i class="bi bi-envelope"></i> Messages</a>
+                <a href="parent_messages.php" class="nav-link" target="_blank"><i class="bi bi-envelope"></i> Messages</a>
+            </li>
+          
+            <li class="nav-item">
+                <a href="parent_profile.php" class="nav-link" onclick="showSection('profile')"><i class="bi bi-person-circle"></i> Profile</a>
             </li>
             <li class="nav-item">
-                <a href="parents_chatting.php" class="nav-link"><i class="bi bi-chat"></i> Group Chat</a>
+                <a href="parent_payments.php" class="nav-link "><i class="bi bi-credit-card"></i> Payments</a>
+            </li>
+             <li class="nav-item">
+                <a href="parent_invoices_print.php" class="nav-link "><i class="bi bi-credit-card"></i> Invoices</a>
             </li>
             <li class="nav-item">
                 <a href="logout.php" class="nav-link"><i class="bi bi-box-arrow-right"></i> Logout</a>

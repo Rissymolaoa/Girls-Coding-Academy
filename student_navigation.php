@@ -1,18 +1,17 @@
 <?php
 // student_navigation.php
-// This file outputs the consistent sidebar navigation for all student pages.
-// Assumes session_start(), db include, and $studentInfo (from users/students join) are set before inclusion.
-// Also assumes $currentPage = basename($_SERVER['PHP_SELF']); is set.
+// Consistent sidebar for all student pages
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
     header("Location: login.php");
     exit();
 }
 
-// If $studentInfo not set, fetch it (fallback)
+// Only fetch student info if it's not already set
 if (!isset($studentInfo)) {
     include("db.php");
     $user_id = $_SESSION['user_id'];
+
     $stmt_student = $conn->prepare("
         SELECT s.student_id, s.photo, u.username, u.email, u.role
         FROM students s
@@ -23,36 +22,66 @@ if (!isset($studentInfo)) {
     $stmt_student->execute();
     $result_student = $stmt_student->get_result();
     $studentInfo = $result_student->fetch_assoc();
-    $student_id = $studentInfo['student_id'] ?? null;
 }
 
-// Determine current page for active sidebar link (fallback if not set)
-if (!isset($currentPage)) {
-    $currentPage = basename($_SERVER['PHP_SELF']);
-}
+// Current page for active link
+$currentPage = $currentPage ?? basename($_SERVER['PHP_SELF']);
 ?>
 
-<!-- Sidebar Navigation (Fixed for all student pages) -->
+<!-- Sidebar Navigation -->
 <nav class="sidebar" aria-label="Student navigation">
-    <img src="<?= htmlspecialchars($studentInfo['photo'] ?? 'teacher3.png') ?>" alt="Student Profile Picture" />
-    <h3>Navigation</h3>
-    <a href="student.php" class="<?= ($currentPage == 'student.php') ? 'active' : '' ?>"><i class="bi bi-house-door"></i> Home</a>
-    <a href="student_profile.php" class="<?= ($currentPage == 'student_profile.php') ? 'active' : '' ?>"><i class="bi bi-person-circle"></i> My Profile</a>
-    <a href="student_courses.php" class="<?= in_array($currentPage, ['student_courses.php','submit_test.php','submit_activity.php']) ? 'active' : '' ?>"><i class="bi bi-journal-bookmark"></i> My Courses</a>
-    <a href="student_tasks.php" class="<?= ($currentPage == 'student_tasks.php') ? 'active' : '' ?>"><i class="bi bi-list-task"></i> My Tasks</a>
-     <a href="enroll.php" class="<?= ($currentPage == 'enroll.php') ? 'active' : '' ?>"><i class="bi bi-plus-circle"></i> Enroll</a>
-    <a href="student_announcements.php" class="<?= ($currentPage == 'student_announcements.php') ? 'active' : '' ?>"><i class="bi bi-megaphone"></i> Announcements</a>
-    <a href="student_calendar.php" class="<?= ($currentPage == 'student_calendar.php') ? 'active' : '' ?>"><i class="bi bi-calendar-event"></i> My Calendar</a>
-    <a href="attendance.php" class="<?= ($currentPage == 'attendance.php') ? 'active' : '' ?>"><i class="bi bi-card-checklist"></i> My Attendance</a>
-    <a href="student_scheduled_classes.php" class="<?= ($currentPage == 'student_scheduled_classes.php') ? 'active' : '' ?>"><i class="bi bi-card-checklist"></i> My Schedule</a>
-    <a href="student_marks.php" class="<?= ($currentPage == 'student_marks.php') ? 'active' : '' ?>"><i class="bi bi-bar-chart-line-fill"></i> My Grades</a>
-    <a href="student_gradebook.php" class="<?= ($currentPage == 'student_gradebook.php') ? 'active' : '' ?>"><i class="bi bi-graph-up"></i> My Performance</a>
-    <a href="make_payment.php" class="<?= ($currentPage == 'make_payment.php') ? 'active' : '' ?>"><i class="bi bi-credit-card"></i> View & Pay Invoices</a>
-    <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    <!-- School Logo & Name -->
+    <div class="text-center mb-4">
+        <img src="admin.png" 
+             alt="Girls Coding Academy Logo" 
+             class="school-logo">
+        <h3 class="school-name">Girls Coding Academy</h3>
+        <hr class="logo-divider">
+    </div>
+
+    <!-- Navigation Links -->
+    <a href="student.php" class="<?= ($currentPage == 'student.php') ? 'active' : '' ?>">
+        <i class="bi bi-house-door"></i> Home
+    </a>
+    <a href="student_profile.php" class="<?= ($currentPage == 'student_profile.php') ? 'active' : '' ?>">
+        <i class="bi bi-person-circle"></i> My Profile
+    </a>
+    <a href="student_courses.php" class="<?= in_array($currentPage, ['student_courses.php','submit_test.php','submit_activity.php']) ? 'active' : '' ?>">
+        <i class="bi bi-journal-bookmark"></i> My Courses
+    </a>
+    <a href="student_timetable.php" class="<?= ($currentPage == 'student_timetable.php') ? 'active' : '' ?>">
+        <i class="bi bi-list-task"></i> My Time Table
+    </a>
+    <a href="enroll.php" class="<?= ($currentPage == 'enroll.php') ? 'active' : '' ?>">
+        <i class="bi bi-plus-circle"></i> Enroll
+    </a>
+    <a href="student_announcements.php" class="<?= ($currentPage == 'student_announcements.php') ? 'active' : '' ?>">
+        <i class="bi bi-megaphone"></i> Announcements
+    </a>
+    <a href="student_calendar.php" class="<?= ($currentPage == 'student_calendar.php') ? 'active' : '' ?>">
+        <i class="bi bi-calendar-event"></i> My Calendar
+    </a>
+    <a href="attendance.php" class="<?= ($currentPage == 'attendance.php') ? 'active' : '' ?>">
+        <i class="bi bi-card-checklist"></i> My Attendance
+    </a>
+    <a href="student_scheduled_classes.php" class="<?= ($currentPage == 'student_scheduled_classes.php') ? 'active' : '' ?>">
+        <i class="bi bi-calendar3"></i> My Schedule
+    </a>
+    <a href="student_marks.php" class="<?= ($currentPage == 'student_marks.php') ? 'active' : '' ?>">
+        <i class="bi bi-bar-chart-line-fill"></i> My Grades
+    </a>
+    <a href="student_gradebook.php" class="<?= ($currentPage == 'student_gradebook.php') ? 'active' : '' ?>">
+        <i class="bi bi-graph-up"></i> Performance
+    </a>
+    <a href="make_payment.php" class="<?= ($currentPage == 'make_payment.php') ? 'active' : '' ?>">
+        <i class="bi bi-credit-card"></i> Pay Invoices
+    </a>
+    <a href="logout.php">
+        <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
 </nav>
 
 <style>
-    /* Consistent Sidebar Styles (can be moved to a global CSS if preferred) */
     .sidebar {
         width: 250px;
         background-color: #343a40;
@@ -69,19 +98,35 @@ if (!isset($currentPage)) {
         overflow-y: auto;
         z-index: 1000;
     }
-    .sidebar img {
+
+    .school-logo {
         width: 100px;
         height: 100px;
         border-radius: 50%;
-        margin-bottom: 15px;
-        object-fit: cover;
-        border: 2px solid #1abc9c;
+        object-fit: contain;
+        border: 4px solid #1abc9c;
+        background: white;
+        padding: 8px;
+        margin-bottom: 12px;
     }
-    .sidebar h3 {
-        margin-bottom: 30px;
-        font-weight: bold;
-        text-align: center;
+
+    .school-name {
+        margin: 0 0 10px 0;
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        color: #fff;
     }
+
+    .logo-divider {
+        width: 80%;
+        border: 0;
+        height: 2px;
+        background: linear-gradient(to right, transparent, #1abc9c, transparent);
+        margin: 15px auto;
+    }
+
     .sidebar a {
         width: 100%;
         color: white;
@@ -96,14 +141,10 @@ if (!isset($currentPage)) {
         font-weight: 500;
         position: relative;
     }
-    .sidebar a:hover {
-        background-color: #495057;
-    }
-    .sidebar a.active {
-        background-color: #495057;
-        font-weight: 600;
-    }
-    /* White vertical line on left of active link */
+
+    .sidebar a:hover { background-color: #495057; }
+    .sidebar a.active { background-color: #495057; font-weight: 600; }
+
     .sidebar a.active::before {
         content: "";
         position: absolute;
@@ -114,16 +155,7 @@ if (!isset($currentPage)) {
         background: white;
         border-radius: 0 4px 4px 0;
     }
-    .container-flex {
-        display: flex;
-        height: 100vh;
-    }
-    .content {
-        flex: 1;
-        padding: 30px 40px;
-        margin-left: 250px;
-        overflow-y: auto;
-    }
+
     @media (max-width: 768px) {
         .sidebar {
             transform: translateX(-100%);
@@ -131,9 +163,6 @@ if (!isset($currentPage)) {
         }
         .sidebar.open {
             transform: translateX(0);
-        }
-        .content {
-            margin-left: 0;
         }
     }
 </style>

@@ -1,11 +1,9 @@
 <?php
 session_start();
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 include 'db.php';
 
-// Ensure teacher is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
     header("Location: login.php");
     exit();
@@ -13,434 +11,361 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
 
 $user_id = (int)$_SESSION['user_id'];
 
-// Fetch teacher info
-$teacher_info = [];
-try {
-    $teacher_query = $conn->prepare("SELECT username, email, gender, phone FROM users WHERE user_id = ? AND role = 'teacher'");
-    $teacher_query->bind_param("i", $user_id);
-    $teacher_query->execute();
-    $teacher_info = $teacher_query->get_result()->fetch_assoc();
-    $teacher_query->close();
+// === Get Teacher Info ===
+$stmt = $conn->prepare("
+    SELECT u.username, u.email, u.phone, u.gender, t.photo 
+    FROM users u 
+    LEFT JOIN teachers t ON t.user_id = u.user_id 
+    WHERE u.user_id = ?
+");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$teacherInfo = $stmt->get_result()->fetch_assoc();
+$stmt->close();
 
-    if (!$teacher_info) {
-        die("Teacher profile not found");
-    }
-} catch (Exception $e) {
-    error_log("Error fetching teacher info: " . $e->getMessage());
-    die("Error loading teacher profile");
+// === Get teacher_id ===
+$stmt = $conn->prepare("SELECT teacher_id FROM teachers WHERE user_id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$teacher_id_row = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$teacher_id_row) {
+    die("Teacher profile not found. Contact admin.");
 }
+$teacher_id = (int)$teacher_id_row['teacher_id'];
 
-// Fetch teacher_id
-try {
-    $teacher_id_res = $conn->prepare("SELECT teacher_id FROM teachers WHERE user_id = ?");
-    $teacher_id_res->bind_param("i", $user_id);
-    $teacher_id_res->execute();
-    $res = $teacher_id_res->get_result();
-    if ($res->num_rows === 0) {
-        die("Teacher profile not set up yet");
-    }
-    $teacher_id = (int)$res->fetch_assoc()['teacher_id'];
-    $teacher_id_res->close();
-} catch (Exception $e) {
-    error_log("Error fetching teacher ID: " . $e->getMessage());
-    die("Error loading teacher profile");
-}
+// Handle both batch_id and course_id parameters (course_id is an alias for batch_id)
+$selected_batch_id = isset($_GET['batch_id']) ? (int)$_GET['batch_id'] : 
+                     (isset($_GET['course_id']) ? (int)$_GET['course_id'] : null);
 
-// Handle test update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_test') {
-    $test_id = filter_input(INPUT_POST, 'test_id', FILTER_VALIDATE_INT);
-    $title = trim($conn->real_escape_string($_POST['title'] ?? ''));
-    $description = trim($conn->real_escape_string($_POST['description'] ?? ''));
-    $due_date = trim($conn->real_escape_string($_POST['due_date'] ?? ''));
-    $max_score = filter_var($_POST['max_score'] ?? 0, FILTER_VALIDATE_FLOAT);
-    $resource_file = null;
+// === Handle Update & Delete ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if ($_POST['action'] === 'update_item') {
+        $id = (int)$_POST['id'];
+        $type = $_POST['type']; // 'test' or 'activity'
+        $title = trim($_POST['title']);
+        $description = trim($_POST['description']);
+        $due_date = $_POST['due_date'];
+        $max_score = ($type === 'test') ? (float)$_POST['max_score'] : null;
 
-    if (!$test_id || !$title || !$description || !$due_date || $max_score === false || $max_score <= 0 || $max_score > 100) {
-        echo "<div class='alert alert-danger'>All fields are required, and max score must be between 0 and 100.</div>";
-    } else {
-        if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = 'Uploads/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
-            }
-            $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
-            $file = $_FILES['resource_file'];
-            if (!in_array($file['type'], $allowed_types)) {
-                echo "<div class='alert alert-danger'>Allowed file types: PDF, JPG, PNG.</div>";
-            } elseif ($file['size'] > 200 * 1024 * 1024) {
-                echo "<div class='alert alert-danger'>File size exceeds 200MB.</div>";
-            } else {
-                $original_name = basename($file['name']);
-                $filepath = $upload_dir . $original_name;
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $resource_file = $filepath;
-                } else {
-                    echo "<div class='alert alert-danger'>Error uploading file. Please try again.</div>";
-                }
-            }
+        $table = $type === 'test' ? 'tests' : 'activities';
+        $id_col = $type === 'test' ? 'test_id' : 'activity_id';
+
+        $sql = "UPDATE $table SET title = ?, description = ?, due_date = ?";
+        $types = "sss";
+        $params = [$title, $description, $due_date];
+
+        if ($type === 'test') {
+            $sql .= ", max_score = ?";
+            $types .= "d";
+            $params[] = $max_score;
         }
 
-        if (!isset($error)) {
-            try {
-                $query = "UPDATE tests SET title = ?, description = ?, due_date = ?, max_score = ?";
-                if ($resource_file) {
-                    $query .= ", resource_file = ?";
-                }
-                $query .= " WHERE test_id = ?";
-                $stmt = $conn->prepare($query);
-                $params = [$title, $description, $due_date, $max_score];
-                $types = "issd";
-                if ($resource_file) {
-                    $params[] = $resource_file;
-                    $types .= "s";
-                }
-                $params[] = $test_id;
-                $types .= "i";
-                $stmt->bind_param($types, ...$params);
-                $stmt->execute();
-                $stmt->close();
-                echo "<div class='alert alert-success'>Test updated successfully.</div>";
-            } catch (Exception $e) {
-                error_log("Error updating test: " . $e->getMessage());
-                echo "<div class='alert alert-danger'>Error updating test: " . htmlspecialchars($e->getMessage()) . "</div>";
-            }
-        }
+        $sql .= " WHERE $id_col = ? AND teacher_id = ?";
+        $types .= "ii";
+        $params[] = $id;
+        $params[] = $teacher_id;
+
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $stmt->close();
+
+        // Refresh page
+        header("Location: view_assigned_tests.php?batch_id=$selected_batch_id");
+        exit();
+    }
+
+    if ($_POST['action'] === 'delete_item') {
+        $id = (int)$_POST['id'];
+        $type = $_POST['type'];
+        $table = $type === 'test' ? 'tests' : 'activities';
+        $id_col = $type === 'test' ? 'test_id' : 'activity_id';
+
+        $stmt = $conn->prepare("DELETE FROM $table WHERE $id_col = ? AND teacher_id = ?");
+        $stmt->bind_param("ii", $id, $teacher_id);
+        $stmt->execute();
+        $stmt->close();
+
+        header("Location: view_assigned_tests.php?batch_id=$selected_batch_id");
+        exit();
     }
 }
 
-// Handle test deletion
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_test') {
-    $test_id = filter_input(INPUT_POST, 'test_id', FILTER_VALIDATE_INT);
-    $selected_course_id = filter_input(INPUT_POST, 'selected_course_id', FILTER_VALIDATE_INT);
-    if ($test_id) {
-        try {
-            $stmt = $conn->prepare("DELETE FROM tests WHERE test_id = ?");
-            $stmt->bind_param("i", $test_id);
-            $stmt->execute();
-            $stmt->close();
-            header("Location: view_assigned_tests.php?course_id=$selected_course_id");
-            exit();
-        } catch (Exception $e) {
-            error_log("Error deleting test: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error deleting test: " . htmlspecialchars($e->getMessage()) . "</div>";
-        }
-    } else {
-        echo "<div class='alert alert-danger'>Invalid test ID.</div>";
+// === Fetch All Assigned Batches for Dropdown ===
+$batches = [];
+$stmt = $conn->prepare("
+    SELECT b.batch_id, b.batch_code, c.courseName 
+    FROM course_assignments ca 
+    JOIN batches b ON ca.batch_id = b.batch_id 
+    JOIN courses c ON b.course_id = c.course_id 
+    WHERE ca.teacher_id = ? 
+    ORDER BY b.start_date DESC
+");
+$stmt->bind_param("i", $teacher_id);
+$stmt->execute();
+$res = $stmt->get_result();
+while ($row = $res->fetch_assoc()) {
+    $batches[] = $row;
+}
+$stmt->close();
+
+// === Get Selected Batch Name ===
+$batch_name = "All Batches";
+if ($selected_batch_id) {
+    $stmt = $conn->prepare("
+        SELECT b.batch_code, c.courseName 
+        FROM batches b 
+        JOIN courses c ON b.course_id = c.course_id 
+        WHERE b.batch_id = ?
+    ");
+    $stmt->bind_param("i", $selected_batch_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $batch_info = $result->fetch_assoc();
+    $stmt->close();
+
+    if ($batch_info) {
+        $batch_name = htmlspecialchars($batch_info['batch_code']) . " - " . htmlspecialchars($batch_info['courseName']);
     }
 }
 
-$selected_course_id = filter_input(INPUT_GET, 'course_id', FILTER_VALIDATE_INT);
-$students_by_batch = [];
-$testsByBatch = [];
-$submissionsByTest = [];
-
-if ($selected_course_id) {
-    // Validate batch_id
-    try {
-        $stmt_check_batch = $conn->prepare("SELECT batch_id FROM batches WHERE batch_id = ?");
-        $stmt_check_batch->bind_param("i", $selected_course_id);
-        $stmt_check_batch->execute();
-        $res_check_batch = $stmt_check_batch->get_result();
-        if ($res_check_batch->num_rows === 0) {
-            echo "<div class='alert alert-danger'>Invalid batch ID selected.</div>";
-            $selected_course_id = null;
-        }
-        $stmt_check_batch->close();
-    } catch (Exception $e) {
-        error_log("Error validating batch ID: " . $e->getMessage());
-        echo "<div class='alert alert-danger'>Error validating batch ID: " . htmlspecialchars($e->getMessage()) . "</div>";
-        $selected_course_id = null;
+// === Fetch Tests + Activities ===
+$items = [];
+if ($selected_batch_id) {
+    $stmt = $conn->prepare("
+        (SELECT 'test' as type, test_id as id, title, description, due_date, max_score, resource_file, created_at 
+         FROM tests 
+         WHERE batch_id = ? AND teacher_id = ?)
+        UNION ALL
+        (SELECT 'activity' as type, activity_id as id, title, description, due_date, NULL as max_score, resource_file, created_at 
+         FROM activities 
+         WHERE batch_id = ? AND teacher_id = ?)
+        ORDER BY created_at DESC
+    ");
+    $stmt->bind_param("iiii", $selected_batch_id, $teacher_id, $selected_batch_id, $teacher_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $items[] = $row;
     }
-
-    if ($selected_course_id) {
-        // Fetch batch details
-        try {
-            $stmt_batch = $conn->prepare("
-                SELECT b.batch_code, c.courseName
-                FROM batches b
-                INNER JOIN courses c ON b.course_id = c.course_id
-                WHERE b.batch_id = ?
-            ");
-            $stmt_batch->bind_param("i", $selected_course_id);
-            $stmt_batch->execute();
-            $batch_details = $stmt_batch->get_result()->fetch_assoc();
-            $stmt_batch->close();
-
-            if (!$batch_details) {
-                echo "<div class='alert alert-danger'>Invalid batch selected.</div>";
-                $selected_course_id = null;
-            }
-        } catch (Exception $e) {
-            error_log("Error fetching batch details: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching batch details: " . htmlspecialchars($e->getMessage()) . "</div>";
-            $selected_course_id = null;
-        }
-
-        // Students
-        try {
-            $stmt_students = $conn->prepare("
-                SELECT ce.enrollment_id, ce.batch_id, ce.student_id, u.firstName, u.lastName, u.email, ce.status
-                FROM course_enrollments ce
-                INNER JOIN students s ON ce.student_id = s.student_id
-                INNER JOIN users u ON s.user_id = u.user_id
-                WHERE ce.batch_id = ? AND ce.status = 'active'
-                ORDER BY u.firstName
-            ");
-            $stmt_students->bind_param("i", $selected_course_id);
-            $stmt_students->execute();
-            $res_students = $stmt_students->get_result();
-            $students_by_batch[$selected_course_id] = [];
-            while ($row = $res_students->fetch_assoc()) {
-                $students_by_batch[$selected_course_id][] = $row;
-            }
-            $stmt_students->close();
-        } catch (Exception $e) {
-            error_log("Error fetching students: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching students: " . htmlspecialchars($e->getMessage()) . "</div>";
-        }
-
-        // Tests
-        try {
-            $stmt_tests = $conn->prepare("
-                SELECT test_id, title, description, due_date, max_score, resource_file
-                FROM tests
-                WHERE batch_id = ?
-                ORDER BY created_at DESC
-            ");
-            $stmt_tests->bind_param("i", $selected_course_id);
-            $stmt_tests->execute();
-            $res_tests = $stmt_tests->get_result();
-            $testsByBatch[$selected_course_id] = [];
-            while ($row = $res_tests->fetch_assoc()) {
-                $testsByBatch[$selected_course_id][] = $row;
-            }
-            $stmt_tests->close();
-        } catch (Exception $e) {
-            error_log("Error fetching tests: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching tests: " . htmlspecialchars($e->getMessage()) . "</div>";
-        }
-
-        // Test Submissions
-        try {
-            $stmt_test_subs = $conn->prepare("
-                SELECT s.submission_id, s.test_id, s.student_id, s.submission_text, s.submission_file, s.submitted_at
-                FROM test_submissions s
-                INNER JOIN tests t ON s.test_id = t.test_id
-                INNER JOIN course_enrollments ce ON s.student_id = ce.student_id AND ce.batch_id = ?
-                WHERE ce.batch_id = ?
-                ORDER BY s.submitted_at
-            ");
-            $stmt_test_subs->bind_param("ii", $selected_course_id, $selected_course_id);
-            $stmt_test_subs->execute();
-            $res_test_subs = $stmt_test_subs->get_result();
-            $submissionsByTest = [];
-            while ($row = $res_test_subs->fetch_assoc()) {
-                $submissionsByTest[$row['test_id']][] = $row;
-            }
-            $stmt_test_subs->close();
-        } catch (Exception $e) {
-            error_log("Error fetching test submissions: " . $e->getMessage());
-            echo "<div class='alert alert-danger'>Error fetching test submissions: " . htmlspecialchars($e->getMessage()) . "</div>";
-        }
-    }
+    $stmt->close();
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>View Assigned Tests</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Tests & Activities - Girls Coding Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: Inter, Arial, Helvetica, sans-serif;
-            background: #f4f4f8;
-        }
-        header {
-            background: linear-gradient(90deg, #7b2cbf, #5a189a);
-            color: #fff;
-        }
-        header h1 {
-            margin: 0;
-            font-size: 22px;
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-header { background: linear-gradient(90deg, #7b2cbf, #5a189a); }
+        .sidebar { width: 250px; background: linear-gradient(180deg, #7b2cbf, #5a189a); position: fixed; height: 100vh; overflow-y: auto; transition: transform 0.3s ease; z-index: 1000; }
+        .sidebar.hidden { transform: translateX(-100%); }
+        .sidebar-link:hover { background: rgba(255,255,255,0.1); padding-left: 1.5rem; }
+        .sidebar-link.active { background: rgba(255,255,255,0.2); border-left: 4px solid white; }
+        .main-content { margin-left: 250px; transition: margin-left 0.3s ease; }
+        .main-content.expanded { margin-left: 0; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.15); transition: 0.3s; }
+        .mobile-toggle { display: none; }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .mobile-toggle { display: block; }
         }
     </style>
 </head>
-<body>
-    <header class="py-3 px-4 text-center">
-        <h1>Welcome, <?= htmlspecialchars($teacher_info['username']) ?></h1>
-        <p class="mb-0">Email: <?= htmlspecialchars($teacher_info['email']) ?> | Gender: <?= htmlspecialchars($teacher_info['gender']) ?> | Phone: <?= htmlspecialchars($teacher_info['phone']) ?></p>
+<body class="bg-gray-100">
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="p-6">
+        <div class="flex items-center mb-8">
+            <i class="fas fa-graduation-cap text-white text-3xl mr-3"></i>
+            <h2 class="text-white text-xl font-bold">GCA Portal</h2>
+        </div>
+        <nav>
+            <a href="teacher_dashboard.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                <i class="fas fa-home mr-3"></i> Dashboard
+            </a>
+            <a href="manage_teacher_courses.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                <i class="fas fa-chalkboard-teacher mr-3"></i> Manage Courses
+            </a>
+            <a href="upload_materials.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                <i class="fas fa-book mr-3"></i> Upload Materials
+            </a>
+            <a href="view_assigned_tests.php" class="sidebar-link active flex items-center text-white py-3 px-4 rounded mb-2">
+                <i class="fas fa-list-check mr-3"></i> Tests & Activities
+            </a>
+            <a href="grades.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                <i class="fas fa-clipboard-check mr-3"></i> Grades
+            </a>
+            <a href="mark_attendance.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                <i class="fas fa-calendar-check mr-3"></i> Attendance
+            </a>
+            <a href="logout.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                <i class="fas fa-sign-out-alt mr-3"></i> Logout
+            </a>
+        </nav>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main-content" id="mainContent">
+    <!-- Header -->
+    <header class="gradient-header text-white py-4 px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+        <button class="mobile-toggle text-white text-2xl mb-3 sm:mb-0" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="text-right sm:text-left">
+            <h1 class="text-xl font-semibold">Tests & Activities</h1>
+            <p class="text-sm">Teacher: <?= htmlspecialchars($teacherInfo['username'] ?? 'Teacher') ?> | <?= htmlspecialchars($teacherInfo['email'] ?? '') ?></p>
+        </div>
     </header>
 
-    <div class="container-fluid d-flex flex-nowrap" style="min-height: calc(100vh - 70px);">
-        <!-- Sidebar -->
-        <nav class="col-md-3 col-xl-2 bg-dark text-white p-3 vh-100" style="min-width:220px;">
-            <div class="text-center mb-4">
-                <img src="admin.png" class="rounded-circle border border-info mb-2" width="92" height="92" alt="Teacher" />
-                <h5>Teacher Dashboard</h5>
-            </div>
-            <ul class="nav flex-column">
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="teacher_dashboard.php"><i class="bi bi-house-door"></i> Dashboard</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white active" href="manage_teacher_courses.php"><i class="bi bi-journal-bookmark"></i> Manage Courses</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="upload_materials.php"><i class="bi bi-folder"></i> Upload Materials</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="grades.php"><i class="bi bi-pencil-square"></i> Grade</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="mark_attendance.php"><i class="bi bi-check-circle"></i> Mark Attendance</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="message_students.php"><i class="bi bi-chat-dots"></i> Message Students</a></li>
-                <li class="nav-item mb-2"><a class="nav-link text-white" href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
-            </ul>
-        </nav>
+    <main class="p-6">
+        <!-- Batch Selector -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Select Batch</h3>
+            <form method="GET" class="flex flex-col sm:flex-row gap-4">
+                <select name="batch_id" class="form-select block w-full sm:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600" onchange="this.form.submit()" required>
+                    <option value="">-- Choose a Batch --</option>
+                    <?php foreach ($batches as $b): ?>
+                        <option value="<?= $b['batch_id'] ?>" <?= $selected_batch_id == $b['batch_id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($b['batch_code'] . " - " . $b['courseName']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg">
+                    View Items
+                </button>
+            </form>
+        </div>
 
-        <!-- Main Content -->
-        <main class="col py-4">
-            <h2 class="mb-3">Assigned Tests</h2>
-            <a href="manage_teacher_courses.php?course_id=<?= $selected_course_id ?>" class="btn btn-outline-primary mb-3">Back to Manage Courses</a>
-
-            <?php if ($selected_course_id && $batch_details): ?>
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h4>Batch: <?= htmlspecialchars($batch_details['batch_code']) ?> (<?= htmlspecialchars($batch_details['courseName']) ?>)</h4>
+        <!-- Items List -->
+        <?php if ($selected_batch_id): ?>
+            <?php if (!empty($items)): ?>
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                        <h2 class="text-2xl font-bold text-gray-800"><?= $batch_name ?></h2>
+                        <p class="text-gray-600"><?= count($items) ?> item<?= count($items) !== 1 ? 's' : '' ?> found</p>
                     </div>
-                    <div class="card-body">
-                        <?php if (!empty($testsByBatch[$selected_course_id])): ?>
-                            <?php foreach ($testsByBatch[$selected_course_id] as $test): ?>
-                                <div class="card mb-4">
-                                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                                        <h5 class="mb-0"><?= htmlspecialchars($test['title']) ?> (Due: <?= htmlspecialchars($test['due_date']) ?>, Max Score: <?= htmlspecialchars($test['max_score']) ?>)</h5>
-                                        <div>
-                                            <button class="btn btn-sm btn-warning me-2" onclick="toggleEditForm('test_<?= $test['test_id'] ?>')">Edit</button>
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this test?');">
-                                                <input type="hidden" name="action" value="delete_test">
-                                                <input type="hidden" name="test_id" value="<?= $test['test_id'] ?>">
-                                                <input type="hidden" name="selected_course_id" value="<?= $selected_course_id ?>">
-                                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                            </form>
+
+                    <div class="p-6 space-y-6">
+                        <?php foreach ($items as $item): 
+                            $isTest = $item['type'] === 'test';
+                            $icon = $isTest ? 'fa-file-alt' : 'fa-clipboard-list';
+                            $color = $isTest ? 'blue' : 'green';
+                        ?>
+                            <div class="border border-gray-200 rounded-lg p-6 card-hover bg-gray-50">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="flex-1">
+                                        <h4 class="text-xl font-bold text-gray-800 flex items-center">
+                                            <i class="fas <?= $icon ?> text-<?= $color ?>-600 mr-3"></i>
+                                            <?= htmlspecialchars($item['title']) ?>
+                                            <span class="ml-3 text-sm font-normal text-gray-500">(<?= ucfirst($item['type']) ?>)</span>
+                                        </h4>
+                                        <p class="text-gray-700 mt-2"><?= nl2br(htmlspecialchars($item['description'])) ?></p>
+
+                                        <div class="flex flex-wrap gap-6 mt-4 text-sm text-gray-600">
+                                            <span><strong>Due Date:</strong> <?= date('d M Y', strtotime($item['due_date'])) ?></span>
+                                            <?php if ($isTest): ?>
+                                                <span><strong>Max Score:</strong> <?= htmlspecialchars($item['max_score']) ?></span>
+                                            <?php endif; ?>
+                                            <span><strong>Posted:</strong> <?= date('d M Y', strtotime($item['created_at'])) ?></span>
                                         </div>
-                                    </div>
-                                    <div class="card-body">
-                                        <p><?= htmlspecialchars($test['description']) ?></p>
-                                        <?php if ($test['resource_file'] && file_exists($test['resource_file'])): ?>
-                                            <a href="<?= htmlspecialchars($test['resource_file']) ?>" target="_blank" class="btn btn-sm btn-outline-primary mb-3">View Resource File</a>
-                                        <?php elseif ($test['resource_file']): ?>
-                                            <p class="text-danger">Resource file not found: <?= htmlspecialchars($test['resource_file']) ?></p>
+
+                                        <?php if (!empty($item['resource_file']) && file_exists($item['resource_file'])): ?>
+                                            <a href="<?= htmlspecialchars($item['resource_file']) ?>" target="_blank" class="inline-block mt-3 text-purple-600 hover:underline text-sm">
+                                                <i class="fas fa-paperclip mr-1"></i> View Attached File
+                                            </a>
                                         <?php endif; ?>
-                                        <form method="POST" enctype="multipart/form-data" class="row g-3 mt-3" id="test_<?= $test['test_id'] ?>" style="display: none;">
-                                            <input type="hidden" name="action" value="update_test">
-                                            <input type="hidden" name="test_id" value="<?= $test['test_id'] ?>">
-                                            <input type="hidden" name="batch_id" value="<?= $selected_course_id ?>">
-                                            <div class="col-md-6">
-                                                <label class="form-label">Test Title</label>
-                                                <input class="form-control" type="text" name="title" value="<?= htmlspecialchars($test['title']) ?>" required>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">Due Date</label>
-                                                <input class="form-control" type="date" name="due_date" value="<?= htmlspecialchars($test['due_date']) ?>" required>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">Maximum Score</label>
-                                                <input class="form-control" type="number" name="max_score" value="<?= htmlspecialchars($test['max_score']) ?>" min="0" max="100" step="0.1" required>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label">Description</label>
-                                                <textarea class="form-control" name="description" rows="3" required><?= htmlspecialchars($test['description']) ?></textarea>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label">Resource File (PDF, JPG, PNG, max 200MB)</label>
-                                                <input class="form-control" type="file" name="resource_file" accept=".pdf,.jpg,.jpeg,.png">
-                                                <?php if ($test['resource_file']): ?>
-                                                    <p>Current file: <a href="<?= htmlspecialchars($test['resource_file']) ?>" target="_blank">View Current File</a></p>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="col-12 mt-3">
-                                                <button class="btn btn-warning" type="submit">Update Test</button>
-                                            </div>
+                                    </div>
+
+                                    <div class="flex gap-3 ml-4">
+                                        <button onclick="toggleEdit(<?= $item['id'] ?>)" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                                            Edit
+                                        </button>
+                                        <form method="POST" onsubmit="return confirm('Are you sure you want to delete this <?= $item['type'] ?>?');" class="inline">
+                                            <input type="hidden" name="action" value="delete_item">
+                                            <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                                            <input type="hidden" name="type" value="<?= $item['type'] ?>">
+                                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                                                Delete
+                                            </button>
                                         </form>
-                                        <h6>Submissions</h6>
-                                        <div class="table-responsive">
-                                            <table class="table table-striped table-bordered mb-0">
-                                                <thead class="table-dark">
-                                                    <tr><th>Student</th><th>Status</th><th>Submitted At</th><th>Details</th></tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php
-                                                    $test_subs = $submissionsByTest[$test['test_id']] ?? [];
-                                                    $today = date('Y-m-d');
-                                                    foreach ($students_by_batch[$selected_course_id] as $student):
-                                                        $submission = null;
-                                                        foreach ($test_subs as $sub) {
-                                                            if ($sub['student_id'] == $student['student_id']) {
-                                                                $submission = $sub;
-                                                                break;
-                                                            }
-                                                        }
-                                                        $status_text = 'Pending';
-                                                        if ($submission) {
-                                                            if ($submission['submitted_at'] > $test['due_date'] . ' 23:59:59') {
-                                                                $status_text = 'Late';
-                                                            } else {
-                                                                $status_text = 'Submitted';
-                                                            }
-                                                        } else {
-                                                            $status_text = ($today > $test['due_date']) ? 'Not Submitted' : 'Pending';
-                                                        }
-                                                    ?>
-                                                        <tr>
-                                                            <td><?= htmlspecialchars($student['firstName'] . ' ' . $student['lastName']) ?></td>
-                                                            <td>
-                                                                <?php if ($status_text == 'Late'): ?>
-                                                                    <span class="badge bg-danger"><?= $status_text ?></span>
-                                                                <?php elseif ($status_text == 'Not Submitted'): ?>
-                                                                    <span class="badge bg-warning text-dark"><?= $status_text ?></span>
-                                                                <?php else: ?>
-                                                                    <span class="badge bg-success"><?= $status_text ?></span>
-                                                                <?php endif; ?>
-                                                            </td>
-                                                            <td><?= $submission ? htmlspecialchars($submission['submitted_at']) : '-' ?></td>
-                                                            <td>
-                                                                <?php if ($submission): ?>
-                                                                    <?php if ($submission['submission_text']): ?>
-                                                                        <p><?= htmlspecialchars($submission['submission_text']) ?></p>
-                                                                    <?php endif; ?>
-                                                                    <?php if ($submission['submission_file'] && file_exists($submission['submission_file'])): ?>
-                                                                        <a href="<?= htmlspecialchars($submission['submission_file']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">View File</a>
-                                                                    <?php elseif ($submission['submission_file']): ?>
-                                                                        <p class="text-danger">Submission file not found: <?= htmlspecialchars($submission['submission_file']) ?></p>
-                                                                    <?php endif; ?>
-                                                                <?php else: ?>
-                                                                    <p>No submission</p>
-                                                                <?php endif; ?>
-                                                            </td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
                                     </div>
                                 </div>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <div class="alert alert-info">No tests assigned for this batch.</div>
-                        <?php endif; ?>
+
+                                <!-- Edit Form -->
+                                <div id="edit-<?= $item['id'] ?>" style="display:none;" class="bg-white border border-gray-300 rounded-lg p-5 mt-4">
+                                    <form method="POST">
+                                        <input type="hidden" name="action" value="update_item">
+                                        <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                                        <input type="hidden" name="type" value="<?= $item['type'] ?>">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Title</label>
+                                                <input type="text" name="title" value="<?= htmlspecialchars($item['title']) ?>" class="w-full border rounded-lg px-3 py-2 mt-1" required>
+                                            </div>
+                                            <?php if ($isTest): ?>
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700">Max Score</label>
+                                                    <input type="number" step="0.1" name="max_score" value="<?= $item['max_score'] ?>" class="w-full border rounded-lg px-3 py-2 mt-1" required>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Due Date</label>
+                                                <input type="date" name="due_date" value="<?= $item['due_date'] ?>" class="w-full border rounded-lg px-3 py-2 mt-1" required>
+                                            </div>
+                                            <div class="md:col-span-2">
+                                                <label class="block text-sm font-medium text-gray-700">Description</label>
+                                                <textarea name="description" rows="3" class="w-full border rounded-lg px-3 py-2 mt-1" required><?= htmlspecialchars($item['description']) ?></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="mt-5 text-right">
+                                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg">
+                                                Save Changes
+                                            </button>
+                                            <button type="button" onclick="toggleEdit(<?= $item['id'] ?>)" class="ml-3 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             <?php else: ?>
-                <div class="alert alert-info">Please select a valid course to view tests.</div>
+                <div class="bg-white rounded-lg shadow-lg p-12 text-center">
+                    <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+                    <p class="text-xl text-gray-600">No tests or activities found for this batch.</p>
+                    <a href="manage_teacher_courses.php?course_id=<?= $selected_batch_id ?>" class="mt-4 inline-block bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg">
+                        Create Your First One →
+                    </a>
+                </div>
             <?php endif; ?>
-        </main>
-    </div>
+        <?php endif; ?>
+    </main>
+</div>
 
-    <footer class="bg-dark text-white text-center py-3 mt-4">
-        &copy; <?= date('Y') ?> Girls Coding Academy
-    </footer>
+<script>
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('mobile-open');
+    }
+    function toggleEdit(id) {
+        const el = document.getElementById('edit-' + id);
+        el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    }
+</script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function toggleEditForm(id) {
-            var form = document.getElementById(id);
-            form.style.display = (form.style.display === 'none' || form.style.display === '') ? 'block' : 'none';
-        }
-    </script>
 </body>
 </html>

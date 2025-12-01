@@ -46,66 +46,104 @@ try {
     die("Error loading teacher profile");
 }
 
-// Handle student removal
+// Handle student inactivation request
 $message = "";
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_student'])) {
-    $enrollment_id = filter_input(INPUT_POST, 'enrollment_id', FILTER_VALIDATE_INT);
-    $selected_course_id = filter_input(INPUT_POST, 'selected_course_id', FILTER_VALIDATE_INT);
-    if ($enrollment_id && $selected_course_id) {
-        try {
-            $stmt = $conn->prepare("UPDATE course_enrollments SET status = 'inactive' WHERE enrollment_id = ?");
-            $stmt->bind_param("i", $enrollment_id);
-            $stmt->execute();
-            $stmt->close();
-            $message = "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex items-center'>Student removed successfully. <i class='fas fa-check-circle ml-2'></i></div>";
-        } catch (Exception $e) {
-            error_log("Error removing student: " . $e->getMessage());
-            $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error removing student: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+$show_reason_modal = false;
+$modal_student = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if ($_POST['action'] === 'open_reason_modal') {
+        $show_reason_modal = true;
+        $modal_student = [
+            'enrollment_id' => filter_input(INPUT_POST, 'enrollment_id', FILTER_VALIDATE_INT),
+            'student_name' => trim($_POST['student_name'] ?? ''),
+            'student_email' => trim($_POST['student_email'] ?? ''),
+            'batch_code' => trim($_POST['batch_code'] ?? '')
+        ];
+    } elseif ($_POST['action'] === 'submit_inactivation_request') {
+        $enrollment_id = filter_input(INPUT_POST, 'enrollment_id', FILTER_VALIDATE_INT);
+        $student_name = trim($_POST['student_name'] ?? '');
+        $student_email = trim($_POST['student_email'] ?? '');
+        $batch_code = trim($_POST['batch_code'] ?? '');
+        $reason = trim($_POST['reason'] ?? '');
+        
+        if ($enrollment_id && $student_name && $student_email && $batch_code && $reason) {
+            try {
+                $stmt = $conn->prepare("INSERT INTO inactivation_requests (enrollment_id, student_name, student_email, batch_code, teacher_id, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())");
+                if (!$stmt) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+                
+                $stmt->bind_param("isssss", $enrollment_id, $student_name, $student_email, $batch_code, $teacher_id, $reason);
+                
+                if (!$stmt->execute()) {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
+                $stmt->close();
+                $message = "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex items-center'>Inactivation request submitted to administrator. <i class='fas fa-check-circle ml-2'></i></div>";
+            } catch (Exception $e) {
+                error_log("Error requesting inactivation: " . $e->getMessage());
+                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error requesting inactivation: " . htmlspecialchars($e->getMessage()) . " <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+            }
+        } else {
+            $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Please provide a reason for inactivation request. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
         }
-    } else {
-        $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Invalid input for student removal. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
     }
 }
 
 // Handle activity assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'assign_activity') {
     $batch_id = filter_input(INPUT_POST, 'batch_id', FILTER_VALIDATE_INT);
-    $title = trim($conn->real_escape_string($_POST['title'] ?? ''));
-    $description = trim($conn->real_escape_string($_POST['description'] ?? ''));
-    $due_date = trim($conn->real_escape_string($_POST['due_date'] ?? ''));
-    $resource_file = null;
+    $title = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $due_date = trim($_POST['due_date'] ?? '');
+    $resource_file = '';
 
     if (!$batch_id || !$title || !$description || !$due_date) {
         $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>All fields are required for activity assignment. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
     } else {
-        if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = 'Uploads/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
-            }
-            $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
-            $file = $_FILES['resource_file'];
-            if (!in_array($file['type'], $allowed_types)) {
-                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Allowed file types: PDF, JPG, PNG. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
-            } elseif ($file['size'] > 200 * 1024 * 1024) {
-                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>File size exceeds 200MB. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
-            } else {
-                $original_name = basename($file['name']);
-                $filepath = $upload_dir . $original_name;
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $resource_file = $filepath;
+        $upload_error = false;
+        
+        if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] !== UPLOAD_ERR_NO_FILE) {
+            if ($_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
+                $upload_dir = 'Uploads/';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+                $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
+                $file = $_FILES['resource_file'];
+                
+                if (!in_array($file['type'], $allowed_types)) {
+                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Allowed file types: PDF, JPG, PNG. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+                    $upload_error = true;
+                } elseif ($file['size'] > 200 * 1024 * 1024) {
+                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>File size exceeds 200MB. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+                    $upload_error = true;
                 } else {
-                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error uploading file. Please try again. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+                    $original_name = basename($file['name']);
+                    $filepath = $upload_dir . time() . '_' . $original_name;
+                    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                        $resource_file = $filepath;
+                    } else {
+                        $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error uploading file. Please try again. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+                        $upload_error = true;
+                    }
                 }
             }
         }
 
-        if (!isset($message)) {
+        if (!$upload_error) {
             try {
                 $stmt = $conn->prepare("INSERT INTO activities (batch_id, teacher_id, title, description, due_date, resource_file, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-                $resource_file = $resource_file ?? '';
+                if (!$stmt) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+                
                 $stmt->bind_param("iissss", $batch_id, $teacher_id, $title, $description, $due_date, $resource_file);
-                $stmt->execute();
+                
+                if (!$stmt->execute()) {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
                 $stmt->close();
                 $message = "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex items-center'>Activity assigned successfully. <i class='fas fa-check-circle ml-2'></i></div>";
             } catch (Exception $e) {
@@ -119,43 +157,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Handle test assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'assign_test') {
     $batch_id = filter_input(INPUT_POST, 'batch_id', FILTER_VALIDATE_INT);
-    $title = trim($conn->real_escape_string($_POST['title'] ?? ''));
-    $description = trim($conn->real_escape_string($_POST['description'] ?? ''));
-    $due_date = trim($conn->real_escape_string($_POST['due_date'] ?? ''));
+    $title = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $due_date = trim($_POST['due_date'] ?? '');
     $max_score = filter_var($_POST['max_score'] ?? 0, FILTER_VALIDATE_FLOAT);
-    $resource_file = null;
+    $resource_file = '';
 
     if (!$batch_id || !$title || !$description || !$due_date || $max_score === false || $max_score <= 0 || $max_score > 100) {
         $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>All fields are required, and max score must be between 0 and 100. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
     } else {
-        if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = 'Uploads/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true);
-            }
-            $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
-            $file = $_FILES['resource_file'];
-            if (!in_array($file['type'], $allowed_types)) {
-                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Allowed file types: PDF, JPG, PNG. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
-            } elseif ($file['size'] > 200 * 1024 * 1024) {
-                $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>File size exceeds 200MB. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
-            } else {
-                $original_name = basename($file['name']);
-                $filepath = $upload_dir . $original_name;
-                if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                    $resource_file = $filepath;
+        $upload_error = false;
+        
+        if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] !== UPLOAD_ERR_NO_FILE) {
+            if ($_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
+                $upload_dir = 'Uploads/';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+                $allowed_types = ['application/pdf', 'image/jpeg', 'image/png'];
+                $file = $_FILES['resource_file'];
+                
+                if (!in_array($file['type'], $allowed_types)) {
+                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Allowed file types: PDF, JPG, PNG. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+                    $upload_error = true;
+                } elseif ($file['size'] > 200 * 1024 * 1024) {
+                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>File size exceeds 200MB. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+                    $upload_error = true;
                 } else {
-                    $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error uploading file. Please try again. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+                    $original_name = basename($file['name']);
+                    $filepath = $upload_dir . time() . '_' . $original_name;
+                    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                        $resource_file = $filepath;
+                    } else {
+                        $message = "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 flex items-center'>Error uploading file. Please try again. <i class='fas fa-exclamation-triangle ml-2'></i></div>";
+                        $upload_error = true;
+                    }
                 }
             }
         }
 
-        if (!isset($message)) {
+        if (!$upload_error) {
             try {
                 $stmt = $conn->prepare("INSERT INTO tests (batch_id, teacher_id, title, description, due_date, max_score, resource_file, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
-                $resource_file = $resource_file ?? '';
-                $stmt->bind_param("iisssds", $batch_id, $teacher_id, $title, $description, $due_date, $max_score, $resource_file);
-                $stmt->execute();
+                if (!$stmt) {
+                    throw new Exception("Prepare failed: " . $conn->error);
+                }
+                
+                $stmt->bind_param("iissdss", $batch_id, $teacher_id, $title, $description, $due_date, $max_score, $resource_file);
+                
+                if (!$stmt->execute()) {
+                    throw new Exception("Execute failed: " . $stmt->error);
+                }
                 $stmt->close();
                 $message = "<div class='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 flex items-center'>Test assigned successfully. <i class='fas fa-check-circle ml-2'></i></div>";
             } catch (Exception $e) {
@@ -339,6 +391,10 @@ if ($selected_course_id) {
                     <i class="fas fa-book mr-3"></i>
                     Upload Materials
                 </a>
+                <a href="view_assigned_tests.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-list-check mr-3"></i>
+                    Tests & Activities
+                </a>
                 <a href="grades.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
                     <i class="fas fa-clipboard-check mr-3"></i>
                     Grade
@@ -474,10 +530,15 @@ if ($selected_course_id) {
                                                         <div class="text-sm text-gray-500"><?= htmlspecialchars($student['email']) ?></div>
                                                     </td>
                                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                        <form method="POST" class="inline" onsubmit="return confirm('Remove this student from the batch?');">
+                                                        <form method="POST" class="inline">
+                                                            <input type="hidden" name="action" value="open_reason_modal">
                                                             <input type="hidden" name="enrollment_id" value="<?= $student['enrollment_id'] ?>">
-                                                            <input type="hidden" name="selected_course_id" value="<?= $selected_course_id ?>">
-                                                            <button type="submit" name="remove_student" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors">Remove</button>
+                                                            <input type="hidden" name="student_name" value="<?= htmlspecialchars($student['firstName'] . ' ' . $student['lastName']) ?>">
+                                                            <input type="hidden" name="student_email" value="<?= htmlspecialchars($student['email']) ?>">
+                                                            <input type="hidden" name="batch_code" value="<?= htmlspecialchars($batch_details['batch_code']) ?>">
+                                                            <button type="submit" class="px-3 py-1 bg-yellow-500 text-white rounded text-xs hover:bg-yellow-600 transition-colors flex items-center">
+                                                                <i class="fas fa-paper-plane mr-1"></i>Request Inactivation
+                                                            </button>
                                                         </form>
                                                     </td>
                                                 </tr>
@@ -522,7 +583,7 @@ if ($selected_course_id) {
                                         <i class="fas fa-plus mr-2"></i>
                                         Assign Activity
                                     </button>
-                                    <a href="view_assigned_activities.php?course_id=<?= $selected_course_id ?>" class="px-6 py-2 bg-gray-500 text-white rounded-md font-medium hover:bg-gray-600 transition-colors">View Assigned Activities</a>
+                                    <a href="view_assigned_tests.php?batch_id=<?= $selected_course_id ?>" class="px-6 py-2 bg-gray-500 text-white rounded-md font-medium hover:bg-gray-600 transition-colors">View Assigned Activities</a>
                                 </div>
                             </form>
                         </div>
@@ -560,7 +621,7 @@ if ($selected_course_id) {
                                         <i class="fas fa-plus mr-2"></i>
                                         Assign Test
                                     </button>
-                                    <a href="view_assigned_tests.php?course_id=<?= $selected_course_id ?>" class="px-6 py-2 bg-gray-500 text-white rounded-md font-medium hover:bg-gray-600 transition-colors">View Assigned Tests</a>
+                                    <a href="view_assigned_tests.php?batch_id=<?= $selected_course_id ?>" class="px-6 py-2 bg-gray-500 text-white rounded-md font-medium hover:bg-gray-600 transition-colors">View Assigned Tests</a>
                                 </div>
                             </form>
                         </div>
@@ -579,6 +640,43 @@ if ($selected_course_id) {
             <?php endif; ?>
         </main>
     </div>
+
+    <!-- Inactivation Reason Modal -->
+    <?php if ($show_reason_modal && $modal_student): ?>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-comment-dots mr-2 text-yellow-500"></i>Reason for Inactivation Request
+            </h3>
+            <p class="text-sm text-gray-600 mb-6">
+                Student: <strong><?= htmlspecialchars($modal_student['student_name']) ?></strong><br>
+                Email: <strong><?= htmlspecialchars($modal_student['student_email']) ?></strong>
+            </p>
+            
+            <form method="POST" class="space-y-4">
+                <input type="hidden" name="action" value="submit_inactivation_request">
+                <input type="hidden" name="enrollment_id" value="<?= $modal_student['enrollment_id'] ?>">
+                <input type="hidden" name="student_name" value="<?= htmlspecialchars($modal_student['student_name']) ?>">
+                <input type="hidden" name="student_email" value="<?= htmlspecialchars($modal_student['student_email']) ?>">
+                <input type="hidden" name="batch_code" value="<?= htmlspecialchars($modal_student['batch_code']) ?>">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Reason for Inactivation</label>
+                    <textarea name="reason" rows="4" required placeholder="Please explain why you are requesting this student's inactivation..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"></textarea>
+                </div>
+                
+                <div class="flex gap-3 justify-end pt-4">
+                    <a href="?course_id=<?= $selected_course_id ?>" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md font-medium hover:bg-gray-400 transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-4 py-2 bg-yellow-500 text-white rounded-md font-medium hover:bg-yellow-600 transition-colors flex items-center">
+                        <i class="fas fa-check mr-2"></i>Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <script>
         function toggleSidebar() {

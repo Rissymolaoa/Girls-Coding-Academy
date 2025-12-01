@@ -83,341 +83,423 @@ $student_id = isset($_GET['student_id']) ? (int)$_GET['student_id'] : ($children
 
 // Step 4: Grade color function
 function gradeColor($grade) {
-    if ($grade === null) return 'lightgray';
-    if ($grade < 50) return '#ff4d4d'; // red
-    if ($grade < 70) return '#ffd633'; // yellow
-    if ($grade < 90) return '#99e699'; // light green
-    return '#33cc33'; // green
+    if ($grade === null) return '#e5e7eb';
+    if ($grade < 50) return '#ef4444';
+    if ($grade < 70) return '#f59e0b';
+    if ($grade < 90) return '#84cc16';
+    return '#10b981';
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Performance Overview - Parent Dashboard | Girls Coding Academy</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <title>Performance Overview - Parent Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
-        :root {
-            --primary-color: #6366f1;
-            --secondary-color: #8b5cf6;
-            --accent-color: #06b6d4;
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
-            --bg-light: #f8fafc;
-            --text-dark: #1e293b;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-light);
-            color: var(--text-dark);
-            line-height: 1.6;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: #1e293b;
         }
+
+        .container-flex {
+            display: flex;
+            height: 100vh;
+        }
+
         .sidebar {
             width: 260px;
             background: linear-gradient(180deg, #1e293b 0%, #334155 100%);
             color: white;
-            height: 100vh;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
             position: fixed;
             top: 0;
+            bottom: 0;
             left: 0;
             overflow-y: auto;
-            transition: transform 0.3s ease;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
             z-index: 1000;
         }
-        .sidebar.collapsed {
-            transform: translateX(-260px);
-        }
+
         .sidebar-header {
-            padding: 2rem 1.5rem;
             text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .sidebar img {
-            width: 80px;
-            height: 80px;
+
+        .sidebar-header img {
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.2);
-            margin-bottom: 1rem;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 12px;
             object-fit: cover;
         }
-        .sidebar h3 {
-            font-size: 1.25rem;
+
+        .sidebar-header h3 {
+            color: white;
             font-weight: 600;
             margin: 0;
+            font-size: 1.1rem;
         }
-        .sidebar .nav-link {
+
+        .sidebar a {
+            color: #cbd5e1;
+            padding: 12px 16px;
+            margin: 6px 0;
+            border-radius: 10px;
+            text-decoration: none;
             display: flex;
             align-items: center;
-            color: rgba(255,255,255,0.8);
-            padding: 0.875rem 1.5rem;
-            text-decoration: none;
-            border-radius: 0 20px 20px 0;
-            margin: 0.25rem 0;
-            transition: all 0.2s ease;
+            gap: 12px;
+            transition: all 0.3s ease;
             font-weight: 500;
         }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background: rgba(99, 102, 241, 0.2);
-            color: var(--primary-color);
-            transform: translateX(5px);
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
         }
-        .sidebar .nav-link i {
-            margin-right: 0.75rem;
+
+        .sidebar a i {
             width: 20px;
-            font-size: 1.1rem;
         }
-        .main-content {
+
+        .content {
+            flex: 1;
+            padding: 40px;
             margin-left: 260px;
-            min-height: 100vh;
-            padding: 2rem;
-            transition: margin-left 0.3s ease;
+            overflow-y: auto;
+            height: 100vh;
         }
-        .main-content.expanded {
-            margin-left: 0;
+
+        .content::-webkit-scrollbar {
+            width: 8px;
         }
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color);
+
+        .content::-webkit-scrollbar-thumb {
+            background: #00d9ff;
+            border-radius: 4px;
         }
-        .page-header h1 {
+
+        .header {
+            margin-bottom: 35px;
+            padding-bottom: 25px;
+            border-bottom: 2px solid rgba(0, 217, 255, 0.3);
+        }
+
+        .header h2 {
             font-size: 2rem;
             font-weight: 700;
-            color: var(--text-dark);
+            background: linear-gradient(135deg, #1e293b 0%, #00d9ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #64748b;
             margin: 0;
         }
-        .page-header p {
-            color: var(--text-muted);
-            margin: 0;
-            font-size: 1.1rem;
-        }
+
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 35px;
         }
+
         .summary-card {
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            backdrop-filter: blur(10px);
             text-align: center;
-            transition: transform 0.2s ease;
+            transition: all 0.3s ease;
         }
+
         .summary-card:hover {
-            transform: translateY(-4px);
+            transform: translateY(-8px);
+            box-shadow: 0 12px 40px rgba(0, 217, 255, 0.15);
         }
+
         .summary-icon {
             font-size: 3rem;
-            margin-bottom: 1rem;
+            margin-bottom: 12px;
+            display: inline-block;
         }
-        .top-performer .summary-icon { color: var(--success-color); }
-        .bottom-performer .summary-icon { color: var(--danger-color); }
+
         .summary-value {
             font-size: 2.5rem;
             font-weight: 700;
-            color: var(--text-dark);
-            margin-bottom: 0.5rem;
+            color: #1e293b;
+            margin-bottom: 8px;
         }
+
         .summary-label {
-            color: var(--text-muted);
-            font-size: 1rem;
+            color: #64748b;
+            font-size: 0.95rem;
         }
+
         .child-selector {
-            max-width: 400px;
-            margin-bottom: 2rem;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 35px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 217, 255, 0.2);
         }
+
+        .form-select {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-weight: 500;
+        }
+
+        .form-select:focus {
+            border-color: #00d9ff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 217, 255, 0.25);
+        }
+
         .performance-card {
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-            transition: transform 0.2s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
         }
+
         .performance-card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 217, 255, 0.15);
         }
+
         .performance-header {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
             color: white;
-            padding: 1.5rem;
+            padding: 24px;
+            font-weight: 700;
+            font-size: 1.1rem;
         }
+
         .performance-body {
-            padding: 1.5rem;
+            padding: 30px;
         }
+
         .grades-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+            gap: 10px;
+            margin-bottom: 30px;
         }
+
         .grade-cell {
-            padding: 0.75rem;
-            border-radius: 8px;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-            font-size: 0.9rem;
-        }
-        .progress-custom {
-            height: 20px;
+            padding: 14px;
             border-radius: 10px;
-            background: var(--border-color);
-            overflow: hidden;
+            color: white;
+            font-weight: 700;
+            text-align: center;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
+
+        .grade-cell:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .stat-item strong {
+            display: block;
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-item p {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .progress-custom {
+            height: 24px;
+            border-radius: 12px;
+            background: #e2e8f0;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
         .progress-bar-custom {
             height: 100%;
-            border-radius: 10px;
-            transition: width 0.3s ease;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 500;
+            font-weight: 700;
             color: white;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            transition: width 0.3s ease;
         }
+
         .chart-container {
             position: relative;
-            height: 300px;
-            margin-top: 1.5rem;
+            height: 350px;
+            margin-top: 30px;
         }
+
         .no-child {
             text-align: center;
-            padding: 4rem 2rem;
-            color: var(--text-muted);
+            padding: 60px 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
+
         .no-child i {
-            font-size: 5rem;
-            display: block;
-            margin-bottom: 1rem;
-            opacity: 0.5;
+            font-size: 4rem;
+            color: #cbd5e1;
+            margin-bottom: 16px;
         }
-        .toggle-sidebar {
-            display: none;
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: var(--text-dark);
-            z-index: 1001;
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
+
+        .no-child p {
+            color: #64748b;
+            font-size: 1.1rem;
         }
+
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-260px); }
-            .sidebar.show { transform: translateX(0); }
-            .main-content { margin-left: 0; }
-            .page-header h1 { font-size: 1.5rem; }
-            .summary-grid { grid-template-columns: 1fr; }
-            .grades-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-        @media (max-width: 768px) {
-            .toggle-sidebar { display: block; }
+            .sidebar {
+                width: 220px;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .content {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .header h2 {
+                font-size: 1.5rem;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .grades-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
         }
     </style>
 </head>
 <body>
-    <button class="toggle-sidebar" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
 
+<div class="container-flex">
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <img src="<?= $parent_details['photo'] ?? 'default-parent-avatar.png' ?>" alt="Parent Avatar" onerror="this.src='default-avatar.png'">
+            <img src="<?= $parent_details['photo'] ?? 'default-avatar.png' ?>" alt="Parent" onerror="this.src='default-avatar.png'">
             <h3><?= htmlspecialchars($parent_details['firstName'] ?? 'Parent') ?></h3>
         </div>
-        <ul class="nav flex-column p-0 m-0">
-            <li class="nav-item">
-                <a href="parents_dashboard.php" class="nav-link"><i class="bi bi-house-door"></i> Dashboard</a>
-            </li>
-            <li class="nav-item">
-                <a href="children.php" class="nav-link"><i class="bi bi-people"></i> My Children</a>
-            </li>
-            <li class="nav-item">
-                <a href="parent_view_attendance.php" class="nav-link"><i class="bi bi-card-checklist"></i> Attendance</a>
-            </li>
-            <li class="nav-item">
-                <a href="parent_view_performance.php" class="nav-link active"><i class="bi bi-graph-up"></i> Performance</a>
-            </li>
-            <li class="nav-item">
-                <a href="parent_view_materials.php" class="nav-link"><i class="bi bi-folder"></i> Materials</a>
-            </li>
-            <li class="nav-item">
-                <a href="parent_messages.php" class="nav-link"><i class="bi bi-envelope"></i> Messages</a>
-            </li>
-            <li class="nav-item">
-                <a href="parents_chatting.php" class="nav-link"><i class="bi bi-chat"></i> Group Chat</a>
-            </li>
-            <li class="nav-item">
-                <a href="logout.php" class="nav-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
-            </li>
-        </ul>
+        <a href="parents_dashboard.php"><i class="bi bi-house-door"></i> Dashboard</a>
+        <a href="children.php"><i class="bi bi-people"></i> My Children</a>
+        <a href="parent_view_attendance.php"><i class="bi bi-card-checklist"></i> Attendance</a>
+        <a href="parent_view_performance.php" class="active"><i class="bi bi-graph-up"></i> Performance</a>
+        <a href="parent_view_materials.php"><i class="bi bi-folder"></i> Materials</a>
+        <a href="parent_messages.php"><i class="bi bi-envelope"></i> Messages</a>
+        <a href="parent_profile.php"><i class="bi bi-person-circle"></i> Profile</a>
+        <a href="parent_payments.php"><i class="bi bi-credit-card"></i> Payments</a>
+        <a href="parent_invoices_print.php"><i class="bi bi-file-earmark"></i> Invoices</a>
+        <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </nav>
 
     <!-- Main Content -->
-    <main class="main-content" id="main-content">
-        <header class="page-header">
-            <div>
-                <h1>Performance Overview</h1>
-                <p>Monitor your children's academic progress and celebrate their achievements.</p>
-            </div>
-        </header>
+    <main class="content">
+        <div class="header">
+            <h2><i class="bi bi-graph-up"></i> Performance Overview</h2>
+            <p>Monitor your children's academic progress and celebrate their achievements</p>
+        </div>
 
         <?php if (count($children) > 0): ?>
             <!-- Summary Cards -->
-            <section class="summary-section">
-                <h3 class="mb-3">Performance Summary</h3>
-                <div class="summary-grid">
-                    <?php if (count($children) >= 1): ?>
-                        <?php $topChild = $children[0]; $topAvg = $child_performances[$topChild['student_id']]['average'] ?? 0; ?>
-                        <div class="summary-card top-performer">
-                            <div class="summary-icon"><i class="bi bi-trophy"></i></div>
-                            <div class="summary-value"><?= number_format($topAvg, 1) ?>%</div>
-                            <p class="summary-label">Top Performer: <?= htmlspecialchars($child_performances[$topChild['student_id']]['name']) ?></p>
-                        </div>
-                    <?php endif; ?>
-                    <?php if (count($children) >= 2): ?>
-                        <?php $bottomChild = end($children); $bottomAvg = $child_performances[$bottomChild['student_id']]['average'] ?? 0; ?>
-                        <div class="summary-card bottom-performer">
-                            <div class="summary-icon"><i class="bi bi-arrow-down-circle"></i></div>
-                            <div class="summary-value"><?= number_format($bottomAvg, 1) ?>%</div>
-                            <p class="summary-label">Needs Attention: <?= htmlspecialchars($child_performances[$bottomChild['student_id']]['name']) ?></p>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </section>
+            <div class="summary-grid">
+                <?php if (count($children) >= 1): ?>
+                    <?php $topChild = $children[0]; $topAvg = $child_performances[$topChild['student_id']]['average'] ?? 0; ?>
+                    <div class="summary-card">
+                        <div class="summary-icon"><i class="bi bi-trophy" style="color: #fbbf24;"></i></div>
+                        <div class="summary-value"><?= number_format($topAvg, 1) ?>%</div>
+                        <p class="summary-label">Top Performer: <?= htmlspecialchars($child_performances[$topChild['student_id']]['name']) ?></p>
+                    </div>
+                <?php endif; ?>
+                <?php if (count($children) >= 2): ?>
+                    <?php $bottomChild = end($children); $bottomAvg = $child_performances[$bottomChild['student_id']]['average'] ?? 0; ?>
+                    <div class="summary-card">
+                        <div class="summary-icon"><i class="bi bi-exclamation-circle" style="color: #ef4444;"></i></div>
+                        <div class="summary-value"><?= number_format($bottomAvg, 1) ?>%</div>
+                        <p class="summary-label">Needs Attention: <?= htmlspecialchars($child_performances[$bottomChild['student_id']]['name']) ?></p>
+                    </div>
+                <?php endif; ?>
+            </div>
 
             <!-- Child Selector -->
             <div class="child-selector">
                 <form method="get">
-                    <div class="input-group">
-                        <label class="input-group-text" for="student_id">Select Child</label>
-                        <select class="form-select" id="student_id" name="student_id" onchange="this.form.submit()">
-                            <?php foreach ($children as $c): ?>
-                                <option value="<?= $c['student_id'] ?>" <?= $c['student_id']==$student_id ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($c['firstName'].' '.$c['lastName']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <label for="student_id" style="font-weight: 600; margin-bottom: 12px; display: block;">Select Child</label>
+                    <select class="form-select" id="student_id" name="student_id" onchange="this.form.submit()">
+                        <?php foreach ($children as $c): ?>
+                            <option value="<?= $c['student_id'] ?>" <?= $c['student_id']==$student_id ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($c['firstName'].' '.$c['lastName']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </form>
             </div>
 
             <?php if ($student_id): 
                 // Fetch batches and courses
                 $sql_batches = "
-                    SELECT DISTINCT b.batch_id, c.courseName AS course_name, b.batch_code AS batch_name
+                    SELECT DISTINCT b.batch_id, c.courseName, b.batch_code
                     FROM batches b
                     JOIN courses c ON b.course_id = c.course_id
                     JOIN course_enrollments e ON e.batch_id = b.batch_id
@@ -448,86 +530,131 @@ function gradeColor($grade) {
                     $avg = $stmt_avg->get_result()->fetch_assoc();
 
                     $tests = ['test_1','test_2','test_3','test_4','test_5','test_6','test_7','end_examination'];
+                    $test_labels = ['Test 1', 'Test 2', 'Test 3', 'Test 4', 'Test 5', 'Test 6', 'Test 7', 'Final Exam'];
                     $total = 0;
-                    foreach ($tests as $t) $total += $grades[$t] ?? 0;
+                    $student_scores = [];
+                    $batch_scores = [];
+
+                    foreach ($tests as $i => $t) {
+                        $student_scores[] = (int)($grades[$t] ?? 0);
+                        $batch_scores[] = round((float)($avg[$i === 7 ? 't8' : 't' . ($i + 1)] ?? 0), 2);
+                        $total += ($grades[$t] ?? 0);
+                    }
+
                     $max_total = count($tests) * 100;
                     $percentage = ($max_total > 0) ? $total / $max_total * 100 : 0;
+                    $chart_id = 'chart_' . $batch['batch_id'];
                 ?>
 
                 <div class="performance-card">
                     <div class="performance-header">
-                        <h5><?= htmlspecialchars($batch['course_name'].' - '.$batch['batch_name']) ?></h5>
+                        <i class="bi bi-book"></i> <?= htmlspecialchars($batch['courseName']) ?> - <?= htmlspecialchars($batch['batch_code']) ?>
                     </div>
                     <div class="performance-body">
-                        <!-- Grades -->
+                        <!-- Grade Cells -->
                         <div class="grades-grid">
-                            <?php foreach ($tests as $t): ?>
+                            <?php foreach ($tests as $i => $t): ?>
                                 <div class="grade-cell" style="background-color: <?= gradeColor($grades[$t] ?? null) ?>;">
                                     <?= htmlspecialchars($grades[$t] ?? '-') ?>
                                 </div>
                             <?php endforeach; ?>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Total Marks:</strong> <?= $total ?> / <?= $max_total ?></p>
-                                <p><strong>Overall %:</strong> <?= number_format($percentage, 2) ?>%</p>
+                        <!-- Statistics -->
+                        <div class="stats-row">
+                            <div class="stat-item">
+                                <strong>Total Marks</strong>
+                                <p><?= $total ?> / <?= $max_total ?></p>
                             </div>
-                            <div class="col-md-6">
-                                <div class="progress-custom">
-                                    <div class="progress-bar-custom" style="width: <?= $percentage ?>%; background-color: <?= gradeColor($percentage) ?>;">
-                                        <?= number_format($percentage, 1) ?>%
-                                    </div>
-                                </div>
+                            <div class="stat-item">
+                                <strong>Overall Percentage</strong>
+                                <p><?= number_format($percentage, 2) ?>%</p>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress-custom">
+                            <div class="progress-bar-custom" style="width: <?= $percentage ?>%; background-color: <?= gradeColor($percentage) ?>;">
+                                <?= number_format($percentage, 1) ?>%
                             </div>
                         </div>
 
                         <!-- Chart -->
                         <div class="chart-container">
-                            <canvas id="chart-<?= $batch['batch_id'] ?>"></canvas>
+                            <canvas id="<?= $chart_id ?>"></canvas>
                         </div>
+
                         <script>
-                        const ctx<?= $batch['batch_id'] ?> = document.getElementById('chart-<?= $batch['batch_id'] ?>').getContext('2d');
-                        new Chart(ctx<?= $batch['batch_id'] ?>, {
-                            type: 'line',
-                            data: {
-                                labels: ['Test 1','Test 2','Test 3','Test 4','Test 5','Test 6','Test 7','End Exam'],
-                                datasets: [
-                                    {
-                                        label: 'My Child',
-                                        data: [<?= implode(',', array_map(fn($t)=>$grades[$t] ?? 0, $tests)) ?>],
-                                        borderColor: 'rgb(99, 102, 241)',
-                                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                                        tension: 0.4,
-                                        fill: true
-                                    },
-                                    {
-                                        label: 'Batch Avg',
-                                        data: [<?= implode(',', array_map(fn($x)=>round($avg[$x] ?? 0, 2), ['t1','t2','t3','t4','t5','t6','t7','t8'])) ?>],
-                                        borderColor: 'rgb(245, 158, 11)',
-                                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                                        tension: 0.4,
-                                        fill: true
-                                    }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: { 
-                                    legend: { position: 'top' },
-                                    title: { display: true, text: 'Performance vs Batch Average' }
+                        (function() {
+                            const ctx = document.getElementById('<?= $chart_id ?>').getContext('2d');
+                            new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: <?= json_encode($test_labels) ?>,
+                                    datasets: [
+                                        {
+                                            label: 'Your Scores',
+                                            data: <?= json_encode($student_scores) ?>,
+                                            borderColor: '#00d9ff',
+                                            backgroundColor: 'rgba(0, 217, 255, 0.1)',
+                                            borderWidth: 3,
+                                            tension: 0.4,
+                                            fill: true,
+                                            pointRadius: 6,
+                                            pointBackgroundColor: '#00d9ff',
+                                            pointBorderColor: '#fff',
+                                            pointBorderWidth: 2,
+                                            pointHoverRadius: 8
+                                        },
+                                        {
+                                            label: 'Batch Average',
+                                            data: <?= json_encode($batch_scores) ?>,
+                                            borderColor: '#fbbf24',
+                                            backgroundColor: 'rgba(251, 191, 36, 0.05)',
+                                            borderWidth: 2,
+                                            tension: 0.4,
+                                            fill: true,
+                                            pointRadius: 5,
+                                            pointBackgroundColor: '#fbbf24',
+                                            pointBorderColor: '#fff',
+                                            pointBorderWidth: 2,
+                                            borderDash: [5, 5]
+                                        }
+                                    ]
                                 },
-                                scales: { 
-                                    y: { 
-                                        beginAtZero: true, 
-                                        max: 100,
-                                        grid: { color: var(--border-color) }
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: {
+                                            position: 'top',
+                                            labels: {
+                                                font: { size: 12, weight: '600' },
+                                                padding: 16,
+                                                usePointStyle: true
+                                            }
+                                        }
                                     },
-                                    x: { grid: { color: var(--border-color) } }
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            max: 100,
+                                            ticks: {
+                                                font: { size: 11 },
+                                                callback: function(value) {
+                                                    return value + '%';
+                                                }
+                                            },
+                                            grid: { color: '#e2e8f0' }
+                                        },
+                                        x: {
+                                            ticks: { font: { size: 11 } },
+                                            grid: { display: false }
+                                        }
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        })();
                         </script>
                     </div>
                 </div>
@@ -537,31 +664,13 @@ function gradeColor($grade) {
         <?php else: ?>
             <div class="no-child">
                 <i class="bi bi-graph-up"></i>
-                <h3>No Children Enrolled</h3>
+                <h3 style="color: #1e293b; margin: 16px 0; font-size: 1.5rem;">No Children Enrolled</h3>
                 <p>Link a child to your account to view performance records.</p>
-                <a href="children.php" class="btn btn-primary">Manage Children</a>
             </div>
         <?php endif; ?>
     </main>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('main-content');
-            sidebar.classList.toggle('show');
-            mainContent.classList.toggle('expanded');
-        }
-
-        // Close sidebar on outside click (mobile)
-        document.addEventListener('click', function(event) {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.querySelector('.toggle-sidebar');
-            if (!sidebar.contains(event.target) && !toggleBtn.contains(event.target) && window.innerWidth <= 768) {
-                sidebar.classList.remove('show');
-                document.getElementById('main-content').classList.remove('expanded');
-            }
-        });
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

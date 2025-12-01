@@ -1,532 +1,373 @@
 <?php
 session_start();
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.html"); exit();
+    header("Location: login.html");
+    exit();
 }
-
 include("db.php");
 
-$uploadDir = __DIR__.'/uploads/docs/';
-$uploadWebPath = 'uploads/docs/';
-if(!is_dir($uploadDir)) mkdir($uploadDir,0777,true);
-
-$imageDir = __DIR__.'/imageuploads/';
+$imageDir = __DIR__ . '/imageuploads/';
 $imageWebPath = 'imageuploads/';
-if(!is_dir($imageDir)) mkdir($imageDir,0777,true);
+$docDir = __DIR__ . '/uploads/docs/';
+$docWebPath = 'uploads/docs/';
+if (!is_dir($imageDir)) mkdir($imageDir, 0777, true);
+if (!is_dir($docDir)) mkdir($docDir, 0777, true);
 
-function post($key){ return isset($_POST[$key])?trim($_POST[$key]):null; }
+function post($key) { return isset($_POST[$key]) ? trim($_POST[$key]) : null; }
 
 // Delete parent
-if(isset($_GET['delete'])){
+if (isset($_GET['delete'])) {
     $del_id = intval($_GET['delete']);
-    $res=$conn->prepare("SELECT address_id FROM users WHERE user_id=?");
-    $res->bind_param("i",$del_id); $res->execute();
-    $r=$res->get_result()->fetch_assoc(); $address_id=$r['address_id']??null; $res->close();
+    $res = $conn->prepare("SELECT address_id FROM users WHERE user_id = ?");
+    $res->bind_param("i", $del_id); $res->execute();
+    $r = $res->get_result()->fetch_assoc(); $address_id = $r['address_id'] ?? null; $res->close();
 
-    $stmt=$conn->prepare("DELETE FROM parents WHERE user_id=?");
-    $stmt->bind_param("i",$del_id); $stmt->execute(); $stmt->close();
+    $conn->query("DELETE FROM parent_students WHERE parent_id = (SELECT parent_id FROM parents WHERE user_id = $del_id)");
+    $conn->query("DELETE FROM parents WHERE user_id = $del_id");
+    $conn->query("DELETE FROM users WHERE user_id = $del_id AND role = 'parent'");
+    if ($address_id) $conn->query("DELETE FROM addresses WHERE address_id = $address_id");
 
-    $stmt=$conn->prepare("DELETE FROM users WHERE user_id=? AND role='parent'");
-    $stmt->bind_param("i",$del_id); $stmt->execute(); $stmt->close();
-
-    if($address_id){
-        $stmt=$conn->prepare("DELETE FROM addresses WHERE address_id=?");
-        $stmt->bind_param("i",$address_id); $stmt->execute(); $stmt->close();
-    }
-    header("Location: manage_parents.php"); exit();
+    header("Location: manage_parents.php");
+    exit();
 }
 
 // Add/Edit parent
-if($_SERVER['REQUEST_METHOD']==='POST'){
-    $user_id=post('user_id')?intval(post('user_id')):null;
-    $username=post('username'); $firstName=post('firstName'); $lastName=post('lastName');
-    $dob=post('dob'); // DOB field
-    $gender=post('gender'); $IDNumber=post('IDNumber'); $phone=post('phone');
-    $email=post('email'); $password=post('password'); $status=post('status')?:'active';
-    $address1=post('address1'); $streetName=post('streetName'); $postalCode=post('postalCode');
-    $district=post('district'); $country=post('country'); $relationship=post('relationship');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $user_id = post('user_id') ? intval(post('user_id')) : null;
+    $username = post('username'); $firstName = post('firstName'); $lastName = post('lastName');
+    $dob = post('dob'); $gender = post('gender'); $IDNumber = post('IDNumber');
+    $phone = post('phone'); $email = post('email'); $password = post('password');
+    $status = post('status') ?: 'active'; $relationship = post('relationship');
+    $address1 = post('address1'); $streetName = post('streetName'); $postalCode = post('postalCode');
+    $district = post('district'); $country = post('country');
 
-    $photoPath = null;
-    if(isset($_FILES['photo']) && is_uploaded_file($_FILES['photo']['tmp_name']) && $_FILES['photo']['error']===UPLOAD_ERR_OK){
-        $ext=strtolower(pathinfo($_FILES['photo']['name'],PATHINFO_EXTENSION));
-        if(in_array($ext,['jpg','jpeg','png','gif','webp'])){
-            $newName=time().'_'.uniqid('img_').'.'.$ext;
-            if(move_uploaded_file($_FILES['photo']['tmp_name'],$imageDir.$newName)){
-                $photoPath = $imageWebPath.$newName;
+    $photoPath = $docPath = null;
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === 0) {
+        $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+        if (in_array($ext, ['jpg','jpeg','png','webp'])) {
+            $name = time() . '_' . uniqid() . '.' . $ext;
+            if (move_uploaded_file($_FILES['photo']['tmp_name'], $imageDir . $name)) {
+                $photoPath = $imageWebPath . $name;
             }
         }
     }
-
-    $documentPath=null;
-    if(isset($_FILES['document']) && is_uploaded_file($_FILES['document']['tmp_name']) && $_FILES['document']['error']===UPLOAD_ERR_OK){
-        $ext=strtolower(pathinfo($_FILES['document']['name'],PATHINFO_EXTENSION));
-        if($ext==='pdf'){
-            $newName=uniqid('doc_').'.'.$ext;
-            if(move_uploaded_file($_FILES['document']['tmp_name'],$uploadDir.$newName)){
-                $documentPath=$uploadWebPath.$newName;
-            }
+    if (isset($_FILES['document']) && $_FILES['document']['error'] === 0 && strtolower(pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION)) === 'pdf') {
+        $name = uniqid('doc_') . '.pdf';
+        if (move_uploaded_file($_FILES['document']['tmp_name'], $docDir . $name)) {
+            $docPath = $docWebPath . $name;
         }
     }
 
-    if($user_id){
-        // edit
-        $stmt=$conn->prepare("SELECT address_id FROM users WHERE user_id=?"); $stmt->bind_param("i",$user_id); $stmt->execute();
-        $res=$stmt->get_result(); $row=$res->fetch_assoc(); $address_id=$row['address_id']??null; $stmt->close();
+    if ($user_id) {
+        // EDIT
+        $stmt = $conn->prepare("SELECT address_id FROM users WHERE user_id = ?");
+        $stmt->bind_param("i", $user_id); $stmt->execute();
+        $res = $stmt->get_result()->fetch_assoc(); $address_id = $res['address_id'] ?? null; $stmt->close();
 
-        if($address_id){
-            $stmt=$conn->prepare("UPDATE addresses SET address1=?,streetName=?,postalCode=?,district=?,country=?,updated_at=NOW() WHERE address_id=?");
-            $stmt->bind_param("sssssi",$address1,$streetName,$postalCode,$district,$country,$address_id); $stmt->execute(); $stmt->close();
+        if ($address_id) {
+            $stmt = $conn->prepare("UPDATE addresses SET address1=?, streetName=?, postalCode=?, district=?, country=? WHERE address_id=?");
+            $stmt->bind_param("sssssi", $address1, $streetName, $postalCode, $district, $country, $address_id);
+            $stmt->execute(); $stmt->close();
         } else {
-            $stmt=$conn->prepare("INSERT INTO addresses (address1,streetName,postalCode,district,country,created_at,updated_at) VALUES (?,?,?,?,?,NOW(),NOW())");
-            $stmt->bind_param("sssss",$address1,$streetName,$postalCode,$district,$country); $stmt->execute(); $address_id=$conn->insert_id; $stmt->close();
-            $stmt=$conn->prepare("UPDATE users SET address_id=? WHERE user_id=?"); $stmt->bind_param("ii",$address_id,$user_id); $stmt->execute(); $stmt->close();
+            $stmt = $conn->prepare("INSERT INTO addresses (address1,streetName,postalCode,district,country) VALUES (?,?,?,?,?)");
+            $stmt->bind_param("sssss", $address1, $streetName, $postalCode, $district, $country);
+            $stmt->execute(); $address_id = $conn->insert_id; $stmt->close();
+            $conn->query("UPDATE users SET address_id = $address_id WHERE user_id = $user_id");
         }
 
-        // Update users table (without photo)
-        $fields=[];$types=''; $params=[];
-        $query="UPDATE users SET username=?,firstName=?,lastName=?,dob=?,gender=?,IDNumber=?,phone=?,email=?,status=?";
-        $types="sssssssss";
-        $params=[$username,$firstName,$lastName,$dob,$gender,$IDNumber,$phone,$email,$status];
+        $sql = "UPDATE users SET username=?, firstName=?, lastName=?, dob=?, gender=?, IDNumber=?, phone=?, email=?, status=?";
+        $params = [$username, $firstName, $lastName, $dob, $gender, $IDNumber, $phone, $email, $status];
+        $types = "sssssssss";
+        if ($password) { $sql .= ", password=?"; $params[] = password_hash($password, PASSWORD_DEFAULT); $types .= "s"; }
+        if ($docPath) { $sql .= ", document=?"; $params[] = $docPath; $types .= "s"; }
+        $sql .= " WHERE user_id=? AND role='parent'"; $params[] = $user_id; $types .= "i";
 
-        if(!empty($password)){
-            $query.=",password=?"; $types.="s"; $params[]=password_hash($password,PASSWORD_BCRYPT);
-        }
-        if($documentPath){
-            $query.=",document=?"; $types.="s"; $params[]=$documentPath;
-        }
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($types, ...$params); $stmt->execute(); $stmt->close();
 
-        $query.=" WHERE user_id=? AND role='parent'"; $types.="i"; $params[]=$user_id;
-        $stmt=$conn->prepare($query);
-        $stmt->bind_param($types,...$params); $stmt->execute(); $stmt->close();
-
-        // Update parents table
-        if($photoPath){
-            $stmt=$conn->prepare("UPDATE parents SET relationship=?, photo=? WHERE user_id=?"); 
-            $stmt->bind_param("ssi",$relationship,$photoPath,$user_id); 
-            $stmt->execute(); 
-            $stmt->close();
-        } else {
-            $stmt=$conn->prepare("UPDATE parents SET relationship=? WHERE user_id=?"); 
-            $stmt->bind_param("si",$relationship,$user_id); 
-            $stmt->execute(); 
-            $stmt->close();
-        }
-
+        $stmt = $conn->prepare("UPDATE parents SET relationship=?, photo=? WHERE user_id=?");
+        $stmt->bind_param("ssi", $relationship, $photoPath, $user_id);
+        $stmt->execute(); $stmt->close();
     } else {
-        // add
-// add
-$stmt=$conn->prepare("INSERT INTO addresses (address1,streetName,postalCode,district,country,created_at,updated_at) VALUES (?,?,?,?,?,NOW(),NOW())");
-$stmt->bind_param("sssss",$address1,$streetName,$postalCode,$district,$country); 
-$stmt->execute(); 
-$address_id=$conn->insert_id; 
-$stmt->close();
+        // ADD
+        $stmt = $conn->prepare("INSERT INTO addresses (address1,streetName,postalCode,district,country) VALUES (?,?,?,?,?)");
+        $stmt->bind_param("sssss", $address1, $streetName, $postalCode, $district, $country);
+        $stmt->execute(); $address_id = $conn->insert_id; $stmt->close();
 
-$hash=password_hash($password?:uniqid(),PASSWORD_BCRYPT);
-$role='parent';
+        $hash = password_hash($password ?: 'parent123', PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("INSERT INTO users (username,firstName,lastName,dob,gender,IDNumber,phone,email,password,status,role,document,address_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
+        $stmt->bind_param("ssssssssssssi", $username, $firstName, $lastName, $dob, $gender, $IDNumber, $phone, $email, $hash, $status, 'parent', $docPath, $address_id);
+        $stmt->execute(); $new_user_id = $conn->insert_id; $stmt->close();
 
-$stmt = $conn->prepare("INSERT INTO users (username,firstName,lastName,dob,gender,IDNumber,phone,email,password,status,role,document,address_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())");
-$stmt->bind_param("ssssssssssssi", $username, $firstName, $lastName, $dob, $gender, $IDNumber, $phone, $email, $hash, $status, $role, $documentPath, $address_id);
-$stmt->execute();
-
-$new_user_id=$conn->insert_id; 
-$stmt->close();
-
-$stmt=$conn->prepare("INSERT INTO parents (user_id,relationship,photo) VALUES (?,?,?)"); 
-$stmt->bind_param("iss",$new_user_id,$relationship,$photoPath); 
-$stmt->execute(); 
-$stmt->close();
-
+        $stmt = $conn->prepare("INSERT INTO parents (user_id, relationship, photo) VALUES (?, ?, ?)");
+        $stmt->bind_param("iss", $new_user_id, $relationship, $photoPath);
+        $stmt->execute(); $stmt->close();
     }
-
-    header("Location: manage_parents.php"); exit();
+    header("Location: manage_parents.php");
+    exit();
 }
 
-// Pagination & fetch
-$limit=10; $page=isset($_GET['page'])?max(1,intval($_GET['page'])):1; $offset=($page-1)*$limit; $search=isset($_GET['search'])?trim($_GET['search']):'';
+// Pagination & Search
+$limit = 10;
+$page = max(1, intval($_GET['page'] ?? 1));
+$offset = ($page - 1) * $limit;
+$search = trim($_GET['search'] ?? '');
 
-if($search){
-    $like="%$search%";
-    $stmt=$conn->prepare("SELECT COUNT(*) AS total FROM users WHERE role='parent' AND (username LIKE ? OR firstName LIKE ? OR lastName LIKE ?)");
-    $stmt->bind_param("sss",$like,$like,$like); $stmt->execute(); $total_row=$stmt->get_result()->fetch_assoc(); $stmt->close();
-}else{
-    $total_row=$conn->query("SELECT COUNT(*) AS total FROM users WHERE role='parent'")->fetch_assoc();
-}
-$total_pages=ceil($total_row['total']/$limit);
+$where = $search ? "AND (u.username LIKE ? OR u.firstName LIKE ? OR u.lastName LIKE ?)" : "";
+$like = $search ? "%$search%" : "";
 
-if($search){
-    $like="%$search%";
-    $stmt=$conn->prepare("
-        SELECT u.*,p.relationship,p.photo,a.address1,a.streetName,a.postalCode,a.district,a.country
-        FROM users u
-        JOIN parents p ON p.user_id=u.user_id
-        LEFT JOIN addresses a ON u.address_id=a.address_id
-        WHERE u.role='parent' AND (u.username LIKE ? OR u.firstName LIKE ? OR u.lastName LIKE ?)
-        ORDER BY u.created_at DESC LIMIT ? OFFSET ?");
-    $stmt->bind_param("sssii",$like,$like,$like,$limit,$offset); $stmt->execute(); $parents=$stmt->get_result(); $stmt->close();
-}else{
-    $parents=$conn->query("SELECT u.*,p.relationship,p.photo,a.address1,a.streetName,a.postalCode,a.district,a.country FROM users u JOIN parents p ON p.user_id=u.user_id LEFT JOIN addresses a ON u.address_id=a.address_id WHERE u.role='parent' ORDER BY u.created_at DESC LIMIT $limit OFFSET $offset");
-}
+$count_sql = "SELECT COUNT(*) as total FROM users u JOIN parents p ON u.user_id = p.user_id WHERE u.role='parent' $where";
+$stmt = $conn->prepare($count_sql);
+if ($search) $stmt->bind_param("sss", $like, $like, $like);
+$stmt->execute();
+$total = $stmt->get_result()->fetch_assoc()['total'];
+$total_pages = ceil($total / $limit);
+$stmt->close();
+
+$sql = "
+    SELECT u.*, p.relationship, p.photo, a.*, 
+           GROUP_CONCAT(DISTINCT CONCAT(s.student_id, ':', us.firstName, ' ', us.lastName, ':', s.photo) SEPARATOR '|') as children
+    FROM users u
+    JOIN parents p ON u.user_id = p.user_id
+    LEFT JOIN addresses a ON u.address_id = a.address_id
+    LEFT JOIN parent_students ps ON ps.parent_id = p.parent_id
+    LEFT JOIN students s ON ps.student_id = s.student_id
+    LEFT JOIN users us ON s.user_id = us.user_id
+    WHERE u.role='parent' $where
+    GROUP BY u.user_id
+    ORDER BY u.created_at DESC
+    LIMIT ? OFFSET ?
+";
+$stmt = $conn->prepare($sql);
+if ($search) $stmt->bind_param("sssii", $like, $like, $like, $limit, $offset);
+else $stmt->bind_param("ii", $limit, $offset);
+$stmt->execute();
+$parents = $stmt->get_result();
 ?>
 
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="h-full">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Manage Parents</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<style>
-  :root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-    --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
-    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
-  }
-
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
-    padding-top: 56px;
-  }
-
-  .content {
-    min-height: calc(100vh - 56px);
-    transition: all 0.3s ease;
-  }
-
-  .main {
-    padding: 2rem 2rem 2rem 1rem;
-  }
-
-  .section-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    box-shadow: var(--shadow-md);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .section-card h2 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 1.5rem;
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .top-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-
-  .search-form {
-    display: flex;
-    gap: 1rem;
-    max-width: 400px;
-  }
-
-  .search-form .form-control {
-    flex: 1;
-  }
-
-  .table {
-    margin-bottom: 0;
-  }
-
-  .table th {
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    font-weight: 600;
-    padding: 1rem;
-  }
-
-  .table td {
-    padding: 1rem;
-    vertical-align: middle;
-    border-color: rgba(0,0,0,0.05);
-  }
-
-  .table-hover tbody tr:hover {
-    background-color: rgba(102, 126, 234, 0.05);
-  }
-
-  .placeholder-photo {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.05);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6b7280;
-    border: 2px dashed rgba(0,0,0,0.1);
-    font-size: 0.875rem;
-  }
-
-  .action-icons a {
-    margin: 0 0.5rem;
-    font-size: 1.25rem;
-    color: #6b7280;
-    transition: all 0.3s ease;
-    border-radius: 50%;
-    padding: 0.5rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-  }
-
-  .action-icons a:hover {
-    color: #1f2937;
-    background: rgba(102, 126, 234, 0.1);
-    transform: translateY(-2px);
-  }
-
-  .pagination {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 2rem;
-  }
-
-  .pagination .btn {
-    border-radius: 8px;
-    padding: 0.75rem 1.5rem;
-    font-weight: 500;
-  }
-
-  .modal-img-preview {
-    width: 140px;
-    height: 140px;
-    border-radius: 12px;
-    object-fit: cover;
-    border: 2px solid rgba(0,0,0,0.1);
-    display: block;
-    margin: 1rem auto;
-  }
-
-  .modal-form .form-label {
-    font-weight: 600;
-    color: #1f2937;
-  }
-
-  .modal-form .row {
-    gap: 1.5rem;
-  }
-
-  footer {
-    background: rgba(31, 41, 55, 0.8);
-    color: #fff;
-    text-align: center;
-    padding: 1.5rem;
-    margin-top: 2rem;
-    border-radius: 16px 16px 0 0;
-  }
-
-  /* Enhanced Sidebar Styles - Adjusted for Dashboard */
-  .sidebar {
-    width: 280px;
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    color: #fff;
-    position: fixed;
-    top: 56px;
-    height: calc(100vh - 56px);
-    left: 0;
-    overflow-y: auto;
-    transition: all 0.3s ease;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.2);
-    z-index: 1030;
-  }
-
-  @media (min-width: 992px) {
-    .main {
-      padding-left: 1rem;
-      padding-right: 2rem;
-    }
-    .content {
-      margin-left: 280px;
-    }
-  }
-
-  @media (max-width: 991px) {
-    .sidebar {
-      top: 0;
-      height: 100vh;
-      left: -280px;
-    }
-    .sidebar.show {
-      left: 0;
-    }
-    .main {
-      padding: 1rem;
-    }
-  }
-
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .top-row {
-      flex-direction: column;
-      align-items: stretch;
-    }
-    .search-form {
-      max-width: none;
-    }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Parents - Girls Coding Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root { --primary: #4f46e5; --primary-light: #6366f1; }
+        .bg-primary { background-color: var(--primary); }
+        .text-primary { color: var(--primary); }
+        .hover\:bg-primary-dark:hover { background-color: #4338ca; }
+        .card-hover:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+    </style>
 </head>
-<body>
+<body class="h-full bg-gray-50">
+
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
-<div class="content">
-  <main class="main">
-    <div class="top-row">
-      <h2>Manage Parents</h2>
-      <button class="btn" style="background: var(--primary-gradient); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 500;" onclick="openModal();">
-        <i class="bi bi-plus-lg me-2"></i>Add Parent
-      </button>
+<div class="ml-64 mt-16 p-8 min-h-screen">
+    <div class="max-w-7xl mx-auto">
+
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-800">Manage Parents & Guardians</h1>
+                <p class="text-gray-600 mt-2">View and manage parent accounts and their children</p>
+            </div>
+            <button onclick="openModal()" class="bg-primary hover:bg-primary-dark text-white font-semibold py-4 px-8 rounded-xl shadow-lg transition flex items-center gap-3">
+                <i class="fas fa-user-plus"></i> Add Parent
+            </button>
+        </div>
+
+        <form method="get" class="mb-8">
+            <div class="flex gap-4">
+                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search parent..." 
+                       class="flex-1 px-6 py-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200 text-lg">
+                <button type="submit" class="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-xl font-semibold transition flex items-center gap-3">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </form>
+
+        <?php if ($parents->num_rows === 0): ?>
+            <div class="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-200">
+                <i class="fas fa-users text-8xl text-gray-300 mb-6"></i>
+                <p class="text-2xl text-gray-600">No parents found</p>
+            </div>
+        <?php else: ?>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <?php while ($p = $parents->fetch_assoc()): 
+                    $children = [];
+                    if ($p['children']) {
+                        foreach (explode('|', $p['children']) as $child) {
+                            if ($child) {
+                                [$id, $name, $photo] = explode(':', $child, 3);
+                                $children[] = ['id' => $id, 'name' => $name, 'photo' => $photo];
+                            }
+                        }
+                    }
+                ?>
+                    <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden card-hover transition-all duration-300">
+                        <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-6 text-center">
+                            <?php if (!empty($p['photo']) && file_exists($p['photo'])): ?>
+                                <img src="<?= htmlspecialchars($p['photo']) ?>" class="w-28 h-28 rounded-full mx-auto border-4 border-white shadow-xl object-cover">
+                            <?php else: ?>
+                                <div class="w-28 h-28 bg-white bg-opacity-20 rounded-full mx-auto flex items-center justify-center text-5xl font-bold">
+                                    <?= strtoupper(substr($p['firstName'],0,1).substr($p['lastName'],0,1)) ?>
+                                </div>
+                            <?php endif; ?>
+                            <h3 class="text-2xl font-bold mt-4"><?= htmlspecialchars($p['firstName'] . ' ' . $p['lastName']) ?></h3>
+                            <p class="text-indigo-100">@<?= htmlspecialchars($p['username']) ?></p>
+                            <span class="inline-block mt-2 px-4 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                                <?= htmlspecialchars($p['relationship']) ?>
+                            </span>
+                        </div>
+
+                        <div class="p-6 space-y-4">
+                            <div class="text-sm grid grid-cols-2 gap-3">
+                                <div><span class="text-gray-600">Email:</span><br><strong><?= htmlspecialchars($p['email']) ?></strong></div>
+                                <div><span class="text-gray-600">Phone:</span><br><strong><?= htmlspecialchars($p['phone'] ?? '—') ?></strong></div>
+                            </div>
+
+                            <?php if (!empty($children)): ?>
+                                <div class="border-t pt-4">
+                                    <p class="font-semibold text-gray-700 mb-3">Linked Students (<?= count($children) ?>)</p>
+                                    <div class="flex flex-wrap gap-3">
+                                        <?php foreach ($children as $child): ?>
+                                            <a href="academics.php?student_id=<?= $child['id'] ?>" class="group">
+                                                <?php if ($child['photo'] && file_exists($child['photo'])): ?>
+                                                    <img src="<?= htmlspecialchars($child['photo']) ?>" class="w-16 h-16 rounded-full border-2 border-indigo-200 group-hover:border-indigo-500 transition">
+                                                <?php else: ?>
+                                                    <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-lg group-hover:bg-indigo-200 transition">
+                                                        <?= strtoupper(substr($child['name'],0,2)) ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <p class="text-xs text-center mt-1 text-gray-600 group-hover:text-indigo-600"><?= htmlspecialchars($child['name']) ?></p>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="flex gap-3 pt-4 border-t">
+                                <button onclick='editParent(<?= json_encode($p) ?>)' 
+                                        class="flex-1 bg-white border border-indigo-600 text-indigo-600 py-3 rounded-xl font-semibold hover:bg-indigo-50 transition">
+                                    <i class="fas fa-edit mr-2"></i> Edit
+                                </button>
+                                <a href="?delete=<?= $p['user_id'] ?>" onclick="return confirm('Delete this parent and all links?')"
+                                   class="flex-1 bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition text-center">
+                                    <i class="fas fa-trash mr-2"></i> Delete
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <?php endwhile; ?>
+            </div>
+
+            <?php if ($total_pages > 1): ?>
+                <div class="flex justify-center gap-3 mt-12">
+                    <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                        <a href="?page=<?= $i ?><?= $search ? '&search='.urlencode($search) : '' ?>"
+                           class="px-5 py-3 rounded-lg font-medium <?= $i === $page ? 'bg-primary text-white' : 'bg-white border border-gray-300 hover:bg-gray-50' ?>">
+                            <?= $i ?>
+                        </a>
+                    <?php endfor; ?>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
     </div>
-
-    <form method="get" class="search-form mb-4">
-      <input type="text" name="search" placeholder="Search parents..." value="<?= htmlspecialchars($search) ?>" class="form-control" />
-      <button type="submit" class="btn btn-outline-secondary">Search</button>
-    </form>
-
-    <div class="section-card">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Photo</th><th>Username</th><th>First Name</th><th>Last Name</th><th>DOB</th><th>Relationship</th><th>Gender</th><th>ID No</th><th>Phone</th><th>Email</th><th>Address</th><th>Document</th><th>Status</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-<?php while($p=$parents->fetch_assoc()): ?>
-            <tr>
-              <td style="text-align:center; width: 100px;"><?php if(!empty($p['photo']) && file_exists($p['photo'])): ?><img src="<?= htmlspecialchars($p['photo']) ?>" style="width:60px;height:60px;border-radius:50%;object-fit:cover;"><?php else: ?><div class="placeholder-photo">No Photo</div><?php endif;?></td>
-              <td><?= htmlspecialchars($p['username']) ?></td>
-              <td><?= htmlspecialchars($p['firstName']) ?></td>
-              <td><?= htmlspecialchars($p['lastName']) ?></td>
-              <td><?= htmlspecialchars($p['dob']) ?></td>
-              <td><?= htmlspecialchars($p['relationship']) ?></td>
-              <td><?= htmlspecialchars($p['gender']) ?></td>
-              <td><?= htmlspecialchars($p['IDNumber']) ?></td>
-              <td><?= htmlspecialchars($p['phone']) ?></td>
-              <td><?= htmlspecialchars($p['email']) ?></td>
-              <td><?= htmlspecialchars(trim(($p['address1']??'').' '.($p['streetName']??'').' '.($p['district']??'').' '.($p['postalCode']??'').' '.($p['country']??''))) ?></td>
-              <td><?php if(!empty($p['document'])):?><a href="<?= $p['document'] ?>" target="_blank" class="btn btn-sm btn-outline-primary">View</a><?php else:?>—<?php endif;?></td>
-              <td><span class="badge <?= $p['status']=='active'?'bg-success':'bg-secondary' ?>"><?= htmlspecialchars($p['status']) ?></span></td>
-              <td class="text-center">
-                <button class="action-icons btn btn-sm" onclick='editParent(<?= json_encode($p,JSON_HEX_TAG|JSON_HEX_QUOT|JSON_HEX_APOS) ?>)' title="Edit"><i class="bi bi-pencil-square"></i></button>
-                <a href="?delete=<?= $p['user_id'] ?>" class="action-icons btn btn-sm btn-outline-danger" onclick="return confirm('Delete this parent?')" title="Delete"><i class="bi bi-trash"></i></a>
-              </td>
-            </tr>
-<?php endwhile; ?>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="pagination">
-<?php
-$qs = $search ? "&search=".urlencode($search) : "";
-if ($page > 1):
-?>
-        <a class="btn btn-outline-secondary" href="?page=<?= $page - 1 . $qs ?>">&laquo; Prev</a>
-<?php else: ?>
-        <span class="btn btn-outline-secondary disabled">&laquo; Prev</span>
-<?php endif; ?>
-
-        <span class="align-self-center">Page <?= $page ?> of <?= $total_pages ?></span>
-
-<?php if ($page < $total_pages): ?>
-        <a class="btn btn-outline-secondary" href="?page=<?= $page + 1 . $qs ?>">Next &raquo;</a>
-<?php else: ?>
-        <span class="btn btn-outline-secondary disabled">Next &raquo;</span>
-<?php endif; ?>
-      </div>
-    </div>
-  </main>
 </div>
 
 <!-- Modal -->
-<div id="parentModal" class="modal fade" tabindex="-1">
-<div class="modal-dialog modal-lg modal-dialog-centered">
-<div class="modal-content p-4">
-<form method="post" enctype="multipart/form-data" id="parentForm" class="modal-form">
-<input type="hidden" id="user_id" name="user_id">
-<div class="text-center">
-<img id="photoPreview" src="default.png" class="modal-img-preview">
-</div>
-<div class="row g-3">
-<div class="col-md-6"><label class="form-label">Username</label><input type="text" id="username" name="username" class="form-control" required></div>
-<div class="col-md-6"><label class="form-label">Password</label><input type="password" id="password" name="password" class="form-control"></div>
-<div class="col-md-6"><label class="form-label">First Name</label><input type="text" id="firstName" name="firstName" class="form-control" required></div>
-<div class="col-md-6"><label class="form-label">Last Name</label><input type="text" id="lastName" name="lastName" class="form-control" required></div>
-<div class="col-md-6"><label class="form-label">Date of Birth</label><input type="date" id="dob" name="dob" class="form-control"></div>
-<div class="col-md-6"><label class="form-label">Relationship</label>
-<select id="relationship" name="relationship" class="form-select" required>
-<option value="">Select</option><option value="Mother">Mother</option><option value="Father">Father</option><option value="Guardian">Guardian</option>
-</select></div>
-<div class="col-md-6"><label class="form-label">Gender</label>
-<select id="gender" name="gender" class="form-select"><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-<div class="col-md-6"><label class="form-label">ID Number</label><input type="text" id="IDNumber" name="IDNumber" class="form-control"></div>
-<div class="col-md-6"><label class="form-label">Phone</label><input type="text" id="phone" name="phone" class="form-control"></div>
-<div class="col-md-6"><label class="form-label">Email</label><input type="email" id="email" name="email" class="form-control" required></div>
-<div class="col-md-6"><label class="form-label">Status</label>
-<select id="status" name="status" class="form-select"><option value="active">Active</option><option value="inactive">Inactive</option><option value="pending">Pending</option></select></div>
-<div class="col-md-6"><label class="form-label">Address 1</label><input type="text" id="address1" name="address1" class="form-control"></div>
-<div class="col-md-6"><label class="form-label">Street Name</label><input type="text" id="streetName" name="streetName" class="form-control"></div>
-<div class="col-md-4"><label class="form-label">Postal Code</label><input type="text" id="postalCode" name="postalCode" class="form-control"></div>
-<div class="col-md-4"><label class="form-label">District</label><input type="text" id="district" name="district" class="form-control"></div>
-<div class="col-md-4"><label class="form-label">Country</label><input type="text" id="country" name="country" class="form-control"></div>
-<div class="col-md-6"><label class="form-label">Document (PDF)</label><input type="file" id="document" name="document" accept="application/pdf" class="form-control"></div>
-<div class="col-md-6"><label class="form-label">Photo</label><input type="file" id="photo" name="photo" accept="image/*" class="form-control"></div>
-<div class="col-12 text-end mt-2"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
-</div>
-</form>
-</div>
-</div>
+<div id="parentModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4" onclick="if(event.target===this) closeModal()">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-screen overflow-y-auto">
+        <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-8 rounded-t-2xl">
+            <h2 class="text-3xl font-bold" id="modalTitle">Add New Parent</h2>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="p-8 space-y-6">
+            <input type="hidden" name="user_id" id="user_id">
+            <div class="text-center">
+                <img id="photoPreview" src="imageuploads/default-avatar.png" class="w-32 h-32 rounded-full mx-auto border-4 border-indigo-200 object-cover">
+                <input type="file" name="photo" accept="image/*" class="mt-4">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <input type="text" name="username" id="username" placeholder="Username" required class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="password" name="password" id="password" placeholder="Password (leave blank to keep)" class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="text" name="firstName" id="firstName" placeholder="First Name" required class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="text" name="lastName" id="lastName" placeholder="Last Name" required class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="date" name="dob" id="dob" class="px-5 py-4 border border-gray-300 rounded-xl">
+                <select name="relationship" id="relationship" required class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <option value="">Relationship</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Father">Father</option>
+                    <option value="Guardian">Guardian</option>
+                </select>
+                <select name="gender" id="gender" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <option value="">Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+                <input type="text" name="IDNumber" id="IDNumber" placeholder="ID Number" class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="email" name="email" id="email" placeholder="Email" required class="px-5 py-4 border border-gray-300 rounded-xl">
+                <input type="text" name="phone" id="phone" placeholder="Phone" class="px-5 py-4 border border-gray-300 rounded-xl">
+                <select name="status" id="status" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold text-gray-800">Address</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <input type="text" name="address1" id="address1" placeholder="Address Line 1" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <input type="text" name="streetName" id="streetName" placeholder="Street Name" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <input type="text" name="postalCode" id="postalCode" placeholder="Postal Code" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <input type="text" name="district" id="district" placeholder="District" class="px-5 py-4 border border-gray-300 rounded-xl">
+                    <input type="text" name="country" id="country" placeholder="Country" value="Lesotho" class="px-5 py-4 border border-gray-300 rounded-xl">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4 pt-6">
+                <button type="button" onclick="closeModal()" class="px-8 py-4 border border-gray-300 rounded-xl font-medium hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-8 py-4 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark transition">Save Parent</button>
+            </div>
+        </form>
+    </div>
 </div>
 
-<footer class="text-center py-3">
-  <p>&copy; <?= date("Y") ?> Girls Coding Academy. All rights reserved.</p>
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-const parentModal = new bootstrap.Modal(document.getElementById('parentModal'));
-document.getElementById('photo').addEventListener('change',function(){
-  const file=this.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=function(e){ document.getElementById('photoPreview').src=e.target.result; }
-  reader.readAsDataURL(file);
+function openModal() {
+    document.getElementById('parentModal').classList.remove('hidden');
+    document.getElementById('modalTitle').textContent = 'Add New Parent';
+    document.querySelector('#parentModal form').reset();
+    document.getElementById('photoPreview').src = 'imageuploads/default-avatar.png';
+    document.getElementById('user_id').value = '';
+}
+
+function closeModal() {
+    document.getElementById('parentModal').classList.add('hidden');
+}
+
+function editParent(data) {
+    document.getElementById('modalTitle').textContent = 'Edit Parent';
+    document.getElementById('user_id').value = data.user_id;
+    ['username','firstName','lastName','dob','gender','IDNumber','phone','email','status','relationship','address1','streetName','postalCode','district','country'].forEach(f => {
+        const el = document.getElementById(f);
+        if (el) el.value = data[f] || '';
+    });
+    document.getElementById('photoPreview').src = data.photo || 'imageuploads/default-avatar.png';
+    document.getElementById('parentModal').classList.remove('hidden');
+}
+
+document.querySelector('[name="photo"]').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = e => document.getElementById('photoPreview').src = e.target.result;
+        reader.readAsDataURL(file);
+    }
 });
-function openModal(){
-  ['user_id','username','firstName','lastName','dob','gender','IDNumber','phone','email','password','status','address1','streetName','postalCode','district','country','relationship'].forEach(f=>{let el=document.getElementById(f); if(el) el.value='';});
-  document.getElementById('status').value='active'; document.getElementById('photoPreview').src='default.png';
-  parentModal.show();
-}
-function editParent(data){
-  ['user_id','username','firstName','lastName','dob','gender','IDNumber','phone','email','status','address1','streetName','postalCode','district','country','relationship'].forEach(f=>{let el=document.getElementById(f); if(el) el.value=data[f]??'';});
-  document.getElementById('password').value=''; document.getElementById('photoPreview').src=data.photo??'default.png';
-  parentModal.show();
-}
 </script>
 </body>
 </html>

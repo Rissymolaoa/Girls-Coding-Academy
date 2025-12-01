@@ -1,27 +1,21 @@
 <?php
 session_start();
-
 // DB connection
 $host = "localhost";
 $user = "root";
 $pass = "";
 $db   = "girlscodingacademydb";
-
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
-
 // Check if logged in student
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
     header("Location: login.html");
     exit();
 }
-
 $user_id = $_SESSION['user_id'];
-
 // Get student info
 $user_res = $conn->query("SELECT * FROM users WHERE user_id = $user_id");
 $user_data = $user_res->fetch_assoc();
-
 $res = $conn->query("SELECT student_id, photo FROM students WHERE user_id = $user_id");
 if ($res->num_rows > 0) {
     $student = $res->fetch_assoc();
@@ -30,19 +24,15 @@ if ($res->num_rows > 0) {
 } else {
     die("Error: Student not found.");
 }
-
 // Handle month/year navigation
 $month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date("n");
 $year  = isset($_GET['year']) ? (int)$_GET['year'] : (int)date("Y");
-
 if ($month < 1) { $month = 12; $year--; }
 if ($month > 12) { $month = 1; $year++; }
-
 $prevMonth = $month - 1; $prevYear = $year;
 if ($prevMonth < 1) { $prevMonth = 12; $prevYear--; }
 $nextMonth = $month + 1; $nextYear = $year;
 if ($nextMonth > 12) { $nextMonth = 1; $nextYear++; }
-
 // Fetch attendance records
 $attendanceQuery = $conn->query("
     SELECT d.day, a.status, a.marked_at
@@ -50,16 +40,15 @@ $attendanceQuery = $conn->query("
         SELECT DATE(marked_at) as day, MAX(marked_at) as maxm
         FROM attendance
         WHERE student_id = $student_id
-          AND MONTH(marked_at) = $month
-          AND YEAR(marked_at) = $year
+         AND MONTH(marked_at) = $month
+         AND YEAR(marked_at) = $year
         GROUP BY DATE(marked_at)
     ) d
-    JOIN attendance a 
-      ON DATE(a.marked_at) = d.day 
+    JOIN attendance a
+      ON DATE(a.marked_at) = d.day
      AND a.marked_at = d.maxm
     ORDER BY d.day DESC
 ");
-
 $attendanceData = [];
 while ($row = $attendanceQuery->fetch_assoc()) {
     $attendanceData[$row['day']] = [
@@ -67,13 +56,11 @@ while ($row = $attendanceQuery->fetch_assoc()) {
         'time'   => $row['marked_at']
     ];
 }
-
 // Summary counts (overall)
 $presentCount = (int)$conn->query("SELECT COUNT(*) as cnt FROM attendance WHERE student_id=$student_id AND status='Present'")->fetch_assoc()['cnt'];
 $absentCount  = (int)$conn->query("SELECT COUNT(*) as cnt FROM attendance WHERE student_id=$student_id AND status='Absent'")->fetch_assoc()['cnt'];
 $lateCount    = (int)$conn->query("SELECT COUNT(*) as cnt FROM attendance WHERE student_id=$student_id AND status='Late'")->fetch_assoc()['cnt'];
 $sickCount    = (int)$conn->query("SELECT COUNT(*) as cnt FROM attendance WHERE student_id=$student_id AND status='Sick'")->fetch_assoc()['cnt'];
-
 // Calendar setup
 $firstDayOfMonth = mktime(0,0,0,$month,1,$year);
 $daysInMonth     = date("t",$firstDayOfMonth);
@@ -87,11 +74,9 @@ $today           = date("Y-m-d");
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>My Attendance - Girls Coding Academy</title>
-
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
 <style>
   :root {
     --primary: #667eea;
@@ -103,14 +88,11 @@ $today           = date("Y-m-d");
     --light-bg: #f9fafb;
     --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   }
-
   * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-
   body {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     min-height: 100vh;
   }
-
   /* Top Navigation */
   .top-nav {
     background: white;
@@ -120,7 +102,6 @@ $today           = date("Y-m-d");
     justify-content: space-between;
     align-items: center;
   }
-
   .top-nav .logo {
     font-size: 1.5rem;
     font-weight: 700;
@@ -129,13 +110,11 @@ $today           = date("Y-m-d");
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-
   .top-nav .user-info {
     display: flex;
     align-items: center;
     gap: 1rem;
   }
-
   .user-avatar {
     width: 40px;
     height: 40px;
@@ -143,22 +122,24 @@ $today           = date("Y-m-d");
     object-fit: cover;
     border: 2px solid var(--primary);
   }
-
   /* Main Container */
   .main-container {
-    display: flex;
+    padding-left: 280px;
     min-height: calc(100vh - 80px);
   }
-
   /* Sidebar Navigation */
   .sidebar {
+    position: fixed;
+    top: 80px;
+    left: 0;
     width: 280px;
+    height: calc(100vh - 80px);
     background: white;
     padding: 2rem 0;
     box-shadow: 2px 0 10px rgba(0,0,0,0.05);
     overflow-y: auto;
+    z-index: 1000;
   }
-
   .sidebar-header {
     padding: 0 1.5rem 2rem;
     border-bottom: 1px solid #e5e7eb;
@@ -167,7 +148,6 @@ $today           = date("Y-m-d");
     align-items: center;
     gap: 1rem;
   }
-
   .sidebar-avatar {
     width: 80px;
     height: 80px;
@@ -175,13 +155,11 @@ $today           = date("Y-m-d");
     object-fit: cover;
     border: 3px solid var(--primary);
   }
-
   .sidebar-name {
     text-align: center;
     font-weight: 600;
     color: #1f2937;
   }
-
   .sidebar-nav a {
     display: flex;
     align-items: center;
@@ -192,12 +170,10 @@ $today           = date("Y-m-d");
     transition: all 0.3s ease;
     position: relative;
   }
-
   .sidebar-nav a:hover {
     color: var(--primary);
     background: #f0f4ff;
   }
-
   .sidebar-nav a.active {
     color: var(--primary);
     background: #f0f4ff;
@@ -205,18 +181,15 @@ $today           = date("Y-m-d");
     padding-left: calc(1.5rem - 4px);
     font-weight: 600;
   }
-
   .sidebar-nav a i {
     font-size: 1.25rem;
   }
-
   /* Content Area */
   .content-area {
-    flex: 1;
+    width: 100%;
     padding: 2rem;
     overflow-y: auto;
   }
-
   /* Page Header */
   .page-header {
     background: white;
@@ -225,19 +198,16 @@ $today           = date("Y-m-d");
     margin-bottom: 2rem;
     box-shadow: var(--card-shadow);
   }
-
   .page-header h1 {
     font-size: 2rem;
     font-weight: 700;
     color: #1f2937;
     margin-bottom: 0.5rem;
   }
-
   .page-header p {
     color: #6b7280;
     margin: 0;
   }
-
   /* Summary Cards */
   .summary-grid {
     display: grid;
@@ -245,7 +215,6 @@ $today           = date("Y-m-d");
     gap: 1.5rem;
     margin-bottom: 2rem;
   }
-
   .summary-card {
     background: white;
     border-radius: 16px;
@@ -258,33 +227,27 @@ $today           = date("Y-m-d");
     transition: all 0.3s ease;
     border-top: 4px solid;
   }
-
   .summary-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   }
-
   .summary-card.present { border-top-color: var(--success); }
   .summary-card.absent { border-top-color: var(--danger); }
   .summary-card.late { border-top-color: var(--warning); }
   .summary-card.sick { border-top-color: var(--info); }
-
   .card-number {
     font-size: 2.5rem;
     font-weight: 700;
   }
-
   .summary-card.present .card-number { color: var(--success); }
   .summary-card.absent .card-number { color: var(--danger); }
   .summary-card.late .card-number { color: var(--warning); }
   .summary-card.sick .card-number { color: var(--info); }
-
   .card-label {
     font-weight: 600;
     color: #6b7280;
     font-size: 0.95rem;
   }
-
   /* Calendar */
   .calendar-container {
     background: white;
@@ -293,27 +256,23 @@ $today           = date("Y-m-d");
     box-shadow: var(--card-shadow);
     margin-bottom: 2rem;
   }
-
   .calendar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
   }
-
   .calendar-header h2 {
     font-size: 1.5rem;
     font-weight: 700;
     color: #1f2937;
     margin: 0;
   }
-
   .month-nav {
     display: flex;
     gap: 1rem;
     align-items: center;
   }
-
   .month-nav .btn {
     padding: 0.5rem 1rem;
     border-radius: 8px;
@@ -324,12 +283,10 @@ $today           = date("Y-m-d");
     cursor: pointer;
     transition: all 0.3s ease;
   }
-
   .month-nav .btn:hover {
     background: var(--primary);
     color: white;
   }
-
   .month-nav .current-month {
     padding: 0.5rem 1rem;
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
@@ -339,13 +296,11 @@ $today           = date("Y-m-d");
     min-width: 150px;
     text-align: center;
   }
-
   .calendar-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 2rem;
   }
-
   .calendar-table th {
     background: #f9fafb;
     padding: 1rem;
@@ -354,7 +309,6 @@ $today           = date("Y-m-d");
     color: #1f2937;
     border-bottom: 2px solid #e5e7eb;
   }
-
   .calendar-table td {
     height: 120px;
     padding: 0.75rem;
@@ -364,16 +318,13 @@ $today           = date("Y-m-d");
     background: white;
     transition: all 0.3s ease;
   }
-
   .calendar-table td:hover {
     background: #f9fafb;
   }
-
   .calendar-table td.today {
     background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
     border: 2px solid var(--primary);
   }
-
   .day-number {
     display: block;
     font-weight: 700;
@@ -381,7 +332,6 @@ $today           = date("Y-m-d");
     color: #1f2937;
     margin-bottom: 0.5rem;
   }
-
   .status-icon {
     display: flex;
     justify-content: center;
@@ -390,7 +340,6 @@ $today           = date("Y-m-d");
     margin: 0.5rem 0;
     cursor: pointer;
   }
-
   .status-badge {
     display: inline-block;
     padding: 0.25rem 0.75rem;
@@ -399,12 +348,10 @@ $today           = date("Y-m-d");
     font-weight: 600;
     text-align: center;
   }
-
   .status-present { color: var(--success); }
   .status-absent { color: var(--danger); }
   .status-late { color: var(--warning); }
   .status-sick { color: var(--info); }
-
   /* Legend */
   .legend {
     display: flex;
@@ -415,7 +362,6 @@ $today           = date("Y-m-d");
     border-radius: 12px;
     flex-wrap: wrap;
   }
-
   .legend-item {
     display: flex;
     align-items: center;
@@ -423,81 +369,75 @@ $today           = date("Y-m-d");
     font-weight: 600;
     color: #6b7280;
   }
-
   .legend-icon {
     font-size: 1.5rem;
   }
-
   /* Responsive */
   @media (max-width: 768px) {
     .main-container {
+      padding-left: 0;
+      display: flex;
       flex-direction: column;
     }
-
     .sidebar {
+      position: static;
       width: 100%;
+      height: auto;
+      top: auto;
+      left: auto;
+      box-shadow: none;
+      z-index: auto;
       padding: 1rem 0;
     }
-
+    .content-area {
+      width: 100%;
+    }
     .summary-grid {
       grid-template-columns: repeat(2, 1fr);
     }
-
     .calendar-table td {
       height: 100px;
       padding: 0.5rem;
       font-size: 0.9rem;
     }
-
     .day-number {
       font-size: 0.9rem;
     }
-
     .status-icon {
       font-size: 1.4rem;
     }
-
     .legend {
       gap: 1rem;
     }
   }
-
   @media (max-width: 480px) {
     .content-area {
       padding: 1rem;
     }
-
     .page-header {
       padding: 1rem;
     }
-
     .page-header h1 {
       font-size: 1.5rem;
     }
-
     .summary-grid {
       grid-template-columns: repeat(2, 1fr);
       gap: 1rem;
     }
-
     .summary-card {
       padding: 1rem;
     }
-
     .card-number {
       font-size: 2rem;
     }
-
     .calendar-table td {
       height: 80px;
       padding: 0.4rem;
       font-size: 0.85rem;
     }
-
     .day-number {
       font-size: 0.8rem;
     }
-
     .status-icon {
       font-size: 1.2rem;
     }
@@ -505,7 +445,6 @@ $today           = date("Y-m-d");
 </style>
 </head>
 <body>
-
 <!-- Top Navigation -->
 <div class="top-nav">
   <div class="logo"><i class="bi bi-code-slash"></i> Girls Coding Academy</div>
@@ -514,20 +453,15 @@ $today           = date("Y-m-d");
     <img src="<?= htmlspecialchars($student_photo) ?>" alt="Profile" class="user-avatar">
   </div>
 </div>
-
 <div class="main-container">
   <!-- Sidebar Navigation -->
 <?php include 'student_navigation.php'; ?>
-
-
-
   <!-- Content Area -->
   <div class="content-area">
     <div class="page-header">
       <h1><i class="bi bi-card-checklist"></i> My Attendance Records</h1>
       <p>Track your attendance history and attendance status</p>
     </div>
-
     <!-- Summary Cards -->
     <div class="summary-grid">
       <div class="summary-card present">
@@ -547,7 +481,6 @@ $today           = date("Y-m-d");
         <div class="card-label">Sick Leave</div>
       </div>
     </div>
-
     <!-- Calendar -->
     <div class="calendar-container">
       <div class="calendar-header">
@@ -562,7 +495,6 @@ $today           = date("Y-m-d");
           </a>
         </div>
       </div>
-
       <table class="calendar-table">
         <thead>
           <tr>
@@ -580,25 +512,20 @@ $today           = date("Y-m-d");
             $day = 1;
             $currentWeekDay = 0;
             echo "<tr>";
-
             for ($i = 0; $i < $startDayOfWeek; $i++) {
                 echo "<td></td>";
                 $currentWeekDay++;
             }
-
             while ($day <= $daysInMonth) {
                 $date = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-' . str_pad($day, 2, '0', STR_PAD_LEFT);
                 $isToday = ($date === $today);
                 $cellClass = $isToday ? 'today' : '';
-
                 echo "<td class='{$cellClass}'>";
                 echo "<span class='day-number'>{$day}</span>";
-
                 if (isset($attendanceData[$date])) {
                     $status = $attendanceData[$date]['status'];
                     $time = $attendanceData[$date]['time'];
                     $tooltip = htmlspecialchars($status . " on " . date('d M Y, H:i', strtotime($time)), ENT_QUOTES);
-
                     if ($status === 'Present') {
                         echo "<div class='status-icon text-success' data-bs-toggle='tooltip' title=\"{$tooltip}\"><i class='bi bi-check-circle-fill'></i></div>";
                     } elseif ($status === 'Absent') {
@@ -609,18 +536,14 @@ $today           = date("Y-m-d");
                         echo "<div class='status-icon text-info' data-bs-toggle='tooltip' title=\"{$tooltip}\"><i class='bi bi-heartpulse-fill'></i></div>";
                     }
                 }
-
                 echo "</td>";
-
                 $day++;
                 $currentWeekDay++;
-
                 if ($currentWeekDay == 7 && $day <= $daysInMonth) {
                     echo "</tr><tr>";
                     $currentWeekDay = 0;
                 }
             }
-
             while ($currentWeekDay < 7) {
                 echo "<td></td>";
                 $currentWeekDay++;
@@ -629,7 +552,6 @@ $today           = date("Y-m-d");
           ?>
         </tbody>
       </table>
-
       <!-- Legend -->
       <div class="legend">
         <div class="legend-item">
@@ -652,16 +574,14 @@ $today           = date("Y-m-d");
     </div>
   </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (el) { 
-      return new bootstrap.Tooltip(el); 
+    tooltipTriggerList.map(function (el) {
+      return new bootstrap.Tooltip(el);
     });
   });
 </script>
-
 </body>
 </html>

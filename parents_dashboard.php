@@ -364,9 +364,7 @@ if ($parent_record_id > 0) {
             <li class="nav-item">
                 <a href="parent_messages.php" class="nav-link" target="_blank"><i class="bi bi-envelope"></i> Messages</a>
             </li>
-            <li class="nav-item">
-                <a href="parents_chatting.php" class="nav-link" target="_blank"><i class="bi bi-chat"></i> Group Chat</a>
-            </li>
+           
             <li class="nav-item">
                 <a href="parent_profile.php" class="nav-link" onclick="showSection('profile')"><i class="bi bi-person-circle"></i> Profile</a>
             </li>
@@ -482,7 +480,7 @@ if ($parent_record_id > 0) {
                             <div class="child-card-body">
                                 <h5><?= htmlspecialchars($child['firstName'] . ' ' . $child['lastName']) ?></h5>
                                 <p>Relationship: <?= htmlspecialchars($child['relationship']) ?></p>
-                                <a href="temp.php?user_id=<?= $child['user_id'] ?>" class="btn btn-modern">View Profile</a>
+                                <a href="student_patent_profile.php?user_id=<?= $child['user_id'] ?>" class="btn btn-modern">View Profile</a>
                             </div>
                         </div>
                     <?php endforeach; ?>

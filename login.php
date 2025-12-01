@@ -77,6 +77,12 @@ if (isset($_POST['login'])) {
                 case "student":
                     header("Location: student.php");
                     break;
+                 case "marketing":
+                    header("Location: marketing_dashboard.php");
+                    break;
+                case "accounts":
+                    header("Location: accounts_dashboard.php");
+                    break;
                 case "teacher":
                     header("Location: teacher_dashboard.php");
                     break;
