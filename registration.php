@@ -7,7 +7,7 @@ require 'vendor/autoload.php';
 // ===============================
 // DATABASE CONNECTION
 // ===============================
-$host = "localhost";
+$host = "localhost:3307";
 $user = "root";
 $pass = "";
 $db   = "girlscodingacademydb";
@@ -130,7 +130,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_GET['return']) && !isset($_
             $mail->SMTPSecure = 'tls';
             $mail->Port       = 587;
 
-            $mail->setFrom('rethabilemackenzie70@gmail.com', 'Girls Coding Academy');
+            $mail->setFrom('noreply@gmail.com', 'Girls Coding Academy');
             $mail->addAddress($email, "$firstName $lastName");
             $mail->isHTML(true);
             $mail->Subject = 'Verify Your Email – Girls Coding Academy';

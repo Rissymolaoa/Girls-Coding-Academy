@@ -85,6 +85,24 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
                 <i class="fas fa-chart-line mr-2 text-sm"></i>
                 <span class="text-sm whitespace-nowrap">Finance</span>
             </a>
+            <!-- Manage Rooms -->
+<a href="manage_rooms.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'manage_rooms.php') ? 'active' : '' ?>">
+    <i class="fas fa-door-open mr-2 text-sm"></i>
+    <span class="text-sm whitespace-nowrap">Manage Rooms</span>
+</a>
+
+<!-- Manage Equipments -->
+<a href="manage_equipments.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'manage_equipments.php') ? 'active' : '' ?>">
+    <i class="fas fa-tools mr-2 text-sm"></i>
+    <span class="text-sm whitespace-nowrap">Manage Equipments</span>
+</a>
+
+<!-- Manage Infrastructure -->
+<a href="admin_infrastructure.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'admin_infrastructure.php') ? 'active' : '' ?>">
+    <i class="fas fa-building mr-2 text-sm"></i>
+    <span class="text-sm whitespace-nowrap">Infrastructure</span>
+</a>
+
 
             <div class="sidebar-divider my-2"></div>
 
@@ -109,11 +127,6 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
                 <i class="fas fa-calendar-alt mr-2 text-sm"></i>
                 <span class="text-sm whitespace-nowrap">Events</span>
             </a>
-            <a href="admin_parent_chatting.php" class="sidebar-link flex items-center text-white py-2 px-3 rounded mb-1 <?= ($current_page == 'admin_parent_chatting.php') ? 'active' : '' ?>">
-                <i class="fas fa-comments mr-2 text-sm"></i>
-                <span class="text-sm whitespace-nowrap">Group Chat</span>
-            </a>
-
             <div class="sidebar-divider my-2"></div>
 
             <!-- Logout -->

@@ -102,6 +102,7 @@
     <header>
         <h1>Girls Coding Academy</h1>
         <nav class="nav-links">
+            <a href="login.html"><i class="fas fa-home"></i> Login</a>
             <a href="help_desk.php"><i class="fas fa-headset"></i> Help Desk</a>
             <a href="prospectus.php"><i class="fas fa-book"></i> Prospectus</a>
             <a href="about.php"><i class="fas fa-info-circle"></i> About the School</a>

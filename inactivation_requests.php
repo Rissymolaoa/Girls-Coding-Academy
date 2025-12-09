@@ -12,7 +12,7 @@ if ($_SESSION['role'] !== 'admin') {
 }
 
 // ========== DATABASE CONNECTION ==========
-$host = "localhost";
+$host = "localhost:3307";
 $user = "root";
 $pass = "";
 $db   = "girlscodingacademydb";

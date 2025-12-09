@@ -100,6 +100,8 @@ $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <body>
 
 <?php include 'admin_navigation.php'; ?>
+<?php include 'top_navigation.php'; ?>
+
 
 <div class="main-content">
     <div class="container-fluid">

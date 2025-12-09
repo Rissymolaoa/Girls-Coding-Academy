@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 }
 
 // DB connection
-$host = "localhost";
+$host = "localhost:3307";
 $user = "root";
 $pass = "";
 $db = "girlscodingacademydb";
@@ -28,6 +28,20 @@ $filter_date_to = $_GET['date_to'] ?? '';
 $filter_batch = (int)($_GET['batch'] ?? 0);
 $filter_status = $_GET['status'] ?? '';
 
+// Validate date inputs (allow only YYYY-MM-DD). If invalid, clear them.
+if (!empty($filter_date_from)) {
+  $d = DateTime::createFromFormat('Y-m-d', $filter_date_from);
+  if (!$d || $d->format('Y-m-d') !== $filter_date_from) {
+    $filter_date_from = '';
+  }
+}
+if (!empty($filter_date_to)) {
+  $d = DateTime::createFromFormat('Y-m-d', $filter_date_to);
+  if (!$d || $d->format('Y-m-d') !== $filter_date_to) {
+    $filter_date_to = '';
+  }
+}
+
 $where_conditions = [];
 $params = [];
 $types = '';
@@ -43,7 +57,7 @@ if (!empty($filter_date_to)) {
     $types .= 's';
 }
 if ($filter_batch > 0) {
-    $where_conditions[] = "a.batch_id = ?";
+    $where_conditions[] = "b.batch_id = ?";
     $params[] = $filter_batch;
     $types .= 'i';
 }
@@ -66,18 +80,29 @@ $sql = "
     JOIN users u ON s.user_id = u.user_id
     JOIN batches b ON a.batch_id = b.batch_id
     JOIN courses c ON b.course_id = c.course_id
-    JOIN teachers t ON a.marked_by = t.teacher_id
-    JOIN users ut ON t.user_id = ut.user_id
+    LEFT JOIN teachers t ON a.marked_by = t.teacher_id
+    LEFT JOIN users ut ON t.user_id = ut.user_id
     $where_clause
     ORDER BY a.session_id DESC, a.marked_at DESC
     LIMIT 100
 ";
 
 $stmt = $conn->prepare($sql);
-if (!empty($types)) {
-    $stmt->bind_param($types, ...$params);
+if ($stmt === false) {
+  die('Prepare failed: ' . htmlspecialchars($conn->error));
 }
-$stmt->execute();
+if (!empty($types) && count($params) > 0) {
+  // mysqli::bind_param requires references. Build an array of references.
+  $bind_names = array_merge([$types], $params);
+  $refs = [];
+  foreach ($bind_names as $key => $value) {
+    $refs[$key] = &$bind_names[$key];
+  }
+  call_user_func_array([$stmt, 'bind_param'], $refs);
+}
+if (!$stmt->execute()) {
+  die('Execute failed: ' . htmlspecialchars($stmt->error));
+}
 $result = $stmt->get_result();
 $attendance_records = [];
 while ($row = $result->fetch_assoc()) {
@@ -94,21 +119,33 @@ while ($batch = $batches_query->fetch_assoc()) {
 
 // Fetch status summary for dashboard card (fixed: use prepared statement)
 $summary_sql = "
-    SELECT status, COUNT(*) as count
-    FROM attendance
-    $where_clause
-    GROUP BY status
+    SELECT a.status, COUNT(*) as cnt 
+    FROM attendance a
+    JOIN batches b ON a.batch_id = b.batch_id
+    $where_clause 
+    GROUP BY a.status
 ";
+
 $stmt_summary = $conn->prepare($summary_sql);
-if (!empty($types)) {
-    $stmt_summary->bind_param($types, ...$params);
+if ($stmt_summary === false) {
+  die('Prepare failed: ' . htmlspecialchars($conn->error));
 }
-$stmt_summary->execute();
+if (!empty($types) && count($params) > 0) {
+  $bind_names = array_merge([$types], $params);
+  $refs = [];
+  foreach ($bind_names as $key => $value) {
+    $refs[$key] = &$bind_names[$key];
+  }
+  call_user_func_array([$stmt_summary, 'bind_param'], $refs);
+}
+if (!$stmt_summary->execute()) {
+  die('Execute failed: ' . htmlspecialchars($stmt_summary->error));
+}
 $summary_result = $stmt_summary->get_result();
 $summary = ['Present' => 0, 'Absent' => 0, 'Late' => 0, 'Sick' => 0];
 while ($sum = $summary_result->fetch_assoc()) {
     if (array_key_exists($sum['status'], $summary)) {
-        $summary[$sum['status']] = $sum['count'];
+        $summary[$sum['status']] = $sum['cnt'];
     }
 }
 $stmt_summary->close();
@@ -296,7 +333,7 @@ $conn->close();
           <select name="batch" class="form-select">
             <option value="">All Batches</option>
             <?php foreach ($batches as $batch): ?>
-              <option value="<?= $batch['batch_id'] ?>" <?= $filter_batch === $batch['batch_id'] ? 'selected' : '' ?>>
+              <option value="<?= $batch['batch_id'] ?>" <?= $filter_batch == $batch['batch_id'] ? 'selected' : '' ?>>
                 <?= htmlspecialchars($batch['batch_code']) ?>
               </option>
             <?php endforeach; ?>
@@ -339,7 +376,7 @@ $conn->close();
                 <td><?= htmlspecialchars($record['student_first'] . ' ' . $record['student_last']) ?></td>
                 <td><?= htmlspecialchars($record['batch_code'] . ' / ' . $record['courseName']) ?></td>
                 <td><span class="status-badge status-<?= $record['status'] ?>"><?= $record['status'] ?></span></td>
-                <td><?= htmlspecialchars($record['teacher_first'] . ' ' . $record['teacher_last']) ?></td>
+                <td><?= htmlspecialchars(($record['teacher_first'] ?? 'N/A') . ' ' . ($record['teacher_last'] ?? '')) ?></td>
                 <td><?= date('M j, Y H:i', strtotime($record['marked_at'])) ?></td>
               </tr>
             <?php endforeach; ?>

@@ -395,17 +395,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_inquiry'])) {
         <div class="team-grid">
             <div class="team-member">
                 <img src="teacher3.png" alt="Rebecca">
-                <h4>Rebecca Makomoreng</h4>
+                <h4>Mary Mostjaba</h4>
                 <p>Student Success Manager</p>
             </div>
             <div class="team-member">
-                <img src="bbb.jpg" alt="Thato">
+                <img src="admin.png" alt="Thato">
                 <h4>Thato Leqele</h4>
                 <p>Technical Support Lead</p>
             </div>
             <div class="team-member">
-                <img src="uploads/team/ntina.jpg" alt="Ntina">
-                <h4>Ntina Tlalanyane</h4>
+                <img src="admin.png" alt="Ntina">
+                <h4>Sbusiso Dlamini</h4>
                 <p>Admissions & Enrollment</p>
             </div>
         </div>
@@ -414,7 +414,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_inquiry'])) {
     <footer>
         <p>&copy; <?php echo date('Y'); ?> Girls Coding Academy • Lesotho • Empowering Future Women in Tech</p>
         <p style="margin-top:1rem; opacity:0.9;">
-            Need immediate help? WhatsApp us at <strong>+266 5837 5096</strong>
+            Need immediate help? WhatsApp us at <strong>+266 6837 9878</strong>
         </p>
     </footer>
 

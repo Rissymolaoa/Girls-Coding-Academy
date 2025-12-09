@@ -1,7 +1,8 @@
 <?php
 session_start();
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.html"); exit();
+    header("Location: login.html");
+    exit();
 }
 include("db.php");
 
@@ -10,13 +11,10 @@ $errors = [];
 $success = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_announcement'])) {
-    // GET THE FULL HTML FROM QUILL
-    $message = $_POST['message'] ?? '';
+    $message = trim($_POST['message'] ?? '');
 
-    // FIX: Accept any real content — even if it's just <p><strong>Hi</strong></p>
-    $stripped = trim(strip_tags($message));
-    if ($message === '' || $message === '<p><br></p>' || $message === '<div><br></div>' || empty($stripped)) {
-        $errors[] = "Please write an announcement message.";
+    if (strlen($message) < 5) {
+        $errors[] = "Please write a meaningful announcement (at least 5 characters).";
     }
 
     $recipients = $_POST['recipients'] ?? [];
@@ -26,35 +24,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_announcement']
 
     $file_path = $picture_path = null;
 
-    // File upload
-    if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-        $allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-        if (in_array($_FILES['file']['type'], $allowed)) {
-            $ext = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
-            $name = uniqid('file_') . '.' . $ext;
-            $dir = __DIR__ . '/uploads/announcements/files/';
+    // Image Upload
+    if (isset($_FILES['picture']) && $_FILES['picture']['error'] === UPLOAD_ERR_OK) {
+        $allowed = ['image/jpeg','image/jpg','image/png','image/webp','image/gif'];
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $_FILES['picture']['tmp_name']);
+        finfo_close($finfo);
+
+        if (in_array($mime, $allowed) && $_FILES['picture']['size'] <= 5*1024*1024) {
+            $ext = pathinfo($_FILES['picture']['name'], PATHINFO_EXTENSION);
+            $name = 'img_' . uniqid() . '.' . $ext;
+            $dir = 'uploads/announcements/images/';
             if (!is_dir($dir)) mkdir($dir, 0755, true);
-            if (move_uploaded_file($_FILES['file']['tmp_name'], $dir . $name)) {
-                $file_path = "uploads/announcements/files/$name";
+            if (move_uploaded_file($_FILES['picture']['tmp_name'], $dir . $name)) {
+                $picture_path = $dir . $name;
             }
-        } else {
-            $errors[] = "Only PDF, DOC, DOCX allowed.";
         }
     }
 
-    // Image upload
-    if (isset($_FILES['picture']) && $_FILES['picture']['error'] === UPLOAD_ERR_OK) {
-        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (in_array($_FILES['picture']['type'], $allowed)) {
-            $ext = pathinfo($_FILES['picture']['name'], PATHINFO_EXTENSION);
-            $name = uniqid('img_') . '.' . $ext;
-            $dir = __DIR__ . '/uploads/announcements/images/';
+    // Document Upload
+    if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+        $allowed = ['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $_FILES['file']['tmp_name']);
+        finfo_close($finfo);
+
+        if (in_array($mime, $allowed) && $_FILES['file']['size'] <= 10*1024*1024) {
+            $ext = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
+            $name = 'doc_' . uniqid() . '.' . $ext;
+            $dir = 'uploads/announcements/files/';
             if (!is_dir($dir)) mkdir($dir, 0755, true);
-            if (move_uploaded_file($_FILES['picture']['tmp_name'], $dir . $name)) {
-                $picture_path = "uploads/announcements/images/$name";
+            if (move_uploaded_file($_FILES['file']['tmp_name'], $dir . $name)) {
+                $file_path = $dir . $name;
             }
-        } else {
-            $errors[] = "Only images allowed.";
         }
     }
 
@@ -63,9 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_announcement']
         $stmt = $conn->prepare("INSERT INTO admin_announcements (message, file_path, picture_path, recipients, created_at) VALUES (?, ?, ?, ?, NOW())");
         $stmt->bind_param("ssss", $message, $file_path, $picture_path, $recipients_str);
         if ($stmt->execute()) {
-            $success = "Announcement published successfully!";
+            $success = "Announcement published successfully to " . implode(', ', $recipients) . "!";
+            $_POST = [];
         } else {
-            $errors[] = "Database error.";
+            $errors[] = "Failed to publish. Try again.";
         }
         $stmt->close();
     }
@@ -90,23 +93,48 @@ $announcements = $stmt->get_result();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Announcements • GCA Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #0ea5e9; --primary-dark: #0284c7; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); min-height: 100vh; }
-        .glass { background: rgba(255,255,255,0.15); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.3); }
-        .card-hover:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(14,165,233,0.2); }
-        .announcement-card { transition: all 0.4s; border-left: 6px solid transparent; }
-        .announcement-card:hover { border-left-color: var(--primary); }
-        .ql-editor { min-height: 220px; font-size: 1.1rem; }
-        .ql-container { border-radius: 1rem; }
-        .ql-toolbar { border-top-left-radius: 1rem; border-top-right-radius: 1rem; background: #f8fafc; }
-        .sidebar { width: 280px; background: linear-gradient(180deg, #1e293b, #0f172a); position: fixed; height: 100vh; top: 0; left: 0; z-index: 1000; }
-        .main-content { margin-left: 280px; padding: 2rem; min-height: 100vh; }
-        @media (max-width: 992px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } }
+        * { font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7ff 0%, #e8f2ff 100%); }
+        
+        .file-input::file-selector-button {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .file-input::file-selector-button:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+        
+        .recipient-btn {
+            @apply p-4 rounded-lg border-2 border-gray-200 bg-white cursor-pointer transition-all duration-300 flex items-center justify-between;
+        }
+        
+        .recipient-btn input:checked ~ .recipient-content {
+            @apply border-blue-500 bg-blue-50;
+        }
+        
+        .recipient-checked {
+            @apply border-blue-500 bg-blue-50;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -114,182 +142,218 @@ $announcements = $stmt->get_result();
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
-<div class="main-content">
-    <div class="max-w-7xl mx-auto">
+<div class="ml-64 mt-16 min-h-screen p-8">
+    <div class="max-w-6xl mx-auto">
 
         <!-- Header -->
-        <div class="glass rounded-3xl p-12 mb-10 text-center border border-white/30 shadow-2xl">
-            <h1 class="text-6xl font-extrabold bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent mb-4">
-                Admin Announcements
-            </h1>
-            <p class="text-2xl text-gray-700">Reach your entire academy instantly</p>
+        <div class="mb-10">
+            <h1 class="text-5xl font-bold text-gray-900">Announcements</h1>
+            <p class="text-gray-600 mt-2">Send updates to students, teachers, and parents</p>
         </div>
 
-        <!-- Post Announcement -->
-        <div class="glass rounded-3xl p-10 mb-10 border border-white/30 shadow-2xl">
-            <h2 class="text-4xl font-bold text-gray-800 mb-10">
-                Create New Announcement
-            </h2>
-
-            <?php if ($success): ?>
-                <div class="bg-emerald-100 border border-emerald-400 text-emerald-700 px-8 py-6 rounded-2xl mb-10 text-xl">
-                    <strong>Success!</strong> <?= htmlspecialchars($success) ?>
-                </div>
-            <?php endif; ?>
-            <?php if (!empty($errors)): ?>
-                <div class="bg-red-100 border border-red-400 text-red-700 px-8 py-6 rounded-2xl mb-10">
-                    <ul class="space-y-3 text-lg">
-                        <?php foreach($errors as $e): ?>
-                            <li><?= htmlspecialchars($e) ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            <?php endif; ?>
-
-            <form method="POST" enctype="multipart/form-data" class="space-y-10">
-                <input type="hidden" name="message" id="message_content">
-
-                <div>
-                    <label class="text-xl font-bold text-gray-800 mb-6 block">Message</label>
-                    <div id="editor" class="bg-white rounded-2xl overflow-hidden shadow-inner"></div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <!-- Success Alert -->
+        <?php if ($success): ?>
+            <div class="fade-in bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 rounded-lg p-6 mb-8 shadow-sm">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-check-circle text-2xl text-green-600"></i>
+                    </div>
                     <div>
-                        <label class="text-xl font-bold text-gray-800 mb-6 block">Recipients</label>
-                        <div class="space-y-5">
-                            <label class="flex items-center gap-6 p-6 bg-white/70 rounded-3xl cursor-pointer hover:bg-white transition shadow-md">
-                                <input type="checkbox" name="recipients[]" value="students" class="w-7 h-7 text-sky-600 rounded">
-                                <div class="flex-1">
-                                    <div class="text-2xl font-bold text-gray-800">Students</div>
-                                    <div class="text-gray-600">All enrolled learners</div>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-6 p-6 bg-white/70 rounded-3xl cursor-pointer hover:bg-white transition shadow-md">
-                                <input type="checkbox" name="recipients[]" value="teachers" class="w-7 h-7 text-sky-600 rounded">
-                                <div class="flex-1">
-                                    <div class="text-2xl font-bold text-gray-800">Teachers</div>
-                                    <div class="text-gray-600">All teaching staff</div>
-                                </div>
-                            </label>
-                            <label class="flex items-center gap-6 p-6 bg-white/70 rounded-3xl cursor-pointer hover:bg-white transition shadow-md">
-                                <input type="checkbox" name="recipients[]" value="parents" class="w-7 h-7 text-sky-600 rounded">
-                                <div class="flex-1">
-                                    <div class="text-2xl font-bold text-gray-800">Parents</div>
-                                    <div class="text-gray-600">All registered guardians</div>
-                                </div>
-                            </label>
+                        <h3 class="font-bold text-green-900 text-lg">Success!</h3>
+                        <p class="text-green-700 mt-1"><?= $success ?></p>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Error Alerts -->
+        <?php if ($errors): ?>
+            <div class="fade-in bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 rounded-lg p-6 mb-8 shadow-sm">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-circle text-2xl text-red-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-red-900 text-lg">Please fix the following:</h3>
+                        <ul class="text-red-700 mt-3 space-y-1 list-disc list-inside">
+                            <?php foreach($errors as $e): ?>
+                                <li><?= htmlspecialchars($e) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Create Announcement Section -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-10 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-8 py-6 border-b border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                    <i class="fas fa-paper-plane text-blue-600"></i>
+                    Create New Announcement
+                </h2>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="p-8">
+
+                <!-- Message -->
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-gray-900 mb-3">Message *</label>
+                    <textarea name="message" rows="6" required
+                              placeholder="Write your announcement here..."
+                              class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all"><?= htmlspecialchars($_POST['message'] ?? '') ?></textarea>
+                    <p class="text-xs text-gray-500 mt-2">Line breaks and formatting will be preserved</p>
+                </div>
+
+                <!-- Recipients and Files Grid -->
+                <div class="grid lg:grid-cols-3 gap-8 mb-8">
+                    
+                    <!-- Recipients -->
+                    <div class="lg:col-span-1">
+                        <label class="block text-sm font-bold text-gray-900 mb-4">Send To *</label>
+                        <div class="space-y-3">
+                            <?php 
+                            $recipientGroups = [
+                                'students' => ['label' => 'Students', 'icon' => 'fa-user-graduate', 'color' => 'blue'],
+                                'teachers' => ['label' => 'Teachers', 'icon' => 'fa-chalkboard-teacher', 'color' => 'indigo'],
+                                'parents' => ['label' => 'Parents', 'icon' => 'fa-users', 'color' => 'purple']
+                            ];
+                            ?>
+                            <?php foreach($recipientGroups as $value => $group): ?>
+                                <label class="recipient-btn <?= in_array($value, $_POST['recipients'] ?? []) ? 'recipient-checked' : '' ?>">
+                                    <div class="flex items-center gap-3">
+                                        <input type="checkbox" name="recipients[]" value="<?= $value ?>" class="hidden" 
+                                            <?= in_array($value, $_POST['recipients'] ?? []) ? 'checked' : '' ?>
+                                            onchange="this.closest('.recipient-btn').classList.toggle('recipient-checked')">
+                                        <i class="fas <?= $group['icon'] ?> text-lg text-<?= $group['color'] ?>-600"></i>
+                                        <span class="font-semibold text-gray-800"><?= $group['label'] ?></span>
+                                    </div>
+                                    <i class="fas fa-check text-lg text-<?= $group['color'] ?>-600 opacity-0 transition-opacity"></i>
+                                </label>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 
-                    <div>
-                        <label class="text-xl font-bold text-gray-800 mb-6 block">Attachments</label>
-                        <div class="space-y-8">
-                            <div>
-                                <label class="block text-lg font-medium text-gray-700 mb-4">Image (optional)</label>
-                                <input type="file" name="picture" accept="image/*" class="block w-full text-lg file:mr-6 file:py-4 file:px-8 file:rounded-full file:border-0 file:text-lg file:font-bold file:bg-gradient-to-r file:from-sky-600 file:to-blue-700 file:text-white">
-                                <div id="imagePreview" class="mt-6 rounded-3xl overflow-hidden shadow-2xl hidden">
-                                    <img src="" alt="Preview" class="w-full max-h-96 object-cover">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-lg font-medium text-gray-700 mb-4">Document (PDF/DOC)</label>
-                                <input type="file" name="file" accept=".pdf,.doc,.docx" class="block w-full text-lg file:mr-6 file:py-4 file:px-8 file:rounded-full file:border-0 file:text-lg file:font-bold file:bg-gradient-to-r file:from-indigo-600 file:to-purple-700 file:text-white">
-                            </div>
-                        </div>
+                    <!-- Image Upload -->
+                    <div class="lg:col-span-1">
+                        <label class="block text-sm font-bold text-gray-900 mb-4">Image (Optional)</label>
+                        <input type="file" name="picture" accept="image/*" class="file-input w-full text-sm text-gray-600">
+                        <p class="text-xs text-gray-500 mt-2">JPG, PNG, GIF • Max 5MB</p>
+                        <div id="imagePreview" class="mt-4"></div>
+                    </div>
+
+                    <!-- Document Upload -->
+                    <div class="lg:col-span-1">
+                        <label class="block text-sm font-bold text-gray-900 mb-4">Attachment (Optional)</label>
+                        <input type="file" name="file" accept=".pdf,.doc,.docx" class="file-input w-full text-sm text-gray-600">
+                        <p class="text-xs text-gray-500 mt-2">PDF or Word • Max 10MB</p>
                     </div>
                 </div>
 
-                <div class="text-center pt-10">
-                    <button type="submit" name="submit_announcement" class="bg-gradient-to-r from-sky-600 to-blue-700 text-white font-bold text-2xl py-6 px-20 rounded-full hover:from-sky-700 hover:to-blue-800 transform hover:scale-105 transition shadow-2xl">
+                <!-- Submit Button -->
+                <div class="flex justify-end gap-4">
+                    <button type="reset" class="px-8 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition">
+                        Clear
+                    </button>
+                    <button type="submit" name="submit_announcement" class="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transition flex items-center gap-2">
+                        <i class="fas fa-paper-plane"></i>
                         Publish Announcement
                     </button>
                 </div>
             </form>
         </div>
 
-        <!-- All Announcements -->
-        <div class="glass rounded-3xl p-10 border border-white/30">
-            <div class="flex justify-between items-center mb-10">
-                <h2 class="text-4xl font-bold text-gray-800">All Announcements</h2>
+        <!-- Published Announcements -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-8 py-6 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                    <i class="fas fa-list text-blue-600"></i>
+                    Published Announcements
+                </h2>
                 <div class="relative">
-                    <input type="text" placeholder="Search..." value="<?= htmlspecialchars($search) ?>" onchange="location.href='?search='+encodeURIComponent(this.value)" class="pl-14 pr-8 py-5 rounded-full border-2 border-sky-200 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 w-96 text-xl">
-                    <i class="bi bi-search absolute left-5 top-1/2 -translate-y-1/2 text-sky-600 text-2xl"></i>
+                    <input type="text" placeholder="Search..." value="<?= htmlspecialchars($search) ?>"
+                           onchange="location.href='?search='+encodeURIComponent(this.value)"
+                           class="pl-10 pr-4 py-2 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-sm">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
                 </div>
             </div>
 
-            <div class="space-y-10">
-                <?php if ($announcements && $announcements->num_rows > 0): ?>
-                    <?php while ($ann = $announcements->fetch_assoc()): ?>
-                        <div class="announcement-card bg-white rounded-3xl p-10 shadow-2xl border border-gray-200 card-hover">
-                            <div class="flex justify-between items-start mb-8">
-                                <div class="flex flex-wrap gap-4">
-                                    <?php foreach (explode(',', $ann['recipients']) as $r): ?>
-                                        <span class="px-5 py-2 rounded-full text-sm font-bold <?= $r==='students'?'bg-sky-100 text-sky-800':($r==='teachers'?'bg-indigo-100 text-indigo-800':'bg-purple-100 text-purple-800') ?>">
-                                            <?= ucfirst($r) ?>
-                                        </span>
-                                    <?php endforeach; ?>
+            <div class="p-8">
+                <div class="space-y-6">
+                    <?php if ($announcements->num_rows > 0): ?>
+                        <?php while ($a = $announcements->fetch_assoc()): ?>
+                            <div class="fade-in border-l-4 border-blue-500 bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition">
+                                
+                                <!-- Header with Recipients and Date -->
+                                <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                                    <div class="flex flex-wrap gap-2">
+                                        <?php 
+                                        $recipientColors = [
+                                            'students' => 'blue',
+                                            'teachers' => 'indigo',
+                                            'parents' => 'purple'
+                                        ];
+                                        foreach(explode(',', $a['recipients']) as $r): 
+                                            $color = $recipientColors[trim($r)] ?? 'gray';
+                                        ?>
+                                            <span class="px-3 py-1 rounded-full text-white text-sm font-semibold bg-<?= $color ?>-600">
+                                                <?= ucfirst(trim($r)) ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <span class="text-sm text-gray-500">
+                                        <i class="fas fa-clock"></i> <?= date("M j, Y \a\t g:i A", strtotime($a['created_at'])) ?>
+                                    </span>
                                 </div>
-                                <div class="text-gray-500">
-                                    <?= date("M j, Y \a\\t g:i A", strtotime($ann['created_at'])) ?>
-                                </div>
-                            </div>
 
-                            <div class="prose prose-xl max-w-none text-gray-800 mb-8">
-                                <?= $ann['message'] ?>
-                            </div>
+                                <!-- Image -->
+                                <?php if ($a['picture_path']): ?>
+                                    <img src="<?= htmlspecialchars($a['picture_path']) ?>" alt="Announcement Image"
+                                         class="w-full max-h-80 object-cover rounded-lg mb-4 shadow-sm">
+                                <?php endif; ?>
 
-                            <?php if ($ann['picture_path']): ?>
-                                <div class="mb-8 -mx-10">
-                                    <img src="<?= htmlspecialchars($ann['picture_path']) ?>" alt="Image" class="w-full max-h-96 object-cover rounded-3xl">
-                                </div>
-                            <?php endif; ?>
+                                <!-- Message -->
+                                <p class="text-gray-700 leading-relaxed mb-4">
+                                    <?= nl2br(htmlspecialchars($a['message'])) ?>
+                                </p>
 
-                            <?php if ($ann['file_path']): ?>
-                                <div class="pt-8 border-t border-gray-200">
-                                    <a href="<?= htmlspecialchars($ann['file_path']) ?>" target="_blank" class="inline-flex items-center gap-4 text-sky-600 font-bold text-xl hover:text-sky-700 transition">
+                                <!-- Attachment Link -->
+                                <?php if ($a['file_path']): ?>
+                                    <a href="<?= htmlspecialchars($a['file_path']) ?>" target="_blank" class="inline-flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-700 transition">
+                                        <i class="fas fa-download"></i>
                                         Download Attachment
                                     </a>
-                                </div>
-                            <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fas fa-inbox text-4xl mb-3 opacity-30"></i>
+                            <p class="text-lg">No announcements yet</p>
                         </div>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <div class="text-center py-24">
-                        <p class="text-3xl text-gray-500">No announcements yet</p>
-                    </div>
-                <?php endif; ?>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
+
     </div>
 </div>
 
 <script>
-// Quill Editor
-const quill = new Quill('#editor', {
-    theme: 'snow',
-    modules: { toolbar: [['bold', 'italic', 'underline'], ['link', 'image'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['clean']] }
-});
-
-// Capture content on submit
-document.querySelector('form').onsubmit = function() {
-    const content = quill.root.innerHTML.trim();
-    document.getElementById('message_content').value = content;
-    return true;
-};
-
-// Image preview
-document.querySelector('input[name="picture"]').addEventListener('change', function(e) {
-    if (this.files[0]) {
-        const reader = new FileReader();
-        reader.onload = e => {
-            const preview = document.getElementById('imagePreview');
-            preview.querySelector('img').src = e.target.result;
-            preview.classList.remove('hidden');
-        };
-        reader.readAsDataURL(this.files[0]);
-    }
-});
+    // Image preview
+    document.querySelector('input[name="picture"]').addEventListener('change', function(e) {
+        const preview = document.getElementById('imagePreview');
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                preview.innerHTML = `<img src="${event.target.result}" class="w-full rounded-lg max-h-48 object-cover shadow-sm">`;
+            };
+            reader.readAsDataURL(this.files[0]);
+        } else {
+            preview.innerHTML = '';
+        }
+    });
 </script>
+
 </body>
 </html>

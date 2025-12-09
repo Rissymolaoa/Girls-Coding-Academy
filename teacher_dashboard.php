@@ -300,6 +300,10 @@ $topStudents = array_slice($allStudents, 0, 3);
                     <i class="fas fa-calendar-check mr-3"></i>
                     Mark Attendance
                 </a>
+                <a href="grade_tests.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-calendar-check mr-3"></i>
+                    Evaluate Tests
+                </a>
                 <a href="message_students.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
                     <i class="fas fa-envelope mr-3"></i>
                     Message Students
@@ -358,7 +362,7 @@ $topStudents = array_slice($allStudents, 0, 3);
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Batches Overview</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <?php foreach ($batchStats as $stat): ?>
-                <a href="batch_details.php?id=<?= $stat['batch_id'] ?>" class="batch-card card bg-white rounded-lg shadow-lg p-6 no-underline">
+                <a href="manage_teacher_courses.php?id=<?= $stat['batch_id'] ?>" class="batch-card card bg-white rounded-lg shadow-lg p-6 no-underline">
                     <h3 class="text-lg font-semibold text-gray-700 mb-2"><?= htmlspecialchars($stat['batch_code']) ?> - <?= htmlspecialchars($stat['courseName']) ?></h3>
                     <p class="text-gray-600 mb-4">Students Enrolled: <?= $stat['student_count'] ?></p>
                     <span class="inline-block px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">

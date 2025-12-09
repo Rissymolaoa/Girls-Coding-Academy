@@ -7,33 +7,31 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
 include 'db.php';
 
 $user_id = $_SESSION['user_id'];
-$currentPage = basename($_SERVER['PHP_SELF']);
 
 // Fetch teacher info
-$teacherInfo = $conn->query("SELECT username, email FROM users WHERE user_id = $user_id")->fetch_assoc();
+$teacherInfo = $conn->query("SELECT username, email, gender, phone FROM users WHERE user_id = $user_id")->fetch_assoc();
 $teacher_id = $conn->query("SELECT teacher_id FROM teachers WHERE user_id = $user_id")->fetch_assoc()['teacher_id'];
 
-// Fetch assigned batches
+// Fetch assigned active batches
 $batches = $conn->query("
-    SELECT DISTINCT b.batch_id, b.batch_code, c.courseName 
-    FROM course_assignments ca 
-    JOIN batches b ON ca.batch_id = b.batch_id 
-    JOIN courses c ON b.course_id = c.course_id 
+    SELECT DISTINCT b.batch_id, b.batch_code, c.courseName
+    FROM course_assignments ca
+    JOIN batches b ON ca.batch_id = b.batch_id
+    JOIN courses c ON b.course_id = c.course_id
     WHERE ca.teacher_id = $teacher_id AND b.status = 'active'
     ORDER BY b.batch_code
 ")->fetch_all(MYSQLI_ASSOC);
 
 $selected_batch_id = $_GET['batch'] ?? ($batches[0]['batch_id'] ?? 0);
 $selected_day = $_GET['day'] ?? 'Monday';
-
 $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+$day_index = array_search($selected_day, $days);
 
-// Load current timetable from DB for selected day
+// Load current timetable for selected day
 $day_timetable = [];
 if ($selected_batch_id) {
-    $day_index = array_search($selected_day, $days);
-    $res = $conn->query("SELECT id, day, start_time, end_time, period, subject, room 
-                         FROM teacher_timetables 
+    $res = $conn->query("SELECT id, day, start_time, end_time, period, subject, room
+                         FROM teacher_timetables
                          WHERE batch_id = $selected_batch_id AND day = $day_index
                          ORDER BY start_time");
     while ($row = $res->fetch_assoc()) {
@@ -41,75 +39,85 @@ if ($selected_batch_id) {
     }
 }
 
+// Fetch all ACTIVE rooms with floor name
+$all_rooms = $conn->query("
+    SELECT r.id, r.room_name, r.room_type, COALESCE(f.floor_name, 'Ground Floor') as floor_name
+    FROM school_rooms r
+    LEFT JOIN school_floors f ON r.floor_id = f.id
+    WHERE r.status = 'Active'
+    ORDER BY r.room_name
+")->fetch_all(MYSQLI_ASSOC);
+
 $success = $error = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $batch_id = (int)$_POST['batch_id'];
-    $day = $_POST['day'];
-    $day_index = array_search($day, $days);
-    
+    $day_index = array_search($_POST['day'], $days);
+
     if ($_POST['action'] === 'add_class') {
-        $start_time = $conn->real_escape_string($_POST['start_time']);
-        $end_time = $conn->real_escape_string($_POST['end_time']);
-        $subject = $conn->real_escape_string($_POST['subject']);
-        $room = $conn->real_escape_string($_POST['room']);
-        
+        $start_time = $_POST['start_time'];
+        $end_time   = $_POST['end_time'];
+        $subject    = trim($_POST['subject']);
+        $room_id    = !empty($_POST['room_id']) ? (int)$_POST['room_id'] : null;
+        $room_name  = $room_id ? $conn->query("SELECT room_name FROM school_rooms WHERE id = $room_id")->fetch_assoc()['room_name'] : '';
+
         if (!$start_time || !$end_time || !$subject) {
-            $error = "Start time, end time, and subject are required.";
+            $error = "Please fill all required fields.";
+        } elseif ($end_time <= $start_time) {
+            $error = "End time must be after start time.";
         } else {
-            // Check for time clash
-            $clash_check = $conn->query("
-                SELECT * FROM teacher_timetables 
-                WHERE batch_id = $batch_id AND day = $day_index 
+            // Check teacher conflict
+            $teacher_clash = $conn->query("
+                SELECT * FROM teacher_timetables
+                WHERE created_by = $teacher_id AND day = $day_index
                 AND NOT (end_time <= '$start_time' OR start_time >= '$end_time')
             ");
-            
-            if ($clash_check->num_rows > 0) {
-                $error = "Time slot conflicts with an existing class on this day.";
+            if ($teacher_clash->num_rows > 0) {
+                $error = "You are already teaching another class at this time.";
+            }
+            // Check room conflict
+            elseif ($room_id && $conn->query("
+                SELECT * FROM teacher_timetables
+                WHERE room = '$room_name' AND day = $day_index
+                AND NOT (end_time <= '$start_time' OR start_time >= '$end_time')
+            ")->num_rows > 0) {
+                $error = "This room is already booked at this time.";
             } else {
-                // Get next period number
-                $period_res = $conn->query("SELECT MAX(period) as max_period FROM teacher_timetables WHERE batch_id = $batch_id AND day = $day_index");
-                $period = ($period_res->fetch_assoc()['max_period'] ?? 0) + 1;
-                
-                $stmt = $conn->prepare("INSERT INTO teacher_timetables (batch_id, day, start_time, end_time, period, subject, room, created_by) 
+                // Get next period
+                $period_res = $conn->query("SELECT MAX(period) as p FROM teacher_timetables WHERE batch_id = $batch_id AND day = $day_index");
+                $period = ($period_res->fetch_assoc()['p'] ?? 0) + 1;
+
+                $stmt = $conn->prepare("INSERT INTO teacher_timetables 
+                    (batch_id, day, start_time, end_time, period, subject, room, created_by)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("iississi", $batch_id, $day_index, $start_time, $end_time, $period, $subject, $room, $teacher_id);
-                
+                $stmt->bind_param("iississi", $batch_id, $day_index, $start_time, $end_time, $period, $subject, $room_name, $teacher_id);
+
                 if ($stmt->execute()) {
-                    $success = "Class added successfully!";
-                    // Reload data
+                    $success = "Class scheduled successfully!";
+                    // Refresh timetable
                     $day_timetable = [];
-                    $res = $conn->query("SELECT id, day, start_time, end_time, period, subject, room 
-                                         FROM teacher_timetables 
-                                         WHERE batch_id = $batch_id AND day = $day_index
-                                         ORDER BY start_time");
-                    while ($row = $res->fetch_assoc()) {
-                        $day_timetable[] = $row;
-                    }
+                    $res = $conn->query("SELECT id, day, start_time, end_time, period, subject, room
+                                         FROM teacher_timetables WHERE batch_id = $batch_id AND day = $day_index ORDER BY start_time");
+                    while ($row = $res->fetch_assoc()) $day_timetable[] = $row;
                 } else {
                     $error = "Failed to add class.";
                 }
+                $stmt->close();
             }
         }
-    } elseif ($_POST['action'] === 'delete_class') {
+    }
+
+    if ($_POST['action'] === 'delete_class') {
         $class_id = (int)$_POST['class_id'];
-        $stmt = $conn->prepare("DELETE FROM teacher_timetables WHERE id = ? AND batch_id = ?");
-        $stmt->bind_param("ii", $class_id, $batch_id);
-        
+        $stmt = $conn->prepare("DELETE FROM teacher_timetables WHERE id = ? AND created_by = ?");
+        $stmt->bind_param("ii", $class_id, $teacher_id);
         if ($stmt->execute()) {
             $success = "Class deleted successfully!";
-            // Reload data
             $day_timetable = [];
-            $res = $conn->query("SELECT id, day, start_time, end_time, period, subject, room 
-                                 FROM teacher_timetables 
-                                 WHERE batch_id = $batch_id AND day = $day_index
-                                 ORDER BY start_time");
-            while ($row = $res->fetch_assoc()) {
-                $day_timetable[] = $row;
-            }
-        } else {
-            $error = "Failed to delete class.";
+            $res = $conn->query("SELECT id, day, start_time, end_time, period, subject, room FROM teacher_timetables WHERE batch_id = $batch_id AND day = $day_index ORDER BY start_time");
+            while ($row = $res->fetch_assoc()) $day_timetable[] = $row;
         }
+        $stmt->close();
     }
 }
 ?>
@@ -119,508 +127,244 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Timetable | Teacher Portal</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <title>Manage Timetable • Teacher Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            height: 100vh;
-            overflow: hidden;
-            color: #2c3e50;
-        }
-
-        .container-flex {
-            display: flex;
-            height: 100vh;
-        }
-
+        body {font-family:'Inter',sans-serif;background:#f8fafc}
+        .gradient-header {background: linear-gradient(90deg, #7b2cbf, #5a189a);}
         .sidebar {
             width: 250px;
-            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-            color: white;
-            padding: 30px 20px;
-            display: flex;
-            flex-direction: column;
+            background: linear-gradient(180deg, #7b2cbf, #5a189a);
             position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0;
+            height: 100vh;
             overflow-y: auto;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
             z-index: 1000;
         }
-
-        .sidebar h3 {
-            margin: 20px 0;
-            font-weight: 700;
-            font-size: 0.95rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #00d9ff;
-        }
-
-        .sidebar a {
-            width: 100%;
-            color: #cbd5e1;
-            padding: 14px 16px;
-            margin: 8px 0;
-            border-radius: 10px;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .sidebar a:hover,
-        .sidebar a.active {
-            background: linear-gradient(90deg, #00d9ff 0%, #0099cc 100%);
-            color: #0f172a;
-        }
-
-        .content {
-            flex: 1;
-            padding: 40px;
-            margin-left: 250px;
-            overflow-y: auto;
-            height: 100vh;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        }
-
-        .content::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .content::-webkit-scrollbar-thumb {
-            background: #00d9ff;
-            border-radius: 4px;
-        }
-
-        .header {
-            margin-bottom: 35px;
-            padding-bottom: 25px;
-            border-bottom: 2px solid rgba(0, 217, 255, 0.3);
-        }
-
-        .header h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #1e293b 0%, #00d9ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
-        }
-
-        .header p {
-            color: #64748b;
-            margin: 0;
-        }
-
-        .alert {
-            border: none;
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 25px;
-            backdrop-filter: blur(10px);
-            border-left: 4px solid;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .alert-success {
-            background: rgba(16, 185, 129, 0.1);
-            border-left-color: #10b981;
-            color: #059669;
-        }
-
-        .alert-danger {
-            background: rgba(239, 68, 68, 0.1);
-            border-left-color: #ef4444;
-            color: #dc2626;
-        }
-
-        .card-section {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 32px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(0, 217, 255, 0.2);
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-
-        .card-section h3 {
-            color: #1e293b;
-            margin-bottom: 25px;
-            font-weight: 700;
-            font-size: 1.4rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .card-section h3 i {
-            color: #00d9ff;
-        }
-
-        .batch-selector {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 30px;
-        }
-
-        .batch-btn {
-            padding: 14px;
-            border: 2px solid #e2e8f0;
-            background: white;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            color: #1e293b;
-            font-weight: 600;
-            text-decoration: none;
-        }
-
-        .batch-btn:hover {
-            border-color: #00d9ff;
-            background: rgba(0, 217, 255, 0.05);
-            transform: translateY(-2px);
-        }
-
-        .batch-btn.active {
-            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
-            color: white;
-            border-color: #00d9ff;
-        }
-
-        .day-selector {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-            margin-bottom: 30px;
-        }
-
-        .day-btn {
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            background: white;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            color: #1e293b;
-            font-weight: 600;
-            text-decoration: none;
-        }
-
-        .day-btn:hover {
-            border-color: #00d9ff;
-            background: rgba(0, 217, 255, 0.05);
-        }
-
-        .day-btn.active {
-            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
-            color: white;
-            border-color: #00d9ff;
-        }
-
-        .form-label {
-            color: #1e293b;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-
-        .form-control {
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 12px 16px;
-            transition: all 0.3s ease;
-        }
-
-        .form-control:focus {
-            border-color: #00d9ff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 217, 255, 0.25);
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .class-item {
-            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-            padding: 18px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            border-left: 4px solid #00d9ff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
-        }
-
-        .class-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 12px rgba(0, 217, 255, 0.15);
-        }
-
-        .class-info {
-            flex: 1;
-        }
-
-        .class-time {
-            font-weight: 700;
-            color: #00d9ff;
-            font-size: 0.95rem;
-            margin-bottom: 4px;
-        }
-
-        .class-subject {
-            color: #1e293b;
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-bottom: 4px;
-        }
-
-        .class-room {
-            color: #64748b;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .delete-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-left: 12px;
-        }
-
-        .delete-btn:hover {
-            background: #dc2626;
-            transform: scale(1.05);
-        }
-
-        .empty-message {
-            text-align: center;
-            padding: 40px 20px;
-            color: #94a3b8;
-        }
-
-        .empty-message i {
-            font-size: 2.5rem;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .btn {
-            border-radius: 10px;
-            font-weight: 600;
-            padding: 12px 24px;
-            transition: all 0.3s ease;
-            border: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #0099cc 0%, #006699 100%);
-            transform: translateY(-2px);
-            color: white;
-        }
-
+        .sidebar.hidden {transform: translateX(-100%);}
+        .sidebar-link {transition: all 0.3s ease;}
+        .sidebar-link:hover {background: rgba(255,255,255,0.1); padding-left: 1.5rem;}
+        .sidebar-link.active {background: rgba(255,255,255,0.2); border-left: 4px solid white; font-weight:600;}
+        .main-content {margin-left: 250px; transition: margin-left 0.3s ease;}
+        .card:hover {transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.15);}
+        .batch-btn.active, .day-btn.active {background: linear-gradient(90deg,#7b2cbf,#5a189a);color:white}
         @media (max-width: 768px) {
-            .content {
-                margin-left: 0;
-                padding: 20px;
-            }
-            
-            .header h2 {
-                font-size: 1.5rem;
-            }
-            
-            .batch-selector,
-            .day-selector {
-                grid-template-columns: 1fr;
-            }
+            .sidebar {transform: translateX(-100%);}
+            .sidebar.mobile-open {transform: translateX(0);}
+            .main-content {margin-left: 0;}
+            .mobile-toggle {display: block;}
         }
+        .mobile-toggle {display: none;}
     </style>
 </head>
-<body>
+<body class="bg-gray-100">
 
-<div class="container-flex">
-    <!-- Sidebar -->
-    <nav class="sidebar">
-        <h3>Teacher Portal</h3>
-        <a href="teacher.php"><i class="bi bi-house-door"></i> Home</a>
-        <a href="teacher_dashboard.php"><i class="bi bi-speedometer2"></i> Dashboard</a>
-        <a href="manage_timetable.php" class="active"><i class="bi bi-calendar2-week"></i> Manage Timetable</a>
-        <a href="manage_batches.php"><i class="bi bi-diagram-3"></i> My Batches</a>
-        <a href="mark_attendance.php"><i class="bi bi-check-square"></i> Mark Attendance</a>
-        <a href="upload_materials.php"><i class="bi bi-file-earmark-arrow-up"></i> Materials</a>
-        <a href="create_activity.php"><i class="bi bi-list-task"></i> Activities</a>
-        <a href="create_test.php"><i class="bi bi-pencil-square"></i> Tests</a>
-        <a href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    </nav>
-
-    <!-- Main content -->
-    <main class="content">
-        <div class="header">
-            <h2><i class="bi bi-calendar2-week"></i> Manage Class Timetable</h2>
-            <p>Select a batch and day to create or modify the timetable</p>
+<!-- SIDEBAR - EXACT SAME AS TEACHER DASHBOARD -->
+<aside class="sidebar" id="sidebar">
+    <div class="p-6">
+        <div class="flex items-center mb-8">
+            <i class="fas fa-graduation-cap text-white text-3xl mr-3"></i>
+            <h2 class="text-white text-xl font-bold">GCA Portal</h2>
         </div>
 
+        <nav>
+            <a href="teacher_dashboard.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 <?= basename($_SERVER['PHP_SELF'])==='teacher_dashboard.php'?'active':'' ?>">
+                <i class="fas fa-home mr-3"></i> Dashboard
+            </a>
+            <a href="manage_timetable.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 active bg-white bg-opacity-20 border-l-4 border-white">
+                <i class="fas fa-calendar-week mr-3"></i> Manage Timetable
+            </a>
+            <a href="manage_teacher_courses.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 <?= in_array(basename($_SERVER['PHP_SELF']),['manage_teacher_courses.php','schedule_class.php'])?'active':'' ?>">
+                <i class="fas fa-chalkboard-teacher mr-3"></i> My Courses
+            </a>
+            <a href="upload_materials.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 <?= basename($_SERVER['PHP_SELF'])==='upload_materials.php'?'active':'' ?>">
+                <i class="fas fa-book mr-3"></i> Upload Materials
+            </a>
+            <a href="grades.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 <?= basename($_SERVER['PHP_SELF'])==='grades.php'?'active':'' ?>">
+                <i class="fas fa-clipboard-check mr-3"></i> Grade Students
+            </a>
+            <a href="mark_attendance.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 <?= basename($_SERVER['PHP_SELF'])==='mark_attendance.php'?'active':'' ?>">
+                <i class="fas fa-calendar-check mr-3"></i> Mark Attendance
+            </a>
+            <a href="message_students.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 <?= basename($_SERVER['PHP_SELF'])==='message_students.php'?'active':'' ?>">
+                <i class="fas fa-envelope mr-3"></i> Message Students
+            </a>
+            <a href="teacher_profile.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2 <?= basename($_SERVER['PHP_SELF'])==='teacher_profile.php'?'active':'' ?>">
+                <i class="fas fa-user mr-3"></i> My Profile
+            </a>
+            <a href="logout.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                <i class="fas fa-sign-out-alt mr-3"></i> Logout
+            </a>
+        </nav>
+    </div>
+</aside>
+
+<!-- HEADER - EXACT SAME AS DASHBOARD -->
+<header class="gradient-header text-white py-4 px-6 flex justify-between items-center fixed top-0 left-0 right-0 z-40">
+    <button class="mobile-toggle text-white text-2xl" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div>
+        <h1 class="text-xl font-semibold">Welcome, <?= htmlspecialchars($teacherInfo['username']) ?>!</h1>
+        <p class="text-sm">Email: <?= htmlspecialchars($teacherInfo['email']) ?> | Phone: <?= htmlspecialchars($teacherInfo['phone']) ?></p>
+    </div>
+</header>
+
+<!-- MAIN CONTENT -->
+<div class="main-content pt-20" id="mainContent">
+    <main class="p-6">
+
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">Manage Class Timetable</h2>
+        <p class="text-gray-600 mb-6">Select a batch and day to schedule your classes using available rooms</p>
+
+        <!-- Alerts -->
         <?php if ($success): ?>
-            <div class="alert alert-success"><i class="bi bi-check-circle"></i> <?= $success ?></div>
+            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded">
+                <i class="fas fa-check-circle mr-2"></i><?= $success ?>
+            </div>
         <?php endif; ?>
         <?php if ($error): ?>
-            <div class="alert alert-danger"><i class="bi bi-exclamation-circle"></i> <?= $error ?></div>
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+                <i class="fas fa-exclamation-circle mr-2"></i><?= $error ?>
+            </div>
         <?php endif; ?>
 
         <?php if (empty($batches)): ?>
-            <div class="card-section">
-                <div class="empty-message">
-                    <i class="bi bi-diagram-3"></i>
-                    <p style="font-size: 1.2rem;">No batches assigned to you yet.</p>
-                </div>
+            <div class="bg-white rounded-lg shadow p-10 text-center">
+                <i class="fas fa-calendar-times text-6xl text-gray-300 mb-4"></i>
+                <p class="text-xl text-gray-600">No batches assigned to you yet.</p>
             </div>
         <?php else: ?>
+
             <!-- Batch Selection -->
-            <div class="card-section">
-                <h3><i class="bi bi-diagram-3"></i> Select Batch</h3>
-                <div class="batch-selector">
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Select Batch</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <?php foreach ($batches as $batch): ?>
-                        <a href="?batch=<?= $batch['batch_id'] ?>&day=<?= $selected_day ?>" 
-                           class="batch-btn <?= ($selected_batch_id === $batch['batch_id']) ? 'active' : '' ?>">
-                            <div style="font-size: 0.85rem; color: #64748b;">
-                                <?= htmlspecialchars($batch['courseName']) ?>
-                            </div>
-                            <div style="font-size: 1rem;">
-                                <?= htmlspecialchars($batch['batch_code']) ?>
-                            </div>
+                        <a href="?batch=<?= $batch['batch_id'] ?>&day=<?= $selected_day ?>"
+                           class="batch-btn p-4 text-center rounded-lg border-2 <?= $selected_batch_id == $batch['batch_id'] ? 'active' : 'border-gray-200 hover:border-purple-500' ?>">
+                            <p class="text-sm opacity-75"><?= htmlspecialchars($batch['courseName']) ?></p>
+                            <p class="font-bold text-lg"><?= htmlspecialchars($batch['batch_code']) ?></p>
                         </a>
                     <?php endforeach; ?>
                 </div>
             </div>
 
             <!-- Day Selection -->
-            <div class="card-section">
-                <h3><i class="bi bi-calendar-event"></i> Select Day</h3>
-                <div class="day-selector">
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Select Day</h3>
+                <div class="grid grid-cols-4 sm:grid-cols-7 gap-3">
                     <?php foreach ($days as $d): ?>
-                        <a href="?batch=<?= $selected_batch_id ?>&day=<?= $d ?>" 
-                           class="day-btn <?= ($selected_day === $d) ? 'active' : '' ?>">
-                            <?= $d ?>
+                        <a href="?batch=<?= $selected_batch_id ?>&day=<?= urlencode($d) ?>"
+                           class="day-btn py-3 text-center rounded-lg font-medium <?= $selected_day === $d ? 'active' : 'bg-gray-100 hover:bg-gray-200' ?>">
+                            <?= substr($d,0,3) ?>
                         </a>
                     <?php endforeach; ?>
                 </div>
             </div>
 
             <!-- Add Class Form -->
-            <div class="card-section">
-                <h3><i class="bi bi-plus-circle"></i> Add New Class for <?= $selected_day ?></h3>
-                
-                <form method="POST">
+            <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6">Add New Class — <?= $selected_day ?></h3>
+                <form method="POST" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <input type="hidden" name="action" value="add_class">
                     <input type="hidden" name="batch_id" value="<?= $selected_batch_id ?>">
                     <input type="hidden" name="day" value="<?= $selected_day ?>">
 
-                    <div class="form-row">
-                        <div>
-                            <label class="form-label">Start Time</label>
-                            <input type="time" name="start_time" class="form-control" required>
-                        </div>
-                        <div>
-                            <label class="form-label">End Time</label>
-                            <input type="time" name="end_time" class="form-control" required>
-                        </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Start Time *</label>
+                        <input type="time" name="start_time" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                     </div>
-
-                    <div class="form-row">
-                        <div style="grid-column: span 2;">
-                            <label class="form-label">Subject/Class Name</label>
-                            <input type="text" name="subject" class="form-control" placeholder="e.g., Mathematics" required>
-                        </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">End Time *</label>
+                        <input type="time" name="end_time" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                     </div>
-
-                    <div class="form-row">
-                        <div>
-                            <label class="form-label">Room Number (Optional)</label>
-                            <input type="text" name="room" class="form-control" placeholder="e.g., A101">
-                        </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Subject *</label>
+                        <input type="text" name="subject" required placeholder="e.g. Web Development" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
                     </div>
-
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-plus"></i> Add Class
-                    </button>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Room (Available)</label>
+                        <select name="room_id" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                            <option value="">No room (theory/online)</option>
+                            <?php foreach($all_rooms as $room): ?>
+                                <option value="<?= $room['id'] ?>">
+                                    <?= htmlspecialchars($room['room_name']) ?> (<?= $room['room_type'] ?>, <?= $room['floor_name'] ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2 lg:col-span-4">
+                        <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white font-bold py-4 rounded-lg shadow-lg transition transform hover:scale-105">
+                            Add Class
+                        </button>
+                    </div>
                 </form>
             </div>
 
-            <!-- Classes for Selected Day -->
-            <div class="card-section">
-                <h3><i class="bi bi-grid-3x3"></i> Classes on <?= $selected_day ?></h3>
-                
-                <?php if (empty($day_timetable)): ?>
-                    <div class="empty-message">
-                        <i class="bi bi-calendar-x"></i>
-                        <p>No classes scheduled for <?= $selected_day ?> yet.</p>
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($day_timetable as $class): ?>
-                        <div class="class-item">
-                            <div class="class-info">
-                                <div class="class-time">
-                                    <i class="bi bi-clock"></i> <?= date('h:i A', strtotime($class['start_time'])) ?> – <?= date('h:i A', strtotime($class['end_time'])) ?>
+            <!-- Scheduled Classes -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-6">
+                    <h3 class="text-2xl font-bold">Classes on <?= $selected_day ?></h3>
+                </div>
+                <div class="p-6">
+                    <?php if (empty($day_timetable)): ?>
+                        <p class="text-center text-gray-500 py-10">No classes scheduled yet for <?= $selected_day ?>.</p>
+                    <?php else: ?>
+                        <div class="space-y-4">
+                            <?php foreach ($day_timetable as $class): ?>
+                                <div class="flex justify-between items-center p-5 bg-gray-50 rounded-lg border border-l-4 border-purple-600">
+                                    <div>
+                                        <div class="font-bold text-purple-700">
+                                            <?= date('h:i A', strtotime($class['start_time'])) ?> – <?= date('h:i A', strtotime($class['end_time'])) ?>
+                                        </div>
+                                        <div class="text-xl font-bold text-gray-800 mt-1"><?= htmlspecialchars($class['subject']) ?></div>
+                                        <div class="text-gray-600 mt-1">
+                                            Room: <strong><?= htmlspecialchars($class['room'] ?: 'Not assigned') ?></strong>
+                                        </div>
+                                    </div>
+                                    <form method="POST" class="inline">
+                                        <input type="hidden" name="action" value="delete_class">
+                                        <input type="hidden" name="class_id" value="<?= $class['id'] ?>">
+                                        <input type="hidden" name="batch_id" value="<?= $selected_batch_id ?>">
+                                        <input type="hidden" name="day" value="<?= $selected_day ?>">
+                                        <button type="submit" onclick="return confirm('Delete this class?')"
+                                                class="text-red-600 hover:text-red-800 font-medium">
+                                            Delete
+                                        </button>
+                                    </form>
                                 </div>
-                                <div class="class-subject"><?= htmlspecialchars($class['subject']) ?></div>
-                                <div class="class-room">
-                                    <i class="bi bi-door-closed"></i> <?= htmlspecialchars($class['room'] ?? 'No room specified') ?>
-                                </div>
-                            </div>
-                            <form method="POST" style="display: inline;">
-                                <input type="hidden" name="action" value="delete_class">
-                                <input type="hidden" name="class_id" value="<?= $class['id'] ?>">
-                                <input type="hidden" name="batch_id" value="<?= $selected_batch_id ?>">
-                                <input type="hidden" name="day" value="<?= $selected_day ?>">
-                                <button type="submit" class="delete-btn" onclick="return confirm('Delete this class?');">
-                                    <i class="bi bi-trash"></i> Delete
-                                </button>
-                            </form>
+                            <?php endforeach; ?>
                         </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                    <?php endif; ?>
+                </div>
             </div>
+
         <?php endif; ?>
+
     </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('mobile-open');
+    if (sidebar.classList.contains('mobile-open')) {
+        document.addEventListener('click', closeSidebarOnClickOutside);
+    } else {
+        document.removeEventListener('click', closeSidebarOnClickOutside);
+    }
+}
+function closeSidebarOnClickOutside(e) {
+    const sidebar = document.getElementById('sidebar');
+    const btn = e.target.closest('.mobile-toggle');
+    if (!sidebar.contains(e.target) && !btn) {
+        sidebar.classList.remove('mobile-open');
+        document.removeEventListener('click', closeSidebarOnClickOutside);
+    }
+}
+</script>
 </body>
 </html>

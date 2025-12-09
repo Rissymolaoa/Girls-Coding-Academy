@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 }
 
 // DB connection
-$host = "localhost";
+$host = "localhost:3307";
 $user = "root";
 $pass = "";
 $db = "girlscodingacademydb";

@@ -20,7 +20,7 @@ require_once 'PHPMailer/src/SMTP.php';
 require_once('fpdf.php');
 
 // DB connection
-$host = "localhost";
+$host = "localhost:3307";
 $user = "root";
 $pass = "";
 $db = "girlscodingacademydb";

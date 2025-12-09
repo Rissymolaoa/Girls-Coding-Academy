@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $stmt->execute();
         $stmt->close();
-        header("Location: mudyondzi.php"); exit();
+        header("Location: manage_students.php"); exit();
     }
 
     if (isset($_POST['form_type']) && $_POST['form_type'] === 'transport') {
@@ -485,11 +485,20 @@ $batches_list = $conn->query("SELECT DISTINCT batch_code FROM batches ORDER BY b
                             <div class="col-md-6"><input type="password" name="password" class="form-control" placeholder="Password (leave blank to keep)"></div>
                             <div class="col-md-6"><input type="text" name="firstName" id="firstName" class="form-control" placeholder="First Name" required></div>
                             <div class="col-md-6"><input type="text" name="lastName" id="lastName" class="form-control" placeholder="Last Name" required></div>
-                            <div class="col-md-6"><input type="text" name="gender" id="gender" class="form-control" placeholder="Gender"></div>
+
+                            <div class="col-md-6">
+                                <select name="gender" id="gender" class="form-select" placeholder="Gender">
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+
                             <div class="col-md-6"><input type="date" name="dob" id="dob" class="form-control"></div>
                             <div class="col-md-6"><input type="email" name="email" id="email" class="form-control" placeholder="Email" required></div>
                             <div class="col-md-6"><input type="text" name="phone" id="phone" class="form-control" placeholder="Phone"></div>
                             <div class="col-md-6"><input type="text" name="IDNumber" id="IDNumber" class="form-control" placeholder="ID Number"></div>
+
                             <div class="col-md-6">
                                 <select name="status" id="status" class="form-select">
                                     <option value="active">Active</option>
@@ -497,6 +506,7 @@ $batches_list = $conn->query("SELECT DISTINCT batch_code FROM batches ORDER BY b
                                     <option value="pending">Pending</option>
                                 </select>
                             </div>
+
                             <div class="col-12"><hr></div>
                             <div class="col-md-6"><input type="text" name="address1" id="address1" class="form-control" placeholder="House/Flat No."></div>
                             <div class="col-md-6"><input type="text" name="streetName" id="streetName" class="form-control" placeholder="Street Name"></div>
@@ -612,7 +622,7 @@ $batches_list = $conn->query("SELECT DISTINCT batch_code FROM batches ORDER BY b
             document.getElementById('postalCode').value = data.postalCode || '';
             document.getElementById('district').value = data.district || '';
             document.getElementById('country').value = data.country || '';
-            document.getElementById('photoPreview').src = data.photo || 'default.png';
+            document.getElementById('photoPreview').src = data.photo || 'admin.png';
             document.getElementById('documentLink').innerHTML = data.document ? `<a href="${data.document}" target="_blank">Current Document</a>` : '';
             studentModal.show();
         }

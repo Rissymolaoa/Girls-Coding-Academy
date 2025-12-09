@@ -13,281 +13,270 @@ if ($user_id === 0) {
     exit();
 }
 
-/* ----------------------------------------------------
-   FIXED SQL — NO DUPLICATE COLUMN NAMES
----------------------------------------------------- */
+/* MAIN USER + PROFILE PHOTO */
 $stmt = $conn->prepare("
     SELECT 
-        u.user_id, u.firstName, u.lastName, u.username, u.email, u.phone,
-        u.gender, u.dob, u.IDNumber, u.role, u.status, u.created_at,
-        
-        a.address1, a.streetName, a.postalCode, a.district, a.country,
-        
-        t.teacher_id, t.subject_speciality, t.photo AS teacher_photo,
-        s.student_id, s.photo AS student_photo,
-        p.parent_id, p.photo AS parent_photo,
-
-        COALESCE(s.photo, t.photo, p.photo) AS final_photo
+        u.*,
+        a.address1, a.streetName, a.district, a.country, a.postalCode,
+        COALESCE(s.photo, t.photo, p.photo) AS profile_photo,
+        t.subject_speciality,
+        s.student_id, t.teacher_id, p.parent_id
     FROM users u
     LEFT JOIN addresses a ON u.address_id = a.address_id
-    LEFT JOIN teachers t ON u.user_id = t.user_id AND u.role = 'teacher'
-    LEFT JOIN students s ON u.user_id = s.user_id AND u.role = 'student'
-    LEFT JOIN parents p ON u.user_id = p.user_id AND u.role = 'parent'
+    LEFT JOIN students s ON u.user_id = s.user_id
+    LEFT JOIN teachers t ON u.user_id = t.user_id
+    LEFT JOIN parents p ON u.user_id = p.user_id
     WHERE u.user_id = ?
 ");
-
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
-$result = $stmt->get_result();
-
-if ($result->num_rows === 0) {
-    $stmt->close();
-    header("Location: manage_users.php");
-    exit();
-}
-
-$user = $result->fetch_assoc();
+$user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-/* ---------------------------------------------
-   SAFETY CHECK — PREVENT STRING OFFSET ERRORS
----------------------------------------------- */
-if (!is_array($user)) {
-    die("ERROR: User data corrupted. Dump:<br><pre>" . var_export($user, true) . "</pre>");
+if (!$user) {
+    die("User not found.");
 }
 
-/* ----------------------------------------------------
-   SAFE INITIALS
----------------------------------------------------- */
-$firstInitial = (!empty($user['firstName'])) ? strtoupper(substr($user['firstName'], 0, 1)) : '?';
-$lastInitial  = (!empty($user['lastName']))  ? strtoupper(substr($user['lastName'], 0, 1)) : '?';
+// Safe defaults
+$firstName = trim($user['firstName'] ?? '') ?: 'Unknown';
+$lastName  = trim($user['lastName'] ?? '') ?: 'User';
+$username  = trim($user['username'] ?? '') ?: 'unknown';
+$role      = ucfirst($user['role'] ?? 'unknown');
+$status    = ucfirst($user['status'] ?? 'unknown');
+
+// Initials
+$firstInitial = $firstName !== 'Unknown' ? mb_strtoupper(mb_substr($firstName, 0, 1)) : '?';
+$lastInitial  = $lastName !== 'User' ? mb_strtoupper(mb_substr($lastName, 0, 1)) : '?';
 $initials = $firstInitial . $lastInitial;
 
-/* ----------------------------------------------------
-   FINAL PHOTO PATH
----------------------------------------------------- */
-$photoPath = $user['final_photo'] ?? null;
-$photoExists = ($photoPath && file_exists($photoPath));
+// Photo path check
+$photoPath = $user['profile_photo'] ?? null;
+if ($photoPath && in_array(strtolower($photoPath), ['null', '']) || !file_exists($photoPath)) {
+    $photoPath = null;
+}
+$photoExists = $photoPath !== null;
 
+// Role-specific data fetches
+$student_medical = $student_transport = $parent_link = null;
+if ($user['student_id']) {
+    $student_medical = $conn->query("SELECT * FROM student_medical_info WHERE student_id = " . (int)$user['student_id'])->fetch_assoc();
+    $student_transport = $conn->query("SELECT * FROM student_transport_info WHERE student_id = " . (int)$user['student_id'])->fetch_assoc();
+    $parent_link = $conn->query("
+        SELECT p.*, u.firstName AS p_first, u.lastName AS p_last 
+        FROM parent_students ps 
+        JOIN parents p ON ps.parent_id = p.parent_id 
+        JOIN users u ON p.user_id = u.user_id 
+        WHERE ps.student_id = " . (int)$user['student_id']
+    )->fetch_assoc();
+}
+
+// Enrolled courses for student
+$courses = [];
+if ($user['student_id']) {
+    $courses_res = $conn->query("
+        SELECT ce.enrollment_id, b.batch_code, c.courseName, b.start_date, ce.status 
+        FROM course_enrollments ce
+        JOIN batches b ON ce.batch_id = b.batch_id
+        JOIN courses c ON b.course_id = c.course_id
+        WHERE ce.student_id = " . (int)$user['student_id'] . "
+        ORDER BY ce.enrolled_at DESC
+    ");
+    if ($courses_res) {
+        $courses = $courses_res->fetch_all(MYSQLI_ASSOC);
+    }
+}
+
+// Attendance
+$attendance_summary = [];
+if ($user['student_id']) {
+    $att_res = $conn->query(
+        "SELECT status, COUNT(*) as count FROM attendance WHERE student_id = " . (int)$user['student_id'] . " GROUP BY status"
+    );
+    if ($att_res) {
+        while ($row = $att_res->fetch_assoc()) {
+            $attendance_summary[$row['status']] = $row['count'];
+        }
+    }
+    $total_sessions = $conn->query("SELECT COUNT(*) as total FROM attendance WHERE student_id = " . (int)$user['student_id'])->fetch_assoc()['total'] ?? 0;
+}
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Details - <?= htmlspecialchars($user['firstName'] . ' ' . $user['lastName']) ?></title>
-
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><?= htmlspecialchars("$firstName $lastName") ?> - Full Profile</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
-        .main-content { margin-left: 220px; transition: margin-left 0.3s ease; }
+        .main-content { margin-left: 220px; padding-top: 80px; }
         @media (max-width: 768px) { .main-content { margin-left: 0; } }
+        .section {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
     </style>
 </head>
+<body class="bg-gray-100">
+    <?php include 'top_navigation.php'; ?>
+    <?php include 'admin_navigation.php'; ?>
 
-<body class="bg-gray-50">
+    <div class="main-content p-6 min-h-screen max-w-7xl mx-auto">
 
-<?php include 'top_navigation.php'; ?>
-<?php include 'admin_navigation.php'; ?>
+        <!-- Back Button -->
+        <a href="manage_users.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-bold mb-6">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Users
+        </a>
 
-<div class="main-content" style="padding-top: 80px;">
-    <div class="p-8 min-h-screen">
-        <div class="max-w-6xl mx-auto">
+        <!-- Header Card -->
+        <div class="section flex flex-col md:flex-row items-center gap-6">
+            <?php if ($photoExists): ?>
+                <img src="<?= htmlspecialchars($photoPath) ?>" alt="Profile Photo" class="w-40 h-40 rounded-full border-4 border-white shadow-2xl object-cover" />
+            <?php else: ?>
+                <div class="w-40 h-40 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-6xl font-bold shadow-2xl">
+                    <?= $initials ?>
+                </div>
+            <?php endif; ?>
 
-            <!-- Back Button -->
-            <div class="mb-6">
-                <a href="manage_users.php" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold">
-                    <i class="fas fa-arrow-left mr-2"></i> Back to User Management
-                </a>
+            <div class="text-center md:text-left flex-grow">
+                <h1 class="text-4xl font-bold text-gray-800"><?= htmlspecialchars("$firstName $lastName") ?></h1>
+                <p class="text-2xl text-gray-600 mt-1">@<?= htmlspecialchars($username) ?></p>
+                <div class="flex flex-wrap gap-3 mt-4 justify-center md:justify-start">
+                    <span class="px-5 py-2 rounded-full text-white font-bold text-sm <?= $user['role']=='admin'?'bg-red-600':($user['role']=='teacher'?'bg-blue-600':($user['role']=='parent'?'bg-purple-600':'bg-green-600')) ?>">
+                        <?= $role ?>
+                    </span>
+                    <span class="px-5 py-2 rounded-full text-white font-bold text-sm <?= $status=='Active'?'bg-green-600':($status=='Pending'?'bg-yellow-600':($status=='Waitlist'?'bg-orange-600':'bg-red-600')) ?>">
+                        <?= $status ?>
+                    </span>
+                </div>
             </div>
+        </div>
 
-            <!-- User Profile Card -->
-            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-6">
-                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-8">
-                    <div class="flex items-center gap-6">
+        <!-- Personal Info -->
+        <div class="section">
+            <h2 class="text-2xl font-bold mb-5 text-blue-700"><i class="fas fa-user mr-2"></i> Personal Details</h2>
+            <div class="space-y-3 text-gray-700">
+                <div><strong>ID Number:</strong> <?= htmlspecialchars($user['IDNumber'] ?? 'Not set') ?></div>
+                <div><strong>Gender:</strong> <?= ucfirst($user['gender'] ?? 'Not set') ?></div>
+                <div><strong>Date of Birth:</strong> <?= !empty($user['dob']) ? date('d M Y', strtotime($user['dob'])) : 'Not set' ?></div>
+                <div><strong>Phone:</strong> <?= htmlspecialchars($user['phone'] ?? 'Not provided') ?></div>
+                <div><strong>Email:</strong> <?= htmlspecialchars($user['email'] ?? 'Not provided') ?></div>
+                <div><strong>Created:</strong> <?= !empty($user['created_at']) ? date('d M Y, h:i A', strtotime($user['created_at'])) : 'Not set' ?></div>
+            </div>
+        </div>
 
-                        <!-- Profile Photo -->
-                        <?php if ($photoExists): ?>
-                            <img src="<?= htmlspecialchars($photoPath) ?>"
-                                 class="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover">
-                        <?php else: ?>
-                            <div class="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-5xl font-bold">
-                                <?= $initials ?>
-                            </div>
+        <!-- Address -->
+        <div class="section">
+            <h2 class="text-2xl font-bold mb-5 text-blue-700"><i class="fas fa-home mr-2"></i> Address</h2>
+            <div class="text-gray-700 space-y-2">
+                <div><?= htmlspecialchars($user['address1'] ?? '—') ?></div>
+                <div><?= htmlspecialchars($user['streetName'] ?? '') ?></div>
+                <div><?= htmlspecialchars($user['district'] ?? '') ?>, <?= htmlspecialchars($user['country'] ?? '') ?></div>
+                <div>Postal Code: <?= htmlspecialchars($user['postalCode'] ?? '—') ?></div>
+            </div>
+        </div>
+
+        <!-- Student-Specific Info -->
+        <?php if ($user['role'] === 'student' && $user['student_id']): ?>
+            <?php if ($student_medical): ?>
+                <div class="section">
+                    <h2 class="text-2xl font-bold mb-5 text-red-700"><i class="fas fa-heartbeat mr-2"></i> Medical Info</h2>
+                    <div class="space-y-2 text-gray-700">
+                        <div><strong>Blood Type:</strong> <?= htmlspecialchars($student_medical['blood_type'] ?? '—') ?></div>
+                        <div><strong>Allergies:</strong> <?= htmlspecialchars($student_medical['allergies'] ?? 'None') ?></div>
+                        <div><strong>Conditions:</strong> <?= htmlspecialchars($student_medical['chronic_conditions'] ?? 'None') ?></div>
+                        <div><strong>Medications:</strong> <?= htmlspecialchars($student_medical['medications'] ?? 'None') ?></div>
+                        <div><strong>Emergency Contact:</strong> <?= htmlspecialchars($student_medical['emergency_contact_name'] ?? '—') ?> (<?= htmlspecialchars($student_medical['emergency_contact_phone'] ?? '') ?>)</div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($student_transport): ?>
+                <div class="section">
+                    <h2 class="text-2xl font-bold mb-5 text-indigo-700"><i class="fas fa-bus mr-2"></i> Transport</h2>
+                    <div class="space-y-2 text-gray-700">
+                        <div><strong>Mode:</strong> <?= htmlspecialchars($student_transport['transport_mode'] ?? '—') ?></div>
+                        <div><strong>Route/Plate:</strong> <?= htmlspecialchars($student_transport['route_number'] ?? '—') ?></div>
+                        <div><strong>Pickup:</strong> <?= htmlspecialchars($student_transport['pick_up_point'] ?? '—') ?></div>
+                        <div><strong>Drop-off:</strong> <?= htmlspecialchars($student_transport['drop_off_point'] ?? '—') ?></div>
+                        <?php if (!empty($student_transport['transport_image']) && file_exists($student_transport['transport_image'])): ?>
+                            <img src="<?= htmlspecialchars($student_transport['transport_image']) ?>" class="mt-3 rounded-lg shadow-md max-w-full h-48 object-cover" alt="Transport Image" />
                         <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
 
-                        <!-- User Info -->
-                        <div>
-                            <h1 class="text-4xl font-bold mb-2">
-                                <?= htmlspecialchars($user['firstName'] . ' ' . $user['lastName']) ?>
-                            </h1>
+            <?php if ($parent_link): ?>
+                <div class="section">
+                    <h2 class="text-2xl font-bold mb-5 text-purple-700"><i class="fas fa-users mr-2"></i> Linked Parent</h2>
+                    <div class="text-gray-700">
+                        <div><strong>Name:</strong> <?= htmlspecialchars($parent_link['p_first'] . ' ' . $parent_link['p_last']) ?></div>
+                        <div><strong>Phone:</strong> <?= htmlspecialchars($parent_link['phone'] ?? '—') ?></div>
+                        <div><strong>Email:</strong> <?= htmlspecialchars($parent_link['email'] ?? '—') ?></div>
+                    </div>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
 
-                            <p class="text-xl text-blue-100">@<?= htmlspecialchars($user['username']) ?></p>
+        <!-- Teacher Speciality -->
+        <?php if ($user['role'] === 'teacher' && !empty($user['subject_speciality'])): ?>
+            <div class="section">
+                <h2 class="text-2xl font-bold mb-5 text-blue-700"><i class="fas fa-chalkboard-teacher mr-2"></i> Teaching</h2>
+                <div class="text-xl font-semibold text-gray-800"><?= htmlspecialchars($user['subject_speciality']) ?></div>
+            </div>
+        <?php endif; ?>
 
-                            <div class="mt-3">
-                                <!-- Role Badge -->
-                                <span class="inline-block px-4 py-2 rounded-full text-sm font-bold
-                                    <?= $user['role']=='admin'   ? 'bg-red-500' :
-                                       ($user['role']=='teacher' ? 'bg-blue-500' :
-                                       ($user['role']=='parent'  ? 'bg-purple-500' :
-                                       ($user['role']=='student' ? 'bg-green-500' : 'bg-gray-500'))) ?>">
-                                    <?= ucfirst($user['role']) ?>
-                                </span>
-
-                                <!-- Status Badge -->
-                                <span class="inline-block px-4 py-2 rounded-full text-sm font-bold ml-2
-                                    <?= $user['status']=='active'    ? 'bg-green-500' :
-                                       ($user['status']=='pending'   ? 'bg-yellow-500' :
-                                       ($user['status']=='waitlist'  ? 'bg-orange-500' : 'bg-red-500')) ?>">
-                                    <?= ucfirst($user['status']) ?>
+        <!-- Enrolled Courses -->
+        <?php if (!empty($courses)): ?>
+            <div class="section xl:col-span-3">
+                <h2 class="text-2xl font-bold mb-5 text-green-700"><i class="fas fa-graduation-cap mr-2"></i> Enrolled Courses (<?= count($courses) ?>)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <?php foreach ($courses as $c): ?>
+                        <div class="border rounded-lg p-4 bg-gray-50">
+                            <div class="font-bold text-lg"><?= htmlspecialchars($c['courseName']) ?></div>
+                            <div class="text-sm text-gray-600">Batch: <?= htmlspecialchars($c['batch_code']) ?></div>
+                            <div class="text-sm">Started: <?= date('d M Y', strtotime($c['start_date'])) ?></div>
+                            <div class="mt-2">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold <?= strtolower($c['status']) == 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' ?>">
+                                    <?= ucfirst(htmlspecialchars($c['status'])) ?>
                                 </span>
                             </div>
                         </div>
-
-                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
+        <?php endif; ?>
 
-            <!-- Information Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                <!-- PERSONAL INFORMATION -->
-                <div class="bg-white rounded-xl shadow-lg border p-6">
-                    <h2 class="text-2xl font-bold mb-6"><i class="fas fa-user text-blue-600 mr-3"></i>Personal Information</h2>
-
-                    <div class="space-y-4">
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">First Name:</span>
-                            <span><?= htmlspecialchars($user['firstName']) ?></span>
+        <!-- Attendance Summary -->
+        <?php if ($user['role'] === 'student'): ?>
+            <div class="section">
+                <h2 class="text-2xl font-bold mb-5 text-orange-700"><i class="fas fa-calendar-check mr-2"></i> Attendance Summary</h2>
+                <div class="space-y-3">
+                    <?php if (!empty($attendance_summary)): ?>
+                        <?php foreach ($attendance_summary as $status => $count): ?>
+                            <div class="flex justify-between text-gray-700">
+                                <span><?= htmlspecialchars($status ?: 'Not Marked') ?></span>
+                                <span class="font-bold"><?= (int)$count ?> times</span>
+                            </div>
+                        <?php endforeach; ?>
+                        <div class="border-t pt-3 font-bold text-lg">
+                            Total Sessions: <?= (int)$total_sessions ?>
                         </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Last Name:</span>
-                            <span><?= htmlspecialchars($user['lastName']) ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Gender:</span>
-                            <span><?= htmlspecialchars($user['gender'] ?? 'Not set') ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Date of Birth:</span>
-                            <span><?= $user['dob'] ? date('M d, Y', strtotime($user['dob'])) : 'Not provided' ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">ID Number:</span>
-                            <span><?= htmlspecialchars($user['IDNumber'] ?? 'Not provided') ?></span>
-                        </div>
-                    </div>
+                    <?php else: ?>
+                        <div class="text-gray-500">No attendance records found.</div>
+                    <?php endif; ?>
                 </div>
-
-                <!-- CONTACT INFORMATION -->
-                <div class="bg-white rounded-xl shadow-lg border p-6">
-                    <h2 class="text-2xl font-bold mb-6"><i class="fas fa-address-book text-blue-600 mr-3"></i>Contact Information</h2>
-
-                    <div class="space-y-4">
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Email:</span>
-                            <span><?= htmlspecialchars($user['email']) ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Phone:</span>
-                            <span><?= htmlspecialchars($user['phone'] ?? 'Not provided') ?></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ADDRESS INFORMATION -->
-                <div class="bg-white rounded-xl shadow-lg border p-6">
-                    <h2 class="text-2xl font-bold mb-6"><i class="fas fa-map-marker-alt text-blue-600 mr-3"></i>Address Information</h2>
-
-                    <div class="space-y-4">
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Address Line 1:</span>
-                            <span><?= htmlspecialchars($user['address1'] ?? 'Not provided') ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Street:</span>
-                            <span><?= htmlspecialchars($user['streetName'] ?? 'Not provided') ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">District:</span>
-                            <span><?= htmlspecialchars($user['district'] ?? 'Not provided') ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Postal Code:</span>
-                            <span><?= htmlspecialchars($user['postalCode'] ?? 'Not provided') ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Country:</span>
-                            <span><?= htmlspecialchars($user['country'] ?? 'Not provided') ?></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ACCOUNT INFORMATION -->
-                <div class="bg-white rounded-xl shadow-lg border p-6">
-                    <h2 class="text-2xl font-bold mb-6"><i class="fas fa-cog text-blue-600 mr-3"></i>Account Information</h2>
-
-                    <div class="space-y-4">
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">User ID:</span>
-                            <span><?= $user['user_id'] ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Role:</span>
-                            <span><?= ucfirst($user['role']) ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Status:</span>
-                            <span><?= ucfirst($user['status']) ?></span>
-                        </div>
-
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-40">Created At:</span>
-                            <span><?= date('M d, Y h:i A', strtotime($user['created_at'])) ?></span>
-                        </div>
-
-                    </div>
-                </div>
-
-                <!-- TEACHER INFO -->
-                <?php if ($user['role'] === 'teacher' && !empty($user['subject_speciality'])): ?>
-                <div class="bg-white rounded-xl shadow-lg border p-6 lg:col-span-2">
-                    <h2 class="text-2xl font-bold mb-6"><i class="fas fa-chalkboard-teacher text-blue-600 mr-3"></i>Teacher Information</h2>
-
-                    <div class="space-y-4">
-                        <div class="flex border-b pb-3">
-                            <span class="font-semibold w-48">Subject Speciality:</span>
-                            <span><?= htmlspecialchars($user['subject_speciality']) ?></span>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
             </div>
+        <?php endif; ?>
 
-            <!-- ACTION BUTTON -->
-            <div class="mt-8 flex gap-4 justify-center">
-                <a href="manage_users.php" class="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-lg font-semibold">
-                    <i class="fas fa-arrow-left mr-2"></i> Back to List
-                </a>
-            </div>
-
+        <div class="mt-10 text-center">
+            <a href="manage_users.php" class="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl text-lg font-bold inline-flex items-center shadow-lg">
+                <i class="fas fa-arrow-left mr-3"></i> Back to All Users
+            </a>
         </div>
     </div>
-</div>
-
 </body>
 </html>

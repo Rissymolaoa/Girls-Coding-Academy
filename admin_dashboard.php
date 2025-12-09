@@ -265,14 +265,14 @@ $announcements_result = $conn->query("
                                 <p class="text-xs text-gray-600">Create & manage courses</p>
                             </div>
                         </a>
-                        <a href="manage_batches.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-emerald-50 border border-emerald-100">
+                        <a href="add_batch.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-emerald-50 border border-emerald-100">
                             <i class="fas fa-calendar-week text-2xl text-emerald-600 flex-shrink-0"></i>
                             <div>
                                 <span class="font-semibold text-sm text-gray-900">Batches</span>
                                 <p class="text-xs text-gray-600">Manage course batches</p>
                             </div>
                         </a>
-                        <a href="attendance_report.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-teal-50 border border-teal-100">
+                        <a href="view_attendance.php" class="quick-link rounded-lg p-4 text-left shadow-sm flex items-center gap-4 bg-teal-50 border border-teal-100">
                             <i class="fas fa-clipboard-list text-2xl text-teal-600 flex-shrink-0"></i>
                             <div>
                                 <span class="font-semibold text-sm text-gray-900">Attendance</span>

@@ -14,7 +14,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // DB connection
-$host = "localhost";
+$host = "localhost:3307";
 $user = "root";
 $pass = "";
 $db = "girlscodingacademydb";

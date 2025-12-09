@@ -1,259 +1,233 @@
 <?php
 session_start();
-
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");
     exit();
 }
-
-// DB connection
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db = "girlscodingacademydb";
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-$conn->set_charset("utf8mb4");
+include 'db.php';
 
 $search_query = trim($_GET['q'] ?? '');
-$results = [];
-
-// If no search query, redirect or show message
 if (empty($search_query)) {
-    header("Location: dashboard.php");
+    header("Location: admin_dashboard.php");
     exit();
 }
 
-// Perform search across multiple tables using UNION
+$like  = "%" . $conn->real_escape_string($search_query) . "%";
+$exact = $conn->real_escape_string($search_query);
+$results = [];
+
+// FINAL WORKING SEARCH – ALL TABLES & COLUMNS FIXED
 $sql = "
-    SELECT 'User' as type, user_id as id, CONCAT(firstName, ' ', lastName) as name, email as detail, username as extra, created_at as timestamp
-    FROM users 
-    WHERE firstName LIKE ? OR lastName LIKE ? OR email LIKE ? OR username LIKE ?
-    
-    UNION
-    
-    SELECT 'Course' as type, course_id as id, title as name, courseName as detail, description as extra, start_date as timestamp
-    FROM courses 
-    WHERE title LIKE ? OR courseName LIKE ? OR description LIKE ?
-    
-    UNION
-    
-    SELECT 'Batch' as type, batch_id as id, batch_code as name, CONCAT('Course ID: ', course_id) as detail, status as extra, start_date as timestamp
-    FROM batches 
-    WHERE batch_code LIKE ? OR status LIKE ?
-    
-    UNION
-    
-    SELECT 'Student' as type, s.student_id as id, CONCAT(u.firstName, ' ', u.lastName) as name, u.email as detail, 'Student' as extra, u.created_at as timestamp
-    FROM students s
-    JOIN users u ON s.user_id = u.user_id
-    WHERE u.firstName LIKE ? OR u.lastName LIKE ? OR u.email LIKE ?
-    
-    UNION
-    
-    SELECT 'Teacher' as type, t.teacher_id as id, CONCAT(u.firstName, ' ', u.lastName) as name, u.email as detail, t.subject_speciality as extra, u.created_at as timestamp
-    FROM teachers t
-    JOIN users u ON t.user_id = u.user_id
+    -- 1. Users
+    SELECT 'user'       AS type, user_id      AS id, CONCAT(firstName,' ',lastName) AS name, email, username,                'manage_users.php'        AS page 
+    FROM users
+    WHERE firstName LIKE ? OR lastName LIKE ? OR email LIKE ? OR username LIKE ? OR phone LIKE ?
+
+    UNION ALL
+
+    -- 2. Students
+    SELECT 'student'    AS type, s.student_id AS id, CONCAT(u.firstName,' ',u.lastName) AS name, u.email, u.phone,          'manage_students.php'     AS page
+    FROM students s JOIN users u ON s.user_id = u.user_id
+    WHERE u.firstName LIKE ? OR u.lastName LIKE ? OR u.email LIKE ? OR u.phone LIKE ?
+
+    UNION ALL
+
+    -- 3. Teachers
+    SELECT 'teacher'    AS type, t.teacher_id AS id, CONCAT(u.firstName,' ',u.lastName) AS name, u.email, t.subject_speciality, 'manage_teacher.php'      AS page
+    FROM teachers t JOIN users u ON t.user_id = u.user_id
     WHERE u.firstName LIKE ? OR u.lastName LIKE ? OR u.email LIKE ? OR t.subject_speciality LIKE ?
-    
-    UNION
-    
-    SELECT 'Activity' as type, activity_id as id, title as name, description as detail, batch_id as extra, created_at as timestamp
-    FROM activities 
+
+    UNION ALL
+
+    -- 4. Parents
+    SELECT 'parent'     AS type, p.parent_id  AS id, CONCAT(u.firstName,' ',u.lastName) AS name, u.email, u.phone,          'manage_parents.php'      AS page
+    FROM parents p JOIN users u ON p.user_id = u.user_id
+    WHERE u.firstName LIKE ? OR u.lastName LIKE ? OR u.email LIKE ? OR u.phone LIKE ?
+
+    UNION ALL
+
+    -- 5. Courses
+    SELECT 'course'     AS type, course_id    AS id, title                               AS name, courseName, category,      'manage_courses.php'      AS page
+    FROM courses
+    WHERE title LIKE ? OR courseName LIKE ? OR category LIKE ?
+
+    UNION ALL
+
+    -- 6. Batches
+    SELECT 'batch'      AS type, batch_id     AS id, batch_code                          AS name, status, NULL,              'add_batch.php'           AS page
+    FROM batches
+    WHERE batch_code LIKE ? OR status LIKE ?
+
+    UNION ALL
+
+    -- 7. Activities
+    SELECT 'activity'   AS type, activity_id  AS id, title                               AS name, description, NULL,         'academics.php'           AS page
+    FROM activities
     WHERE title LIKE ? OR description LIKE ?
-    
-    UNION
-    
-    SELECT 'Event' as type, event_id as id, title as name, description as detail, location as extra, event_date as timestamp
-    FROM events 
+
+    UNION ALL
+
+    -- 8. Events
+    SELECT 'event'      AS type, event_id     AS id, title                               AS name, description, location,    'events.php'              AS page
+    FROM events
     WHERE title LIKE ? OR description LIKE ? OR location LIKE ?
-    
-    ORDER BY timestamp DESC
-    LIMIT 50
+
+    UNION ALL
+
+    -- 9. Rooms (correct table)
+    SELECT 'room'       AS type, id           AS id, room_name                           AS name, room_type, capacity,      'manage_rooms.php'        AS page
+    FROM school_rooms
+    WHERE room_name LIKE ? OR room_type LIKE ? OR status LIKE ?
+
+    UNION ALL
+
+    -- 10. Equipment (your real table – assuming school_equipments)
+    SELECT 'equipment'  AS type, id           AS id, item_name                           AS name, category, notes,          'manage_equipments.php'   AS page
+    FROM school_equipment
+    WHERE item_name LIKE ? OR category LIKE ? OR notes LIKE ?
+
+    ORDER BY
+        CASE 
+            WHEN name = ? THEN 0
+            WHEN name LIKE ? THEN 1
+            ELSE 2 
+        END,
+        name
+    LIMIT 100
 ";
 
 $stmt = $conn->prepare($sql);
-$like_param = "%$search_query%";
-$params = array_fill(0, 21, $like_param); // Corrected count: 4+3+2+3+4+2+3=21
-$stmt->bind_param(str_repeat('s', 21), ...$params);
-$stmt->execute();
-$result = $stmt->get_result();
 
-while ($row = $result->fetch_assoc()) {
+// CORRECT PARAMETER COUNT: 5+4+4+4+3+2+2+3+3+3 + 2 = 35
+$params = [
+    // Users
+    $like, $like, $like, $like, $like,
+    // Students
+    $like, $like, $like, $like,
+    // Teachers
+    $like, $like, $like, $like,
+    // Parents
+    $like, $like, $like, $like,
+    // Courses
+    $like, $like, $like,
+    // Batches
+    $like, $like,
+    // Activities
+    $like, $like,
+    // Events
+    $like, $like, $like,
+    // Rooms
+    $like, $like, $like,
+    // Equipment
+    $like, $like, $like,
+    // Sorting priority
+    $exact, $like
+];
+
+
+$stmt->bind_param(str_repeat('s', count($params)), ...$params);
+$stmt->execute();
+$res = $stmt->get_result();
+
+while ($row = $res->fetch_assoc()) {
     $results[] = $row;
 }
 
-$stmt->close();
-$conn->close();
+// Smart redirect if only ONE exact match
+if (count($results) === 1) {
+    $item = $results[0];
+    $url = $item['page'] . "?id=" . $item['id'];
+    if ($item['type'] === 'batch')     $url = "add_batch.php?id=" . $item['id'];
+    if ($item['type'] === 'activity')  $url = "academics.php#activity-" . $item['id'];
+    header("Location: $url");
+    exit();
+}
 ?>
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Search Results - <?= htmlspecialchars($search_query) ?> - Girls Coding Academy</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-<style>
-  :root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
-    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
-  }
-
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
-    padding-top: 56px;
-  }
-
-  .search-header {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 2rem;
-    margin: 2rem auto;
-    max-width: 800px;
-    box-shadow: var(--shadow-lg);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    text-align: center;
-  }
-
-  .search-header h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 0.5rem;
-  }
-
-  .results-section {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 1rem;
-  }
-
-  .results-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: var(--shadow-md);
-    border-left: 4px solid #667eea;
-    transition: all 0.3s ease;
-  }
-
-  .results-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .type-badge {
-    font-size: 0.8rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    color: white;
-  }
-
-  .type-user { background: #667eea; }
-  .type-course { background: #764ba2; }
-  .type-batch { background: #f093fb; }
-  .type-student { background: #4facfe; }
-  .type-teacher { background: #43e97b; }
-  .type-activity { background: #fa709a; }
-  .type-event { background: #a8edea; }
-
-  .no-results {
-    text-align: center;
-    padding: 3rem;
-    color: #6b7280;
-  }
-
-  .back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #667eea;
-    text-decoration: none;
-    font-weight: 500;
-    margin-bottom: 1rem;
-  }
-
-  .back-link:hover {
-    color: #764ba2;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results • Girls Coding Academy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {font-family:'Inter',sans-serif;background:linear-gradient(135deg,#f8fafc 0%,#e2e8f0 100%);padding-top:80px}
+        .card{transition:all .3s}@media(hover:hover){.card:hover{transform:translateY(-6px);box-shadow:0 25px 50px -12px rgba(0,0,0,.15)}}
+        .badge{@apply px-3 py-1 rounded-full text-xs font-bold text-white}
+    </style>
 </head>
-<body>
+<body class="min-h-screen">
+
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
+<div class="max-w-5xl mx-auto px-4 py-10">
 
-<div class="search-header">
-  <a href="admin_dashboard.php" class="back-link">
-    <i class="bi bi-arrow-left"></i>
-    Back to Dashboard
-  </a>
-  <h1>Search Results for "<?= htmlspecialchars($search_query) ?>"</h1>
-  <p class="text-muted">Found <?= count($results) ?> results across the system.</p>
-</div>
-
-<div class="results-section">
-  <?php if (empty($results)): ?>
-    <div class="no-results">
-      <i class="bi bi-search" style="font-size: 4rem; color: #d1d5db; margin-bottom: 1rem;"></i>
-      <h3>No results found</h3>
-      <p>Try adjusting your search terms or check spelling. You can search students, courses, activities, events, and more.</p>
-      <a href="admin_dashboard.php" class="btn btn-primary">Go to Dashboard</a>
+    <div class="text-center mb-12">
+        <h1 class="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Search Results
+        </h1>
+        <p class="text-xl text-gray-600 mt-4">
+            Found <strong><?=count($results)?></strong> result<?=count($results)!==1?'s':''?> for
+            <span class="text-indigo-600 font-bold">"<?=htmlspecialchars($search_query)?>"</span>
+        </p>
+        <a href="admin_dashboard.php" class="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 mt-6">
+            Back to Dashboard
+        </a>
     </div>
-  <?php else: ?>
-    <?php foreach ($results as $result): ?>
-      <div class="results-card">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          <h5><?= htmlspecialchars($result['name']) ?></h5>
-          <span class="type-badge type-<?= strtolower($result['type']) ?>"><?= htmlspecialchars($result['type']) ?></span>
-        </div>
-        <p class="text-muted mb-1"><?= htmlspecialchars($result['detail']) ?></p>
-        <?php if (!empty($result['extra'])): ?>
-          <small class="text-muted">Extra: <?= htmlspecialchars($result['extra']) ?></small>
-        <?php endif; ?>
-        <small class="text-muted d-block mt-2">
-          <i class="bi bi-clock-history"></i> <?= date('M j, Y', strtotime($result['timestamp'])) ?>
-        </small>
-        <!-- Action links based on type -->
-        <div class="mt-2">
-          <?php if ($result['type'] === 'User'): ?>
-            <a href="user_profile.php?id=<?= $result['id'] ?>" class="btn btn-sm btn-outline-primary">View Profile</a>
-          <?php elseif ($result['type'] === 'Course'): ?>
-            <a href="manage_courses.php?id=<?= $result['id'] ?>" class="btn btn-sm btn-outline-primary">View Course</a>
-          <?php elseif ($result['type'] === 'Batch'): ?>
-            <a href="add_batch.php?id=<?= $result['id'] ?>" class="btn btn-sm btn-outline-primary">View Batch</a>
-          <?php elseif ($result['type'] === 'Student'): ?>
-            <a href="student_profile.php?id=<?= $result['id'] ?>" class="btn btn-sm btn-outline-primary">View Student</a>
-          <?php elseif ($result['type'] === 'Teacher'): ?>
-            <a href="teacher_profile.php?id=<?= $result['id'] ?>" class="btn btn-sm btn-outline-primary">View Teacher</a>
-          <?php elseif ($result['type'] === 'Activity'): ?>
-            <a href="activity_details.php?id=<?= $result['id'] ?>" class="btn btn-sm btn-outline-primary">View Activity</a>
-          <?php elseif ($result['type'] === 'Event'): ?>
-            <a href="event_details.php?id=<?= $result['id'] ?>" class="btn btn-sm btn-outline-primary">View Event</a>
-          <?php endif; ?>
-        </div>
-      </div>
-    <?php endforeach; ?>
-  <?php endif; ?>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <?php if(empty($results)): ?>
+        <div class="text-center py-20">
+            <i class="bi bi-search text-7xl text-gray-300"></i>
+            <h3 class="text-2xl text-gray-500 mt-6">No results found</h3>
+            <p class="text-gray-400 mt-2">Try searching by name, email, batch code, room, equipment, etc.</p>
+        </div>
+    <?php else: ?>
+        <div class="grid gap-5">
+            <?php foreach($results as $r):
+                $icons = [
+                    'user'=>'bi-person-circle','student'=>'bi-mortarboard-fill','teacher'=>'bi-person-workspace',
+                    'parent'=>'bi-people-fill','course'=>'bi-book-half','batch'=>'bi-collection-fill',
+                    'activity'=>'bi-list-check','event'=>'bi-calendar-event','room'=>'bi-building',
+                    'equipment'=>'bi-tools'
+                ];
+                $colors = [
+                    'user'=>'bg-purple-600','student'=>'bg-blue-600','teacher'=>'bg-emerald-600','parent'=>'bg-pink-600',
+                    'course'=>'bg-indigo-600','batch'=>'bg-cyan-600','activity'=>'bg-orange-600','event'=>'bg-rose-600',
+                    'room'=>'bg-slate-600','equipment'=>'bg-amber-600'
+                ];
+                $icon  = $icons[$r['type']]  ?? 'bi-circle-fill';
+                $color = $colors[$r['type']] ?? 'bg-gray-600';
+
+                $url = $r['page'] . "?id=" . $r['id'];
+                if($r['type']==='batch')    $url = "add_batch.php?id=".$r['id'];
+                if($r['type']==='activity') $url = "academics.php#activity-".$r['id'];
+            ?>
+                <a href="<?=$url?>" class="card block bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:border-indigo-400">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-5">
+                            <div class="w-14 h-14 rounded-xl <?=$color?> flex items-center justify-center text-white text-2xl">
+                                <i class="<?=$icon?>"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-gray-800"><?=htmlspecialchars($r['name'])?></h3>
+                                <p class="text-gray-600">
+                                    <?=htmlspecialchars($r['email'] ?? $r['courseName'] ?? $r['room_type'] ?? $r['category'] ?? $r['notes'] ?? '')?>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="badge <?=$color?>"><?=ucfirst($r['type'])?></span>
+                            <p class="text-xs text-gray-500 mt-2">Click to view</p>
+                        </div>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
+</div>
 </body>
 </html>

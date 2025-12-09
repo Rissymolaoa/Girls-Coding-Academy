@@ -12,7 +12,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 }
 
 // DB config (use .env in production)
-$db_host = 'localhost';
+$db_host = 'localhost:3307';
 $db_user = 'root';
 $db_pass = '';
 $db_name = 'girlscodingacademydb';

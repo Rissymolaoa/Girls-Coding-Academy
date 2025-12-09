@@ -10,60 +10,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 $success = $error = '';
 
 // Restore item
-if (isset($_GET['restore']) && isset($_GET['type'])) {
-    $id = intval($_GET['restore']);
-    $type = $_GET['type'];
-
-    $table = '';
-    $id_col = '';
-    
-    switch ($type) {
-        case 'user': 
-            $table = 'users'; 
-            $id_col = 'user_id'; 
-            break;
-        case 'course': 
-            $table = 'courses'; 
-            $id_col = 'course_id'; 
-            break;
-        case 'batch': 
-            $table = 'batches'; 
-            $id_col = 'batch_id'; 
-            break;
-        case 'activity': 
-            $table = 'activities'; 
-            $id_col = 'activity_id'; 
-            break;
-        case 'material': 
-            $table = 'materials'; 
-            $id_col = 'material_id'; 
-            break;
-    }
-
-    if ($table && $id_col) {
-        try {
-            $stmt = $conn->prepare("UPDATE $table SET deleted_at = NULL WHERE $id_col = ?");
-            $stmt->bind_param("i", $id);
-            
-            if ($stmt->execute()) {
-                $success = ucfirst($type) . " restored successfully!";
-            } else {
-                $error = "Failed to restore " . $type . ".";
-            }
-            
-            $stmt->close();
-            
-            // Redirect to remove GET parameters
-            header("Location: recycle_bin.php?success=" . urlencode($success));
-            exit();
-            
-        } catch (Exception $e) {
-            $error = "Error: " . $e->getMessage();
-        }
-    }
-}
-
-// Permanent delete
+// Permanent delete section - COMPREHENSIVE FIX
 if (isset($_GET['permadelete']) && isset($_GET['type'])) {
     $id = intval($_GET['permadelete']);
     $type = $_GET['type'];
@@ -96,19 +43,165 @@ if (isset($_GET['permadelete']) && isset($_GET['type'])) {
 
     if ($table && $id_col) {
         try {
-            // For users, also delete from role-specific tables
-            if ($type === 'user') {
-                $conn->query("DELETE FROM teachers WHERE user_id = $id");
-                $conn->query("DELETE FROM students WHERE user_id = $id");
-                $conn->query("DELETE FROM parents WHERE user_id = $id");
+            // Start transaction for data consistency
+            $conn->begin_transaction();
+            
+            // For courses, delete all associated batches and their data
+            if ($type === 'course') {
+                $batch_result = $conn->query("SELECT batch_id FROM batches WHERE course_id = $id");
+                while ($batch = $batch_result->fetch_assoc()) {
+                    $bid = $batch['batch_id'];
+                    // Delete child records for this batch
+                    $conn->query("DELETE FROM activities WHERE batch_id = $bid");
+                    $conn->query("DELETE FROM materials WHERE batch_id = $bid");
+                    $conn->query("DELETE FROM activity_submissions WHERE activity_id IN (SELECT activity_id FROM activities WHERE batch_id = $bid)");
+                    $conn->query("DELETE FROM tests WHERE batch_id = $bid");
+                    $conn->query("DELETE FROM test_submissions WHERE test_id IN (SELECT test_id FROM tests WHERE batch_id = $bid)");
+                    $conn->query("DELETE FROM course_enrollments WHERE batch_id = $bid");
+                    $conn->query("DELETE FROM attendance WHERE batch_id = $bid");
+                    $conn->query("DELETE FROM internal_grades WHERE batch_id = $bid");
+                    $conn->query("DELETE FROM course_assignments WHERE batch_id = $bid");
+                }
+                // Delete all batches for this course
+                $conn->query("DELETE FROM batches WHERE course_id = $id");
             }
             
+            // For batches, delete all associated data
+            if ($type === 'batch') {
+                $conn->query("DELETE FROM activities WHERE batch_id = $id");
+                $conn->query("DELETE FROM materials WHERE batch_id = $id");
+                $conn->query("DELETE FROM activity_submissions WHERE activity_id IN (SELECT activity_id FROM activities WHERE batch_id = $id)");
+                $conn->query("DELETE FROM tests WHERE batch_id = $id");
+                $conn->query("DELETE FROM test_submissions WHERE test_id IN (SELECT test_id FROM tests WHERE batch_id = $id)");
+                $conn->query("DELETE FROM course_enrollments WHERE batch_id = $id");
+                $conn->query("DELETE FROM attendance WHERE batch_id = $id");
+                $conn->query("DELETE FROM internal_grades WHERE batch_id = $id");
+                $conn->query("DELETE FROM course_assignments WHERE batch_id = $id");
+            }
+            
+            // For users, delete from role-specific tables and all related data
+            if ($type === 'user') {
+                // If teacher, delete all their activities, tests, materials, assignments
+                $teacher_result = $conn->query("SELECT teacher_id FROM teachers WHERE user_id = $id");
+                if ($teacher_result && $teacher_result->num_rows > 0) {
+                    $teacher = $teacher_result->fetch_assoc();
+                    $tid = $teacher['teacher_id'];
+                    
+                    // Get all activities by this teacher
+                    $conn->query("DELETE FROM activity_submissions WHERE activity_id IN (SELECT activity_id FROM activities WHERE teacher_id = $tid)");
+                    $conn->query("DELETE FROM activities WHERE teacher_id = $tid");
+                    
+                    // Get all materials by this teacher
+                    $conn->query("DELETE FROM materials WHERE teacher_id = $tid");
+                    
+                    // Get all tests by this teacher
+                    $conn->query("DELETE FROM test_submissions WHERE test_id IN (SELECT test_id FROM tests WHERE teacher_id = $tid)");
+                    $conn->query("DELETE FROM tests WHERE teacher_id = $tid");
+                    
+                    // Delete course assignments
+                    $conn->query("DELETE FROM course_assignments WHERE teacher_id = $tid");
+                    
+                    // Delete teacher batch assignments
+                    $conn->query("DELETE FROM teacher_batches WHERE teacher_id = $tid");
+                    
+                    // Delete attendance records
+                    $conn->query("DELETE FROM attendance WHERE marked_by = $tid");
+                    
+                    // Delete teacher record
+                    $conn->query("DELETE FROM teachers WHERE user_id = $id");
+                }
+                
+                // If student, delete all their enrollments, submissions, grades, attendance
+                $student_result = $conn->query("SELECT student_id FROM students WHERE user_id = $id");
+                if ($student_result && $student_result->num_rows > 0) {
+                    $student = $student_result->fetch_assoc();
+                    $sid = $student['student_id'];
+                    
+                    // Delete activity submissions
+                    $conn->query("DELETE FROM activity_submissions WHERE enrollment_id IN (SELECT enrollment_id FROM course_enrollments WHERE student_id = $sid)");
+                    
+                    // Delete test submissions
+                    $conn->query("DELETE FROM test_submissions WHERE student_id = $sid");
+                    
+                    // Delete enrollments
+                    $conn->query("DELETE FROM course_enrollments WHERE student_id = $sid");
+                    
+                    // Delete attendance
+                    $conn->query("DELETE FROM attendance WHERE student_id = $sid");
+                    
+                    // Delete grades
+                    $conn->query("DELETE FROM internal_grades WHERE student_id = $sid");
+                    
+                    // Delete notifications
+                    $conn->query("DELETE FROM notifications WHERE student_id = $sid");
+                    
+                    // Delete medical info
+                    $conn->query("DELETE FROM student_medical_info WHERE student_id = $sid");
+                    
+                    // Delete transport info
+                    $conn->query("DELETE FROM student_transport_info WHERE student_id = $sid");
+                    
+                    // Delete student messages
+                    $conn->query("DELETE FROM student_messages WHERE student_id = $sid");
+                    
+                    // Delete course favorites
+                    $conn->query("DELETE FROM course_favorites WHERE student_id = $sid");
+                    
+                    // Delete parent-student relationships
+                    $conn->query("DELETE FROM parent_students WHERE student_id = $sid");
+                    
+                    // Delete student record
+                    $conn->query("DELETE FROM students WHERE user_id = $id");
+                }
+                
+                // If parent, delete parent-related data
+                $parent_result = $conn->query("SELECT parent_id FROM parents WHERE user_id = $id");
+                if ($parent_result && $parent_result->num_rows > 0) {
+                    $parent = $parent_result->fetch_assoc();
+                    $pid = $parent['parent_id'];
+                    
+                    // Delete parent-student relationships
+                    $conn->query("DELETE FROM parent_students WHERE parent_id = $pid");
+                    
+                    // Delete parent messages
+                    $conn->query("DELETE FROM parent_messages WHERE sender_user_id = $id OR recipient_user_id = $id");
+                    
+                    // Delete groupchat messages
+                    $conn->query("DELETE FROM parents_groupchat_messages WHERE sender_user_id = $id");
+                    
+                    // Delete parent record
+                    $conn->query("DELETE FROM parents WHERE user_id = $id");
+                }
+                
+                // Delete messages where user is sender
+                $conn->query("DELETE FROM messages WHERE sender_id = $id");
+                
+                // Delete temporary IDs
+                $conn->query("DELETE FROM temporary_ids WHERE user_id = $id");
+                
+                // Delete user verifications
+                $conn->query("DELETE FROM user_verifications WHERE user_id = $id");
+                
+                // Delete payments
+                $conn->query("DELETE FROM payments WHERE payer_user_id = $id");
+            }
+            
+            // For activities, delete submissions
+            if ($type === 'activity') {
+                $conn->query("DELETE FROM activity_submissions WHERE activity_id = $id");
+            }
+            
+            // For materials - no dependencies typically
+            
+            // Delete from main table
             $stmt = $conn->prepare("DELETE FROM $table WHERE $id_col = ?");
             $stmt->bind_param("i", $id);
             
             if ($stmt->execute()) {
+                $conn->commit();
                 $success = ucfirst($type) . " permanently deleted!";
             } else {
+                $conn->rollback();
                 $error = "Failed to delete " . $type . " permanently.";
             }
             
@@ -119,6 +212,7 @@ if (isset($_GET['permadelete']) && isset($_GET['type'])) {
             exit();
             
         } catch (Exception $e) {
+            $conn->rollback();
             $error = "Error: " . $e->getMessage();
         }
     }

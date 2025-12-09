@@ -2,7 +2,7 @@
 session_start();
 
 // Database connection
-$host = "localhost";
+$host = "localhost:3307";
 $user = "root";
 $pass = "";
 $db   = "girlscodingacademydb";
