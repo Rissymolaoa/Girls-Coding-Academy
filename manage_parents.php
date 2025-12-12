@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $hash = password_hash($password ?: 'parent123', PASSWORD_DEFAULT);
         $stmt = $conn->prepare("INSERT INTO users (username,firstName,lastName,dob,gender,IDNumber,phone,email,password,status,role,document,address_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        $stmt->bind_param("ssssssssssssi", $username, $firstName, $lastName, $dob, $gender, $IDNumber, $phone, $email, $hash, $status, 'parent', $docPath, $address_id);
+        $stmt->bind_param("ssssssssssssi", $username, $firstName, $lastName, $dob, $gender, $IDNumber, $phone, $email, $hash, $status, $role, $docPath, $address_id);
         $stmt->execute(); $new_user_id = $conn->insert_id; $stmt->close();
 
         $stmt = $conn->prepare("INSERT INTO parents (user_id, relationship, photo) VALUES (?, ?, ?)");
