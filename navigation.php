@@ -20,8 +20,8 @@ $userName = $_SESSION['firstName'] ?? 'User';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-blue: #1e3a8a;
-            --secondary-blue: #3b82f6;
+            --primary-blue: #8a27a5;
+            --secondary-blue: #6830a3;
             --accent-blue: #1d4ed8;
             --accent-hover: #1e40af;
             --white: #ffffff;

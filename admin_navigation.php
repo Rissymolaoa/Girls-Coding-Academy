@@ -142,7 +142,7 @@ $current_page = basename($_SERVER['PHP_SELF']); // Detect current page for activ
     /* Sidebar Styles */
     .sidebar {
         width: 220px;
-        background: linear-gradient(180deg, #1e3a8a, #3b82f6);
+        background: linear-gradient(180deg, #060a6353, #0b0b90);
         position: fixed;
         height: 100vh;
         overflow-y: auto;

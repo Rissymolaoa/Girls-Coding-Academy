@@ -6,8 +6,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 }
 require_once 'db.php';
 
-// Handle messages
-$message = "";
+// Handle messages with session (for SweetAlert after redirect/refresh)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_batch'])) {
     $course_id  = $_POST['course_id'];
     $batch_code = trim($_POST['batch_code']);
@@ -17,8 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_batch'])) {
 
     $stmt = $conn->prepare("INSERT INTO batches (batch_code, course_id, start_date, end_date, status) VALUES (?, ?, ?, ?, ?)");
     $stmt->bind_param("sisss", $batch_code, $course_id, $start_date, $end_date, $status);
-    $message = $stmt->execute() ? "Batch created successfully!" : "Error: " . $stmt->error;
+
+    if ($stmt->execute()) {
+        $_SESSION['success_msg'] = "Batch created successfully!";
+    } else {
+        $_SESSION['error_msg'] = "Error: " . $stmt->error;
+    }
     $stmt->close();
+
+    header("Location: " . $_SERVER['PHP_SELF']); // refresh to show message
+    exit();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_batch'])) {
@@ -31,8 +38,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_batch'])) {
 
     $stmt = $conn->prepare("UPDATE batches SET course_id=?, batch_code=?, start_date=?, end_date=?, status=? WHERE batch_id=?");
     $stmt->bind_param("issssi", $course_id, $batch_code, $start_date, $end_date, $status, $batch_id);
-    $message = $stmt->execute() ? "Batch updated successfully!" : "Error updating: " . $stmt->error;
+
+    if ($stmt->execute()) {
+        $_SESSION['success_msg'] = "Batch updated successfully!";
+    } else {
+        $_SESSION['error_msg'] = "Error updating: " . $stmt->error;
+    }
     $stmt->close();
+
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
 }
 
 if (isset($_GET['delete'])) {
@@ -52,24 +67,29 @@ if (isset($_GET['delete'])) {
         $stmt->execute();
         $stmt->close();
         $conn->commit();
-        $message = "Batch and all related data deleted!";
+
+        $_SESSION['success_msg'] = "Batch and all related data deleted successfully!";
     } catch (Exception $e) {
         $conn->rollback();
-        $message = "Error: " . $e->getMessage();
+        $_SESSION['error_msg'] = "Error: " . $e->getMessage();
     }
+
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
 }
 
-// Search
+// ────────────────────────────────────────────────
+// Rest of your existing logic (search, stats, fetch data)
+// ────────────────────────────────────────────────
+
 $search = trim($_GET['search'] ?? '');
 $where = $search ? "AND (b.batch_code LIKE ? OR c.courseName LIKE ?)" : "";
 $like = $search ? "%$search%" : "";
 
-// Stats
 $total_batches = $conn->query("SELECT COUNT(*) FROM batches")->fetch_row()[0];
 $active_batches = $conn->query("SELECT COUNT(*) FROM batches WHERE status='active'")->fetch_row()[0];
 $completed_batches = $conn->query("SELECT COUNT(*) FROM batches WHERE status='completed'")->fetch_row()[0];
 
-// Fetch batches
 $limit = 10;
 $page = max(1, intval($_GET['page'] ?? 1));
 $offset = ($page - 1) * $limit;
@@ -95,6 +115,7 @@ $courses = $conn->query("SELECT course_id, courseName FROM courses ORDER BY cour
     <title>Manage Batches - Girls Coding Academy</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root { --primary: #4f46e5; --primary-light: #6366f1; --primary-dark: #4338ca; }
         .bg-primary { background-color: var(--primary); }
@@ -110,7 +131,6 @@ $courses = $conn->query("SELECT course_id, courseName FROM courses ORDER BY cour
 
 <div class="ml-64 mt-16 min-h-screen">
     <div class="p-8 max-w-7xl mx-auto">
-
         <div class="mb-10">
             <h1 class="text-4xl font-bold text-gray-800">Manage Batches</h1>
             <p class="text-gray-600 mt-2">Create and manage course batches</p>
@@ -156,12 +176,6 @@ $courses = $conn->query("SELECT course_id, courseName FROM courses ORDER BY cour
         <!-- Add Batch Form -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-10">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Create New Batch</h2>
-            <?php if ($message): ?>
-                <div class="mb-6 px-6 py-4 rounded-lg <?= strpos($message, 'successfully') ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700' ?>">
-                    <?= htmlspecialchars($message) ?>
-                </div>
-            <?php endif; ?>
-
             <form method="POST" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <select name="course_id" required class="px-5 py-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200">
                     <option value="">Select Course</option>
@@ -188,7 +202,7 @@ $courses = $conn->query("SELECT course_id, courseName FROM courses ORDER BY cour
         <!-- Search -->
         <form method="get" class="mb-8">
             <div class="flex gap-4">
-                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search batches or courses..." 
+                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Search batches or courses..."
                        class="flex-1 px-6 py-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-indigo-200 text-lg">
                 <button type="submit" class="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-xl font-semibold transition flex items-center gap-3">
                     <i class="fas fa-search"></i> Search
@@ -230,18 +244,18 @@ $courses = $conn->query("SELECT course_id, courseName FROM courses ORDER BY cour
                                 </td>
                                 <td class="px-8 py-6">
                                     <span class="px-4 py-2 rounded-full text-sm font-bold
-                                        <?= $b['status']=='active' ? 'bg-green-100 text-green-700' : 
+                                        <?= $b['status']=='active' ? 'bg-green-100 text-green-700' :
                                             ($b['status']=='completed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700') ?>">
                                         <?= ucfirst($b['status']) ?>
                                     </span>
                                 </td>
                                 <td class="px-8 py-6 text-center">
-                                    <button onclick='openEdit(<?= json_encode($b) ?>)' 
+                                    <button onclick='openEdit(<?= json_encode($b) ?>)'
                                             class="text-indigo-600 hover:text-indigo-800 font-medium mr-6">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
-                                    <a href="?delete=<?= $b['batch_id'] ?>" 
-                                       onclick="return confirm('Delete this batch and ALL related data?')"
+                                    <a href="?delete=<?= $b['batch_id'] ?>"
+                                       onclick="return confirm('Delete this batch and ALL related data? This cannot be undone.')"
                                        class="text-red-600 hover:text-red-800 font-medium">
                                         <i class="fas fa-trash"></i> Delete
                                     </a>
@@ -290,9 +304,9 @@ $courses = $conn->query("SELECT course_id, courseName FROM courses ORDER BY cour
                 </select>
             </div>
             <div class="flex justify-end gap-4">
-                <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')" 
+                <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')"
                         class="px-8 py-4 border border-gray-300 rounded-xl font-medium hover:bg-gray-50">Cancel</button>
-                <button type="submit" name="update_batch" 
+                <button type="submit" name="update_batch"
                         class="px-8 py-4 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark transition">Update Batch</button>
             </div>
         </form>
@@ -309,6 +323,60 @@ function openEdit(data) {
     document.getElementById('edit-status').value = data.status;
     document.getElementById('editModal').classList.remove('hidden');
 }
+
+// Show modern centered messages after page load
+document.addEventListener("DOMContentLoaded", function() {
+    <?php if (isset($_SESSION['success_msg'])): ?>
+        Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: <?= json_encode($_SESSION['success_msg']) ?>,
+            timer: 2800,
+            showConfirmButton: false,
+            position: 'center',
+            padding: '2.5rem',
+            backdrop: 'rgba(0,0,0,0.65)',
+            customClass: {
+                popup: 'swal2-modern-success'
+            }
+        });
+        <?php unset($_SESSION['success_msg']); ?>
+    <?php endif; ?>
+
+    <?php if (isset($_SESSION['error_msg'])): ?>
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: <?= json_encode($_SESSION['error_msg']) ?>,
+            timer: 4000,
+            showConfirmButton: false,
+            position: 'center',
+            padding: '2.5rem',
+            backdrop: 'rgba(0,0,0,0.65)',
+            customClass: {
+                popup: 'swal2-modern-error'
+            }
+        });
+        <?php unset($_SESSION['error_msg']); ?>
+    <?php endif; ?>
+});
 </script>
+
+<style>
+    .swal2-modern-success {
+        border-radius: 1.25rem !important;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25) !important;
+        background: linear-gradient(to bottom right, #f0fdf4, #ffffff) !important;
+    }
+    .swal2-modern-error {
+        border-radius: 1.25rem !important;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25) !important;
+    }
+    .swal2-icon-success {
+        color: #10b981 !important;
+        border-color: #10b981 !important;
+    }
+</style>
+
 </body>
 </html>
