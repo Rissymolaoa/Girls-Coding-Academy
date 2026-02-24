@@ -284,6 +284,10 @@ $topStudents = array_slice($allStudents, 0, 3);
                     <i class="fas fa-chalkboard-teacher mr-3"></i>
                     Manage Courses
                 </a>
+                  <a href="teacher_schedule_class.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
+                    <i class="fas fa-chalkboard-teacher mr-3"></i>
+                    Online Classes
+                </a>
                                 <a href="schedule_class.php" class="sidebar-link flex items-center text-white py-3 px-4 rounded mb-2">
                     <i class="fas fa-calendar-alt mr-3"></i>
                     Schedule Class

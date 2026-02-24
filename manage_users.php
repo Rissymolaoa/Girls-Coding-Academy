@@ -1,12 +1,10 @@
 <?php
 session_start();
 require_once 'db.php';
-
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.html");
     exit();
 }
-
 $success_message = '';
 $error_message = '';
 
@@ -22,14 +20,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $gender     = $_POST['gender'];
     $dob        = !empty($_POST['dob']) ? $_POST['dob'] : null;
     $IDNumber   = trim($_POST['IDNumber'] ?? '');
-
     // Address fields
     $address1   = trim($_POST['physicalAddress'] ?? '');
     $streetName = trim($_POST['streetName'] ?? '');
     $postalCode = trim($_POST['postalCode'] ?? '');
     $district   = trim($_POST['city'] ?? '');
     $country    = trim($_POST['country'] ?? '');
-
     // Validation
     if (empty($username) || empty($email) || empty($password) || empty($firstName) || empty($lastName) || empty($role)) {
         $error_message = 'All required fields must be filled!';
@@ -41,17 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $check_stmt->bind_param("ss", $username, $email);
         $check_stmt->execute();
         $check_result = $check_stmt->get_result();
-
         if ($check_result->num_rows > 0) {
             $error_message = 'Username or email already exists!';
             $check_stmt->close();
         } else {
             $check_stmt->close();
             $conn->begin_transaction();
-
             try {
                 $address_id = null;
-
                 // Only process address if any field is provided
                 if (!empty($address1) || !empty($streetName) || !empty($postalCode) || !empty($district) || !empty($country)) {
                     $address1   = $address1   ?: null;
@@ -59,7 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $postalCode = $postalCode ?: null;
                     $district   = $district   ?: null;
                     $country    = $country    ?: null;
-
                     // Check if exact address already exists
                     $sql = "SELECT address_id FROM addresses WHERE
                             (address1 IS NULL AND ? IS NULL OR address1 = ?) AND
@@ -67,7 +59,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             (postalCode IS NULL AND ? IS NULL OR postalCode = ?) AND
                             (district IS NULL AND ? IS NULL OR district = ?) AND
                             (country IS NULL AND ? IS NULL OR country = ?)";
-
                     $check_addr = $conn->prepare($sql);
                     $check_addr->bind_param("ssssssssss",
                         $address1, $address1,
@@ -78,7 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     );
                     $check_addr->execute();
                     $result = $check_addr->get_result();
-
                     if ($result->num_rows > 0) {
                         $address_id = $result->fetch_assoc()['address_id'];
                     } else {
@@ -90,12 +80,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     }
                     $check_addr->close();
                 }
-
                 // Insert user
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
                 $user_stmt = $conn->prepare("
-                    INSERT INTO users 
-                    (username, email, password, firstName, lastName, role, phone, gender, dob, IDNumber, address_id, status, created_at) 
+                    INSERT INTO users
+                    (username, email, password, firstName, lastName, role, phone, gender, dob, IDNumber, address_id, status, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
                 ");
                 $user_stmt->bind_param("ssssssssssi",
@@ -105,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $user_stmt->execute();
                 $user_id = $conn->insert_id;
                 $user_stmt->close();
-
                 // Insert into role-specific table
                 if (in_array($role, ['teacher', 'student', 'parent'])) {
                     $table = $role . "s";
@@ -116,10 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $stmt->execute();
                     $stmt->close();
                 }
-
                 $conn->commit();
                 $success_message = 'User added successfully!';
-
             } catch (Exception $e) {
                 $conn->rollback();
                 $error_message = 'Failed to add user: ' . $e->getMessage();
@@ -127,16 +113,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
 }
-
 // Handle toggle status, change role, delete — SAFE ACCESS TO user_id
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] !== 'add_user') {
     $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
-
     if ($user_id <= 0) {
         $error_message = 'Invalid user ID.';
     } else {
         $action = $_POST['action'];
-
         if ($action === 'toggle_status') {
             $stmt = $conn->prepare("UPDATE users SET status = IF(status='active','inactive','active') WHERE user_id = ?");
             $stmt->bind_param("i", $user_id);
@@ -144,7 +127,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $stmt->close();
             $success_message = 'User status updated!';
         }
-
         if ($action === 'change_role') {
             $new_role = $_POST['new_role'] ?? '';
             if (in_array($new_role, ['admin','teacher','parent','student','marketing','accounts'])) {
@@ -155,10 +137,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $success_message = 'User role updated!';
             }
         }
-
         if ($action === 'delete_user') {
             // NEW (soft delete - moves to recycle bin)
-$stmt = $conn->prepare("UPDATE users SET deleted_at = NOW() WHERE user_id = ?");
+            $stmt = $conn->prepare("UPDATE users SET deleted_at = NOW() WHERE user_id = ?");
             $stmt->bind_param("i", $user_id);
             if ($stmt->execute()) {
                 $success_message = 'User deleted successfully!';
@@ -169,14 +150,12 @@ $stmt = $conn->prepare("UPDATE users SET deleted_at = NOW() WHERE user_id = ?");
         }
     }
 }
-
 // Search & Filter
 $search = trim($_GET['search'] ?? '');
 $role_filter = $_GET['role'] ?? '';
 $where = [];
 $params = [];
 $types = "";
-
 if ($search) {
     $where[] = "(username LIKE ? OR firstName LIKE ? OR lastName LIKE ? OR email LIKE ?)";
     $like = "%$search%";
@@ -189,21 +168,18 @@ if ($role_filter && in_array($role_filter, ['admin','teacher','parent','student'
     $types .= "s";
 }
 $where_clause = $where ? "WHERE " . implode(" AND ", $where) : "";
-
 $sql = "SELECT u.user_id, u.username, u.firstName, u.lastName, u.email, u.role, u.status, u.phone, u.gender,
-               COALESCE(t.photo, s.photo, p.photo) as photo
+              COALESCE(t.photo, s.photo, p.photo) as photo
         FROM users u
         LEFT JOIN teachers t ON u.user_id = t.user_id AND u.role = 'teacher'
         LEFT JOIN students s ON u.user_id = s.user_id AND u.role = 'student'
         LEFT JOIN parents p ON u.user_id = p.user_id AND u.role = 'parent'
         $where_clause
         ORDER BY u.role, u.created_at DESC";
-
 $stmt = $conn->prepare($sql);
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $users = $stmt->get_result();
-
 // Statistics
 $stats_query = "SELECT
     COUNT(*) as total_users,
@@ -215,7 +191,6 @@ FROM users";
 $stats_result = $conn->query($stats_query);
 $stats = $stats_result->fetch_assoc();
 ?>
-
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
@@ -224,13 +199,80 @@ $stats = $stats_result->fetch_assoc();
     <title>Manage All Users - Girls Coding Academy</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         .main-content { margin-left: 220px; transition: margin-left 0.3s ease; }
         @media (max-width: 768px) { .main-content { margin-left: 0; } }
         .card-hover:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        /* Loading Screen – White background + centered small logo + rotating ring only */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+        .loaded #loading-screen {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .logo-ring-container {
+            position: relative;
+            width: 90px;
+            height: 90px;
+        }
+        @media (min-width: 768px) {
+            .logo-ring-container {
+                width: 120px;
+                height: 120px;
+            }
+        }
+        .logo-ring-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            animation: pulse 2.8s infinite ease-in-out;
+        }
+        .rotating-ring {
+            position: absolute;
+            inset: -12px;
+            border: 4px solid transparent;
+            border-top-color: #3b82f6;
+            border-right-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 7s linear infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50%      { transform: scale(1.07); }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="h-full bg-gray-50">
+
+<!-- Loading Screen -->
+<div id="loading-screen">
+    <div class="logo-ring-container">
+        <img 
+            src="imageuploads/logo.png" 
+            alt="GCA Logo" 
+            class="rounded-full"
+            onerror="this.src='imageuploads/default_logo.png';"
+        />
+        <div class="rotating-ring"></div>
+    </div>
+</div>
+
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
@@ -258,14 +300,33 @@ $stats = $stats_result->fetch_assoc();
             </div>
 
             <?php if ($success_message): ?>
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-6">
-                    <?= $success_message ?>
-                </div>
+                <script>
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: '<?= addslashes($success_message) ?>',
+                        timer: 3000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end',
+                        customClass: { popup: 'swal2-modern-success' }
+                    });
+                </script>
             <?php endif; ?>
+
             <?php if ($error_message): ?>
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">
-                    <?= $error_message ?>
-                </div>
+                <script>
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: '<?= addslashes($error_message) ?>',
+                        timer: 4000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end',
+                        customClass: { popup: 'swal2-modern-error' }
+                    });
+                </script>
             <?php endif; ?>
 
             <!-- Statistics Cards -->
@@ -329,7 +390,6 @@ $stats = $stats_result->fetch_assoc();
                         <option value="student" <?= $role_filter === 'student' ? 'selected' : '' ?>>Student</option>
                         <option value="marketing" <?= $role_filter === 'marketing' ? 'selected' : '' ?>>Marketing</option>
                         <option value="accounts" <?= $role_filter === 'accounts' ? 'selected' : '' ?>>Finance</option>
-
                     </select>
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-semibold transition flex items-center justify-center gap-3">
                         Filter
@@ -363,57 +423,57 @@ $stats = $stats_result->fetch_assoc();
                                 </thead>
                                 <tbody class="divide-y divide-gray-200">
                                     <?php mysqli_data_seek($users, 0); while ($u = $users->fetch_assoc()): ?>
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4">
-                                            <?php if ($u['photo'] && file_exists($u['photo'])): ?>
-                                                <img src="<?= htmlspecialchars($u['photo']) ?>" class="w-12 h-12 rounded-full object-cover">
-                                            <?php else: ?>
-                                                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                                                    <?= strtoupper(substr($u['firstName'],0,1).substr($u['lastName'],0,1)) ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <a href="view_user_details.php?user_id=<?= $u['user_id'] ?>" class="text-blue-600 hover:text-blue-800 font-semibold hover:underline">
-                                                <?= htmlspecialchars($u['firstName'] . ' ' . $u['lastName']) ?>
-                                            </a>
-                                        </td>
-                                        <td class="px-6 py-4 text-gray-700">@<?= htmlspecialchars($u['username']) ?></td>
-                                        <td class="px-6 py-4 text-gray-700"><?= htmlspecialchars($u['email']) ?></td>
-                                        <td class="px-6 py-4 text-gray-700"><?= htmlspecialchars($u['phone'] ?: '-') ?></td>
-                                        <td class="px-6 py-4">
-                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-bold
-                                                <?= $u['role']=='admin' ? 'bg-red-100 text-red-800' : ($u['role']=='teacher' ? 'bg-blue-100 text-blue-800' : ($u['role']=='parent' ? 'bg-purple-100 text-purple-800' : ($u['role']=='student' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'))) ?>">
-                                                <?= ucfirst($u['role']) ?>
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold <?= $u['status']=='active'?'bg-green-100 text-green-800':'bg-red-100 text-red-800' ?>">
-                                                <?= ucfirst($u['status']) ?>
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <div class="flex gap-2">
-                                                <a href="view_user_details.php?user_id=<?= $u['user_id'] ?>" class="text-blue-600 hover:text-blue-800" title="View">
-                                                    View
+                                        <tr class="hover:bg-gray-50 transition-colors">
+                                            <td class="px-6 py-4">
+                                                <?php if ($u['photo'] && file_exists($u['photo'])): ?>
+                                                    <img src="<?= htmlspecialchars($u['photo']) ?>" class="w-12 h-12 rounded-full object-cover">
+                                                <?php else: ?>
+                                                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                                                        <?= strtoupper(substr($u['firstName'],0,1).substr($u['lastName'],0,1)) ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <a href="view_user_details.php?user_id=<?= $u['user_id'] ?>" class="text-blue-600 hover:text-blue-800 font-semibold hover:underline">
+                                                    <?= htmlspecialchars($u['firstName'] . ' ' . $u['lastName']) ?>
                                                 </a>
-                                                <form method="post" class="inline">
-                                                    <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
-                                                    <input type="hidden" name="action" value="toggle_status">
-                                                    <button type="submit" class="text-gray-600 hover:text-gray-800" title="Toggle Status">
-                                                        Toggle
-                                                    </button>
-                                                </form>
-                                                <form method="post" class="inline" onsubmit="return confirm('Delete this user?')">
-                                                    <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
-                                                    <input type="hidden" name="action" value="delete_user">
-                                                    <button type="submit" class="text-red-600 hover:text-red-800" title="Delete">
-                                                        Delete
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                            </td>
+                                            <td class="px-6 py-4 text-gray-700">@<?= htmlspecialchars($u['username']) ?></td>
+                                            <td class="px-6 py-4 text-gray-700"><?= htmlspecialchars($u['email']) ?></td>
+                                            <td class="px-6 py-4 text-gray-700"><?= htmlspecialchars($u['phone'] ?: '-') ?></td>
+                                            <td class="px-6 py-4">
+                                                <span class="inline-block px-3 py-1 rounded-full text-xs font-bold
+                                                    <?= $u['role']=='admin' ? 'bg-red-100 text-red-800' : ($u['role']=='teacher' ? 'bg-blue-100 text-blue-800' : ($u['role']=='parent' ? 'bg-purple-100 text-purple-800' : ($u['role']=='student' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'))) ?>">
+                                                    <?= ucfirst($u['role']) ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold <?= $u['status']=='active'?'bg-green-100 text-green-800':'bg-red-100 text-red-800' ?>">
+                                                    <?= ucfirst($u['status']) ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="flex gap-2">
+                                                    <a href="view_user_details.php?user_id=<?= $u['user_id'] ?>" class="text-blue-600 hover:text-blue-800" title="View">
+                                                        View
+                                                    </a>
+                                                    <form method="post" class="inline">
+                                                        <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
+                                                        <input type="hidden" name="action" value="toggle_status">
+                                                        <button type="submit" class="text-gray-600 hover:text-gray-800" title="Toggle Status" onclick="return confirmAction('toggle_status', <?= $u['user_id'] ?>)">
+                                                            Toggle
+                                                        </button>
+                                                    </form>
+                                                    <form method="post" class="inline" onsubmit="return confirmAction('delete_user', <?= $u['user_id'] ?>)">
+                                                        <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
+                                                        <input type="hidden" name="action" value="delete_user">
+                                                        <button type="submit" class="text-red-600 hover:text-red-800" title="Delete">
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     <?php endwhile; ?>
                                 </tbody>
                             </table>
@@ -423,67 +483,67 @@ $stats = $stats_result->fetch_assoc();
                     <!-- Grid View -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         <?php mysqli_data_seek($users, 0); while ($u = $users->fetch_assoc()): ?>
-                        <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden card-hover transition-all duration-300">
-                            <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 text-center">
-                                <?php if ($u['photo'] && file_exists($u['photo'])): ?>
-                                    <img src="<?= htmlspecialchars($u['photo']) ?>" class="w-24 h-24 rounded-full mx-auto border-4 border-white shadow-xl object-cover">
-                                <?php else: ?>
-                                    <div class="w-24 h-24 bg-white bg-opacity-20 rounded-full mx-auto flex items-center justify-center text-4xl font-bold">
-                                        <?= strtoupper(substr($u['firstName'],0,1).substr($u['lastName'],0,1)) ?>
-                                    </div>
-                                <?php endif; ?>
-                                <h3 class="text-xl font-bold mt-4"><?= htmlspecialchars($u['firstName'] . ' ' . $u['lastName']) ?></h3>
-                                <p class="text-blue-100">@<?= htmlspecialchars($u['username']) ?></p>
-                            </div>
-                            <div class="p-6 space-y-4">
-                                <div class="text-center">
-                                    <span class="inline-block px-4 py-2 rounded-full text-sm font-bold
-                                        <?= $u['role']=='admin' ? 'bg-red-100 text-red-800' : ($u['role']=='teacher' ? 'bg-blue-100 text-blue-800' : ($u['role']=='parent' ? 'bg-purple-100 text-purple-800' : ($u['role']=='student' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'))) ?>">
-                                        <?= ucfirst($u['role']) ?>
-                                    </span>
-                                </div>
-                                <div class="text-sm text-gray-600 space-y-2">
-                                    <p><strong>Email:</strong> <?= htmlspecialchars($u['email']) ?></p>
-                                    <?php if ($u['phone']): ?>
-                                        <p><strong>Phone:</strong> <?= htmlspecialchars($u['phone']) ?></p>
+                            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden card-hover transition-all duration-300">
+                                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 text-center">
+                                    <?php if ($u['photo'] && file_exists($u['photo'])): ?>
+                                        <img src="<?= htmlspecialchars($u['photo']) ?>" class="w-24 h-24 rounded-full mx-auto border-4 border-white shadow-xl object-cover">
+                                    <?php else: ?>
+                                        <div class="w-24 h-24 bg-white bg-opacity-20 rounded-full mx-auto flex items-center justify-center text-4xl font-bold">
+                                            <?= strtoupper(substr($u['firstName'],0,1).substr($u['lastName'],0,1)) ?>
+                                        </div>
                                     <?php endif; ?>
+                                    <h3 class="text-xl font-bold mt-4"><?= htmlspecialchars($u['firstName'] . ' ' . $u['lastName']) ?></h3>
+                                    <p class="text-blue-100">@<?= htmlspecialchars($u['username']) ?></p>
                                 </div>
-                                <div class="flex items-center justify-center gap-2">
-                                    <span class="text-sm <?= $u['status']=='active'?'text-green-600':'text-red-600' ?> font-medium">
-                                        <?= ucfirst($u['status']) ?>
-                                    </span>
-                                </div>
-                                <a href="view_user_details.php?user_id=<?= $u['user_id'] ?>" class="block w-full bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition text-center">
-                                    View Full Details
-                                </a>
-                                <div class="flex gap-2">
-                                    <form method="post" class="flex-1">
+                                <div class="p-6 space-y-4">
+                                    <div class="text-center">
+                                        <span class="inline-block px-4 py-2 rounded-full text-sm font-bold
+                                            <?= $u['role']=='admin' ? 'bg-red-100 text-red-800' : ($u['role']=='teacher' ? 'bg-blue-100 text-blue-800' : ($u['role']=='parent' ? 'bg-purple-100 text-purple-800' : ($u['role']=='student' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'))) ?>">
+                                            <?= ucfirst($u['role']) ?>
+                                        </span>
+                                    </div>
+                                    <div class="text-sm text-gray-600 space-y-2">
+                                        <p><strong>Email:</strong> <?= htmlspecialchars($u['email']) ?></p>
+                                        <?php if ($u['phone']): ?>
+                                            <p><strong>Phone:</strong> <?= htmlspecialchars($u['phone']) ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="flex items-center justify-center gap-2">
+                                        <span class="text-sm <?= $u['status']=='active'?'text-green-600':'text-red-600' ?> font-medium">
+                                            <?= ucfirst($u['status']) ?>
+                                        </span>
+                                    </div>
+                                    <a href="view_user_details.php?user_id=<?= $u['user_id'] ?>" class="block w-full bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition text-center">
+                                        View Full Details
+                                    </a>
+                                    <div class="flex gap-2">
+                                        <form method="post" class="flex-1">
+                                            <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
+                                            <input type="hidden" name="action" value="toggle_status">
+                                            <button type="submit" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition" onclick="return confirmAction('toggle_status', <?= $u['user_id'] ?>)">
+                                                Toggle
+                                            </button>
+                                        </form>
+                                        <form method="post" class="flex-1" onsubmit="return confirmAction('delete_user', <?= $u['user_id'] ?>)">
+                                            <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
+                                            <input type="hidden" name="action" value="delete_user">
+                                            <button type="submit" class="w-full bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg text-sm font-medium transition">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <form method="post">
                                         <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
-                                        <input type="hidden" name="action" value="toggle_status">
-                                        <button type="submit" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition">
-                                            Toggle
-                                        </button>
-                                    </form>
-                                    <form method="post" class="flex-1" onsubmit="return confirm('Delete this user?')">
-                                        <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
-                                        <input type="hidden" name="action" value="delete_user">
-                                        <button type="submit" class="w-full bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded-lg text-sm font-medium transition">
-                                            Delete
-                                        </button>
+                                        <input type="hidden" name="action" value="change_role">
+                                        <select name="new_role" onchange="this.form.submit()" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                                            <option value="admin" <?= $u['role']=='admin'?'selected':'' ?>>Admin</option>
+                                            <option value="teacher" <?= $u['role']=='teacher'?'selected':'' ?>>Teacher</option>
+                                            <option value="parent" <?= $u['role']=='parent'?'selected':'' ?>>Parent</option>
+                                            <option value="student" <?= $u['role']=='student'?'selected':'' ?>>Student</option>
+                                        </select>
                                     </form>
                                 </div>
-                                <form method="post">
-                                    <input type="hidden" name="user_id" value="<?= $u['user_id'] ?>">
-                                    <input type="hidden" name="action" value="change_role">
-                                    <select name="new_role" onchange="this.form.submit()" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                                        <option value="admin" <?= $u['role']=='admin'?'selected':'' ?>>Admin</option>
-                                        <option value="teacher" <?= $u['role']=='teacher'?'selected':'' ?>>Teacher</option>
-                                        <option value="parent" <?= $u['role']=='parent'?'selected':'' ?>>Parent</option>
-                                        <option value="student" <?= $u['role']=='student'?'selected':'' ?>>Student</option>
-                                    </select>
-                                </form>
                             </div>
-                        </div>
                         <?php endwhile; ?>
                     </div>
                 <?php endif; ?>
@@ -492,7 +552,7 @@ $stats = $stats_result->fetch_assoc();
     </div>
 </div>
 
-<!-- Add User Modal -->
+<!-- Add User Modal (unchanged) -->
 <div id="addUserModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" style="display: none;">
     <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
         <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center rounded-t-lg">
@@ -571,6 +631,101 @@ $stats = $stats_result->fetch_assoc();
         url.searchParams.set('view', view);
         window.location = url;
     }
+
+    // Hide loading screen when ready
+    window.addEventListener('load', function () {
+        document.body.classList.add('loaded');
+    });
+    setTimeout(() => {
+        document.body.classList.add('loaded');
+    }, 5000);
+
+    // SweetAlert2 Confirmation for Status Changes
+    function confirmAction(action, userId) {
+        let title = '';
+        let text = '';
+        let icon = 'warning';
+        let confirmButtonText = 'Yes';
+        let confirmButtonColor = '#10b981';
+
+        switch(action) {
+            case 'approve':
+                title = 'Approve User?';
+                text = 'This will activate the user account.';
+                break;
+            case 'reject':
+                title = 'Reject User?';
+                text = 'This will reject the registration request.';
+                break;
+            case 'waitlist':
+                title = 'Add to Waitlist?';
+                text = 'This will move the user to the waitlist.';
+                break;
+            case 'delete':
+                title = 'Delete User?';
+                text = 'This action cannot be undone!';
+                icon = 'error';
+                confirmButtonText = 'Yes, Delete';
+                confirmButtonColor = '#ef4444';
+                break;
+            case 'toggle_status':
+                title = 'Change Status?';
+                text = 'This will toggle the user between active/inactive.';
+                break;
+            default:
+                return;
+        }
+
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: icon,
+            showCancelButton: true,
+            confirmButtonColor: confirmButtonColor,
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: confirmButtonText,
+            reverseButtons: true,
+            customClass: {
+                popup: 'swal2-modern-confirm',
+                confirmButton: 'px-6 py-3 font-medium rounded-xl',
+                cancelButton: 'px-6 py-3 font-medium rounded-xl'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Perform the action via URL redirect (same as before)
+                window.location.href = `approve_users.php?action=${action}&user_id=${userId}`;
+            }
+        });
+    }
+
+    // Show success/error toasts after redirect
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('success')) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: 'Action completed successfully!',
+                timer: 3000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end',
+                customClass: { popup: 'swal2-modern-success' }
+            });
+        }
+    });
 </script>
+
+<style>
+    .swal2-modern-confirm, .swal2-modern-success {
+        border-radius: 16px !important;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1) !important;
+    }
+    .swal2-modern-success {
+        background: #ecfdf5 !important;
+        color: #065f46 !important;
+    }
+</style>
+
 </body>
 </html>

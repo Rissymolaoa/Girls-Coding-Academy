@@ -1,7 +1,7 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.html"); 
+    header("Location: login.html");
     exit();
 }
 require_once 'db.php';
@@ -144,16 +144,70 @@ $announcements_result = $conn->query("
             background: #f0f7ff;
         }
         .modal-backdrop { background: rgba(0, 0, 0, 0.5); }
+
+        /* Loading Screen Styles */
+        #loading-screen {
+            background: white !important;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+
+        .loaded #loading-screen {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Logo Pulse Animation */
+        @keyframes pulse-slow {
+            0%, 100% { transform: scale(1); }
+            50%      { transform: scale(1.12); }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 2.8s infinite ease-in-out;
+        }
+
+        /* Rotating Ring around Logo */
+        @keyframes spin-ring {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        .ring-rotate {
+            animation: spin-ring 10s linear infinite;
+        }
     </style>
 </head>
-<body>
+<body class="transition-opacity duration-600">
+
+<!-- Loading Screen – White background, centered logo with rotating ring -->
+<div id="loading-screen" class="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
+    <div class="text-center">
+        <!-- Logo Container with Rotating Ring -->
+        <div class="relative inline-block mb-8">
+            <img 
+                src="imageuploads/logo.png" 
+                alt="Girls Coding Academy" 
+                class="w-40 h-40 md:w-48 md:h-48 object-contain rounded-full shadow-2xl ring-8 ring-indigo-100 animate-pulse-slow"
+                onerror="this.src='imageuploads/default_logo.png';"
+            />
+            <!-- Rotating ring effect -->
+            <div class="absolute inset-0 rounded-full border-4 border-t-indigo-500 border-r-indigo-400 border-b-indigo-300 border-l-indigo-200 ring-rotate"></div>
+        </div>
+
+        <!-- Text -->
+        <h2 class="text-3xl md:text-4xl font-bold text-indigo-900 mb-2 tracking-wide">
+            Girls Coding Academy
+        </h2>
+        <p class="text-gray-600 text-lg md:text-xl">
+            Preparing your dashboard...
+        </p>
+    </div>
+</div>
 
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
 <div class="ml-64 mt-16 min-h-screen p-8">
     <div class="max-w-7xl mx-auto">
-
         <!-- Header Section -->
         <div class="mb-12">
             <h1 class="text-4xl font-bold text-gray-900">Dashboard</h1>
@@ -173,7 +227,6 @@ $announcements_result = $conn->query("
                     </div>
                 </div>
             </div>
-
             <div class="card-summary rounded-lg p-6 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
@@ -185,7 +238,6 @@ $announcements_result = $conn->query("
                     </div>
                 </div>
             </div>
-
             <div class="card-summary rounded-lg p-6 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
@@ -197,7 +249,6 @@ $announcements_result = $conn->query("
                     </div>
                 </div>
             </div>
-
             <div class="card-summary rounded-lg p-6 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
@@ -314,7 +365,6 @@ $announcements_result = $conn->query("
                         </a>
                     </div>
                 </div>
-
             </div>
         </div>
 
@@ -329,7 +379,6 @@ $announcements_result = $conn->query("
                     <i class="fas fa-chalkboard-teacher text-3xl text-blue-200"></i>
                 </div>
             </div>
-
             <div class="stats-card rounded-lg p-6 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
@@ -339,7 +388,6 @@ $announcements_result = $conn->query("
                     <i class="fas fa-user-tie text-3xl text-blue-200"></i>
                 </div>
             </div>
-
             <div class="stats-card rounded-lg p-6 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
@@ -349,7 +397,6 @@ $announcements_result = $conn->query("
                     <i class="fas fa-book text-3xl text-blue-200"></i>
                 </div>
             </div>
-
             <div class="stats-card rounded-lg p-6 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
@@ -475,7 +522,6 @@ $announcements_result = $conn->query("
             </h2>
             <p class="text-blue-100 mt-1">You have received payments in the last 24 hours</p>
         </div>
-
         <!-- Modal Body -->
         <div class="p-8 max-h-96 overflow-y-auto">
             <div class="space-y-4">
@@ -498,7 +544,6 @@ $announcements_result = $conn->query("
                 <?php endforeach; ?>
             </div>
         </div>
-
         <!-- Modal Footer -->
         <div class="px-8 py-4 border-t border-gray-200 text-right bg-gray-50 rounded-b-lg">
             <button onclick="closePaymentModal()" class="btn-action rounded-lg px-8 py-3 font-medium">
@@ -524,6 +569,16 @@ $announcements_result = $conn->query("
                 modal.classList.remove('hidden');
             }, 500);
         }
+
+        // Hide loading screen when everything is loaded
+        window.addEventListener('load', function () {
+            document.body.classList.add('loaded');
+        });
+
+        // Safety fallback: hide after 5 seconds max
+        setTimeout(() => {
+            document.body.classList.add('loaded');
+        }, 5000);
     });
 
     // Close modal when clicking outside
@@ -547,7 +602,7 @@ $announcements_result = $conn->query("
         }
     }
     .animate-fade-in {
-        animation: fadeIn 0.3s ease-out;
+        animation: fadeIn 0.8s ease-out;
     }
     #paymentModal:not(.hidden) {
         display: flex;

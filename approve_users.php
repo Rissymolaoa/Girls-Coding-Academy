@@ -1,28 +1,23 @@
 <?php
 session_start();
-
 // Only admin can access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.html");
     exit();
 }
-
 // DB connection
 $host = "localhost:3307";
 $user = "root";
 $pass = "";
 $db   = "girlscodingacademydb";
-
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error . "<br>Tip: Ensure XAMPP MySQL is running and the database exists.");
 }
-
 // Handle actions
 if (isset($_GET['action']) && isset($_GET['user_id'])) {
     $user_id = intval($_GET['user_id']);
     $action = $_GET['action'];
-
     if ($action === "approve") {
         $conn->query("UPDATE users SET status='active' WHERE user_id=$user_id");
     } elseif ($action === "reject") {
@@ -35,13 +30,11 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
     header("Location: approve_users.php");
     exit();
 }
-
 // Fetch users by status
 $pending = $conn->query("SELECT user_id, firstName, lastName, email, created_at FROM users WHERE status='pending'");
 $waitlist = $conn->query("SELECT user_id, firstName, lastName, email, created_at FROM users WHERE status='waitlist'");
 $rejected = $conn->query("SELECT user_id, firstName, lastName, email, created_at FROM users WHERE status='rejected'");
 $recent = $conn->query("SELECT user_id, firstName, lastName, email, updated_at FROM users WHERE status='active' ORDER BY updated_at DESC LIMIT 5");
-
 // Fetch counts for stats
 $totalUsers = $conn->query("SELECT COUNT(*) as total FROM users")->fetch_assoc()['total'];
 $activeUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='active'")->fetch_assoc()['total'];
@@ -58,7 +51,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
   :root {
     --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -71,23 +63,19 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
     --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
   }
-
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     min-height: 100vh;
     padding-top: 56px;
   }
-
   .content {
     min-height: calc(100vh - 56px);
     transition: all 0.3s ease;
   }
-
   .main {
     padding: 2rem 2rem 2rem 1rem;
   }
-
   .section-card {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -97,7 +85,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     box-shadow: var(--shadow-md);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
-
   .section-card h2 {
     font-size: 1.5rem;
     font-weight: 700;
@@ -108,11 +95,9 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-
   .table {
     margin-bottom: 0;
   }
-
   .table th {
     background: var(--primary-gradient);
     color: white;
@@ -120,17 +105,14 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     font-weight: 600;
     padding: 1rem;
   }
-
   .table td {
     padding: 1rem;
     vertical-align: middle;
     border-color: rgba(0,0,0,0.05);
   }
-
   .table-hover tbody tr:hover {
     background-color: rgba(102, 126, 234, 0.05);
   }
-
   .btn {
     padding: 0.5rem 1rem;
     text-decoration: none;
@@ -142,30 +124,25 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     margin: 0 0.25rem;
     display: inline-block;
   }
-
   .btn-success { background: var(--success-gradient); }
   .btn-danger { background: var(--danger-gradient); }
   .btn-warning { background: var(--warning-gradient); }
-
   .btn:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-sm);
   }
-
   .no-data {
     text-align: center;
     color: #6b7280;
     font-style: italic;
     padding: 2rem;
   }
-
   .stats-section {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     margin-bottom: 2rem;
   }
-
   .stat-card {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -176,26 +153,22 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     border: 1px solid rgba(255, 255, 255, 0.2);
     transition: all 0.3s ease;
   }
-
   .stat-card:hover {
     transform: translateY(-5px);
     box-shadow: var(--shadow-lg);
   }
-
   .stat-card h6 {
     margin: 0;
     font-size: 0.95rem;
     color: #6b7280;
     font-weight: 600;
   }
-
   .stat-card p {
     margin: 0;
     font-size: 2rem;
     font-weight: 700;
     color: #1f2937;
   }
-
   .charts-section {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -205,20 +178,17 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     border: 1px solid rgba(255, 255, 255, 0.2);
     margin-bottom: 2rem;
   }
-
   .charts-section h2 {
     font-size: 1.5rem;
     font-weight: 700;
     color: #1f2937;
     margin-bottom: 1.5rem;
   }
-
   .chart-container {
     position: relative;
     height: 300px;
     margin-bottom: 2rem;
   }
-
   footer {
     background: rgba(31, 41, 55, 0.8);
     color: #fff;
@@ -227,7 +197,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     margin-top: 2rem;
     border-radius: 16px 16px 0 0;
   }
-
   /* Enhanced Sidebar Styles - Adjusted for Dashboard */
   .sidebar {
     width: 280px;
@@ -242,7 +211,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
     box-shadow: 4px 0 15px rgba(0,0,0,0.2);
     z-index: 1030;
   }
-
   @media (min-width: 992px) {
     .main {
       padding-left: 1rem;
@@ -252,7 +220,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
       margin-left: 280px;
     }
   }
-
   @media (max-width: 991px) {
     .sidebar {
       top: 0;
@@ -266,7 +233,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
       padding: 1rem;
     }
   }
-
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .stats-section {
@@ -274,9 +240,85 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
       gap: 1rem;
     }
   }
+
+  /* ────────────────────────────────────────────────
+     LOADING SCREEN – White + centered logo + rotating ring
+  ──────────────────────────────────────────────── */
+  #loading-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+
+  .loaded #loading-screen {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .logo-ring-container {
+    position: relative;
+    width: 90px;
+    height: 90px;
+  }
+
+  @media (min-width: 768px) {
+    .logo-ring-container {
+      width: 120px;
+      height: 120px;
+    }
+  }
+
+  .logo-ring-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    animation: pulse 2.8s infinite ease-in-out;
+  }
+
+  .rotating-ring {
+    position: absolute;
+    inset: -12px;
+    border: 4px solid transparent;
+    border-top-color: #3b82f6;
+    border-right-color: #60a5fa;
+    border-radius: 50%;
+    animation: spin 7s linear infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.07); }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
 </style>
 </head>
 <body>
+
+<!-- Loading Screen – White background + centered small logo + rotating ring only -->
+<div id="loading-screen">
+    <div class="logo-ring-container">
+        <img 
+            src="imageuploads/logo.png" 
+            alt="GCA Logo" 
+            class="rounded-full"
+            onerror="this.src='imageuploads/default_logo.png';"
+        />
+        <div class="rotating-ring"></div>
+    </div>
+</div>
+
 <?php include 'top_navigation.php'; ?>
 <?php include 'admin_navigation.php'; ?>
 
@@ -304,7 +346,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
         <p><?= $activeUsers ?></p>
       </div>
     </div>
-
     <div class="row">
       <div class="col-lg-8">
         <div class="section-card">
@@ -340,7 +381,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
             <p class="no-data">No users awaiting approval.</p>
           <?php } ?>
         </div>
-
         <div class="section-card">
           <h2>Waiting List</h2>
           <?php if ($waitlist->num_rows > 0) { ?>
@@ -373,7 +413,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
             <p class="no-data">No waitlisted users.</p>
           <?php } ?>
         </div>
-
         <div class="section-card">
           <h2>Rejections</h2>
           <?php if ($rejected->num_rows > 0) { ?>
@@ -406,7 +445,6 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
             <p class="no-data">No rejected users.</p>
           <?php } ?>
         </div>
-
         <div class="section-card">
           <h2>Recent Approvals</h2>
           <?php if ($recent->num_rows > 0) { ?>
@@ -465,15 +503,14 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
         borderSkipped: false,
       }]
     },
-    options: { 
-      responsive: true, 
+    options: {
+      responsive: true,
       plugins: { legend: { display: false } },
       scales: {
         y: { beginAtZero: true }
       }
     }
   });
-
   const pieCtx = document.getElementById('pieChart').getContext('2d');
   const pieChart = new Chart(pieCtx, {
     type: 'doughnut',
@@ -485,11 +522,24 @@ $pendingUsers = $conn->query("SELECT COUNT(*) as total FROM users WHERE status='
         borderWidth: 0,
       }]
     },
-    options: { 
+    options: {
       responsive: true,
       cutout: '50%'
     }
   });
 </script>
+
+<!-- Hide loading screen when ready -->
+<script>
+    window.addEventListener('load', function () {
+        document.body.classList.add('loaded');
+    });
+
+    // Safety fallback: hide after 5 seconds max
+    setTimeout(() => {
+        document.body.classList.add('loaded');
+    }, 5000);
+</script>
+
 </body>
 </html>
